@@ -2,6 +2,12 @@
 
 *It's [fast][benchmarks] on my machine.*
 
+Installation:
+
+```bash
+cargo install yadf --features build-bin
+```
+
 CLI Usage:
 
 ```
