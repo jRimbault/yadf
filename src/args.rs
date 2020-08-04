@@ -77,9 +77,17 @@ impl Default for Format {
     }
 }
 
+#[cfg(target_feature = "avx2")]
 impl Default for Algorithm {
     fn default() -> Self {
         Self::Highway
+    }
+}
+
+#[cfg(not(target_feature = "avx2"))]
+impl Default for Algorithm {
+    fn default() -> Self {
+        Self::XxHash
     }
 }
 
