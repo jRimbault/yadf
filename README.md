@@ -49,8 +49,4 @@ for duplicates in files_counter.duplicates() {
 }
 ```
 
-Building (with or without `--release`):
-- the library: `cargo build`.
-- the executable: `cargo build --features build-bin`.
-
 [benchmarks]: bench.md
