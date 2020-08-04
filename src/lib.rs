@@ -26,5 +26,5 @@ pub fn find_dupes<H>(dir: &Path, min_max_file_size: Option<(u64, u64)>) -> TreeB
 where
     H: Hasher + Default,
 {
-    fs::dedupe::<H>(fs::find_dupes_partial::<H>(dir, min_max_file_size))
+    fs::find_dupes_by_size::<H>(dir, min_max_file_size)
 }

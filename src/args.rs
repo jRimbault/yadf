@@ -12,9 +12,6 @@ pub struct Args {
     /// output format `standard`, `json`, `json_pretty`, `fdupes` or `machine`
     #[structopt(short, long, default_value)]
     format: Format,
-    /// print human readable report to stderr
-    #[structopt(short, long)]
-    report: bool,
     /// hashing algorithm
     #[structopt(short, long, default_value)]
     algorithm: Algorithm,
@@ -51,10 +48,6 @@ impl Args {
 
     pub fn format(&self) -> &Format {
         &self.format
-    }
-
-    pub fn report(&self) -> bool {
-        self.report
     }
 
     pub fn algorithm(&self) -> &Algorithm {

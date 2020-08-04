@@ -45,6 +45,7 @@ mod tests {
 
     #[test]
     #[cfg(not(windows))]
+    #[ignore]
     fn basic() {
         let bag = crate::find_dupes::<seahash::SeaHasher>("./tests/static".as_ref(), None);
         let report = Report::from(&bag).to_string();

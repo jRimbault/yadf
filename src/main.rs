@@ -7,7 +7,7 @@ use seahash::SeaHasher;
 use std::io;
 use structopt::StructOpt;
 use twox_hash::XxHash64;
-use yadf::{Fdupes, Machine, Report};
+use yadf::{Fdupes, Machine};
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
@@ -30,8 +30,4 @@ fn main() {
         Format::Fdupes => print!("{}", counter.display::<Fdupes>()),
         Format::Machine => print!("{}", counter.display::<Machine>()),
     };
-    if args.report() {
-        let report = Report::from(&counter);
-        eprintln!("{}", report);
-    }
 }
