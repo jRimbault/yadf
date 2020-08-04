@@ -5,7 +5,7 @@
 Installation:
 
 ```bash
-cargo install yadf --features build-bin
+cargo install yadf
 ```
 
 CLI Usage:
