@@ -7,7 +7,7 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 pub struct Args {
     /// directory to search
-    #[structopt(default_value = ".")]
+    #[structopt(default_value = ".", parse(from_os_str))]
     path: PathBuf,
     /// output format `standard`, `json`, `json_pretty`, `fdupes` or `machine`
     #[structopt(short, long, default_value)]
