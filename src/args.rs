@@ -7,7 +7,7 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 pub struct Args {
     /// directory to search
-    #[structopt(default_value = ".")]
+    #[structopt(default_value = ".", parse(from_os_str))]
     path: PathBuf,
     /// output format `standard`, `json`, `json_pretty`, `fdupes` or `machine`
     #[structopt(short, long, default_value)]
@@ -70,9 +70,17 @@ impl Default for Format {
     }
 }
 
+#[cfg(target_feature = "avx2")]
 impl Default for Algorithm {
     fn default() -> Self {
         Self::Highway
+    }
+}
+
+#[cfg(not(target_feature = "avx2"))]
+impl Default for Algorithm {
+    fn default() -> Self {
+        Self::XxHash
     }
 }
 
