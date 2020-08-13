@@ -9,7 +9,8 @@ hyperfine --warmup 1 \
   "jdupes -r ~" \
   "ddh ~" \
   "rmlint --hidden ~" \
-  "fddf ~" \
+  "dupe-krill -s -d ~" \
+  "fddf ~"
 
 {
   rm Results.txt rmlint.* || true
