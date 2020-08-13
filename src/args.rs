@@ -1,33 +1,5 @@
-use byte_unit::Byte;
+use super::Args;
 use std::fmt;
-use std::path::{Path, PathBuf};
-use structopt::StructOpt;
-
-/// Yet Another Dupes Finder
-#[derive(StructOpt, Debug)]
-pub struct Args {
-    /// directory to search
-    #[structopt(default_value = ".", parse(from_os_str))]
-    path: PathBuf,
-    /// output format `standard`, `json`, `json_pretty`, `fdupes` or `machine`
-    #[structopt(short, long, default_value)]
-    format: Format,
-    /// print human readable report to stderr
-    #[structopt(short, long)]
-    report: bool,
-    /// hashing algorithm
-    #[structopt(short, long, default_value)]
-    algorithm: Algorithm,
-    /// exclude empty files
-    #[structopt(short, long)]
-    no_empty: bool,
-    /// minimum file size (default 0 byte)
-    #[structopt(long)]
-    min: Option<Byte>,
-    /// maximum file size (default no maximum)
-    #[structopt(long)]
-    max: Option<Byte>,
-}
 
 #[derive(Debug)]
 pub enum Format {
@@ -45,22 +17,6 @@ pub enum Algorithm {
 }
 
 impl Args {
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
-
-    pub fn format(&self) -> &Format {
-        &self.format
-    }
-
-    pub fn report(&self) -> bool {
-        self.report
-    }
-
-    pub fn algorithm(&self) -> &Algorithm {
-        &self.algorithm
-    }
-
     pub fn file_constraints(&self) -> Option<(u64, u64)> {
         Some((
             self.min
