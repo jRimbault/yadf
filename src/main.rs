@@ -40,7 +40,7 @@ pub struct Args {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::from_args();
-    let min_max_file_size = args.file_constraints();
+    let min_max_file_size = file_constraints(&args);
     let counter = match args.algorithm {
         Algorithm::SeaHash => yadf::find_dupes::<SeaHasher>(&args.path, min_max_file_size),
         Algorithm::XxHash => yadf::find_dupes::<XxHash64>(&args.path, min_max_file_size),
@@ -61,5 +61,81 @@ fn main() {
     if args.report {
         let report = Report::from(&counter);
         eprintln!("{}", report);
+    }
+}
+
+fn file_constraints(args: &Args) -> Option<(u64, u64)> {
+    Some((
+        args.min
+            .map(|m| m.get_bytes() as _)
+            .unwrap_or(if args.no_empty { 1 } else { u64::MIN }),
+        args.max.map(|m| m.get_bytes() as _).unwrap_or(u64::MAX),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    mod constraints {
+        use super::super::*;
+
+        #[test]
+        fn default() {
+            let args = Args {
+                path: Default::default(),
+                format: Default::default(),
+                algorithm: Default::default(),
+                report: Default::default(),
+                no_empty: false,
+                min: None,
+                max: None,
+            };
+            let constraints = file_constraints(&args);
+            assert_eq!(constraints, Some((u64::MIN, u64::MAX)));
+        }
+
+        #[test]
+        fn no_empty() {
+            let args = Args {
+                path: Default::default(),
+                format: Default::default(),
+                algorithm: Default::default(),
+                report: Default::default(),
+                no_empty: true,
+                min: None,
+                max: None,
+            };
+            let constraints = file_constraints(&args);
+            assert_eq!(constraints, Some((1, u64::MAX)));
+        }
+
+        #[test]
+        fn min_one_kibibyte_and_half() {
+            let args = Args {
+                path: Default::default(),
+                format: Default::default(),
+                algorithm: Default::default(),
+                report: Default::default(),
+                no_empty: false,
+                min: Some("1.5kib".parse().unwrap()),
+                max: None,
+            };
+            let constraints = file_constraints(&args);
+            assert_eq!(constraints, Some((1536, u64::MAX)));
+        }
+
+        #[test]
+        fn max_block_size() {
+            let args = Args {
+                path: Default::default(),
+                format: Default::default(),
+                algorithm: Default::default(),
+                report: Default::default(),
+                no_empty: true,
+                min: None,
+                max: Some("4ki".parse().unwrap()),
+            };
+            let constraints = file_constraints(&args);
+            assert_eq!(constraints, Some((1, 4096)));
+        }
     }
 }

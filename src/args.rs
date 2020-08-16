@@ -1,4 +1,3 @@
-use super::Args;
 use std::fmt;
 
 #[derive(Debug)]
@@ -14,17 +13,6 @@ pub enum Algorithm {
     Highway,
     SeaHash,
     XxHash,
-}
-
-impl Args {
-    pub fn file_constraints(&self) -> Option<(u64, u64)> {
-        Some((
-            self.min
-                .map(|m| m.get_bytes() as _)
-                .unwrap_or(if self.no_empty { 1 } else { 0 }),
-            self.max.map(|m| m.get_bytes() as _).unwrap_or(u64::MAX),
-        ))
-    }
 }
 
 impl Default for Format {
