@@ -2,7 +2,7 @@
 //!
 //! # Examples :
 //!
-//! ```
+//! ```ignore
 //! use yadf::fs::hash::FsHasher;
 //! let hasher: FsHasher<seahash::SeaHasher> = Default::default();
 //! let cargo_toml_hash = hasher.partial("./Cargo.toml").unwrap();

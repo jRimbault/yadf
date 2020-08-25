@@ -4,7 +4,7 @@
 //!
 //! Find, display, and report, all the duplicate files at the given path :
 //!
-//! ```
+//! ```ignore
 //! let files_counter = yadf::find_dupes::<twox_hash::XxHash64>(".".as_ref(), None);
 //! print!("{}", files_counter.display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&files_counter));

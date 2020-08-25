@@ -76,7 +76,7 @@ impl std::str::FromStr for Format {
             Self::JSON_PRETTY => Ok(Self::JsonPretty),
             Self::MACHINE => Ok(Self::Machine),
             _ => Err(format!(
-                "can only be [standard|json|json_pretty|machine|fdupes], found: {:?}",
+                "can only be json, json_pretty, machine, or fdupes, found: {:?}",
                 s
             )),
         }
@@ -108,9 +108,64 @@ impl std::str::FromStr for Algorithm {
             Self::SEAHASH => Ok(Self::SeaHash),
             Self::XXHASH => Ok(Self::XxHash),
             _ => Err(format!(
-                "can only be [seahash|xxhash|highway], found: {:?}",
+                "can only be seahash, xxhash, or highway, found: {:?}",
                 s
             )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod constraints {
+        use super::super::*;
+
+        #[test]
+        fn default() {
+            let args = Args {
+                no_empty: false,
+                min: None,
+                max: None,
+                ..Args::default()
+            };
+            let constraints = args.file_constraints();
+            assert_eq!(constraints, Some((u64::MIN, u64::MAX)));
+        }
+
+        #[test]
+        fn no_empty() {
+            let args = Args {
+                no_empty: true,
+                min: None,
+                max: None,
+                ..Args::default()
+            };
+            let constraints = args.file_constraints();
+            assert_eq!(constraints, Some((1, u64::MAX)));
+        }
+
+        #[test]
+        fn min_one_kibibyte_and_half() {
+            let args = Args {
+                no_empty: false,
+                min: Some("1.5kib".parse().unwrap()),
+                max: None,
+                ..Args::default()
+            };
+            let constraints = args.file_constraints();
+            assert_eq!(constraints, Some((1536, u64::MAX)));
+        }
+
+        #[test]
+        fn max_block_size() {
+            let args = Args {
+                no_empty: true,
+                min: None,
+                max: Some("4ki".parse().unwrap()),
+                ..Args::default()
+            };
+            let constraints = args.file_constraints();
+            assert_eq!(constraints, Some((1, 4096)));
         }
     }
 }

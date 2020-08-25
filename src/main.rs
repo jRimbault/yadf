@@ -12,7 +12,7 @@ use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Default)]
 pub struct Args {
     /// directory to search
     #[structopt(default_value = ".", parse(from_os_str))]
