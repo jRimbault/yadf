@@ -8,17 +8,19 @@
 #
 # dupe-krill skips file smaller than the block size, hence the -s flag,
 # and will hardlinks files together, hence the --dry-run flag
+#
+# fddf ignores zero length files
 
 hyperfine --warmup 1 \
   --min-runs 10 \
   --export-csv bench.csv \
   --prepare "rm Results.txt rmlint.* || true" \
   "fdupes -r ~" \
-  "jdupes -r ~" \
+  "jdupes -z -r ~" \
   "rmlint --hidden ~" \
   "ddh ~" \
   "dupe-krill -s -d ~" \
-  "fddf ~" \
+  "fddf -m 0 ~" \
   "yadf ~"
 
 {
