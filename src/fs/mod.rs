@@ -26,18 +26,23 @@ where
     H: Hasher + Default,
 {
     let (min, max) = min_max_file_size.unwrap_or((0, u64::MAX));
-    walker(&dir, |result| {
-        let entry = result.map_err(|_| ())?;
-        let meta = fs::symlink_metadata(entry.path()).map_err(|_| ())?;
-        let len = meta.len();
-        if meta.is_file() && len >= min && len <= max {
-            let hasher: FsHasher<H> = Default::default();
-            if let Ok(hash) = hasher.partial(entry.path()) {
-                return Ok((hash, DirEntry(entry)));
+
+    ignore::WalkBuilder::new(&dir)
+        .standard_filters(false)
+        .build_parallel()
+        .map(|entry| {
+            let meta = fs::symlink_metadata(entry.path()).map_err(|_| ())?;
+            let len = meta.len();
+            if meta.is_file() && len >= min && len <= max {
+                let hasher: FsHasher<H> = Default::default();
+                if let Ok(hash) = hasher.partial(entry.path()) {
+                    return Ok((hash, DirEntry(entry)));
+                }
             }
-        }
-        Err(())
-    })
+            Err(())
+        })
+        .filter_map(Result::ok)
+        .collect()
 }
 
 pub(crate) fn dedupe<H>(counter: TreeBag<u64, DirEntry>) -> TreeBag<u64, DirEntry>
@@ -69,24 +74,31 @@ where
     receiver.into_iter().collect()
 }
 
-fn walker<P: AsRef<Path>, A, I, E, B>(path: &P, walker_fn: A) -> B
-where
-    A: Fn(Result<ignore::DirEntry, ignore::Error>) -> Result<I, E>,
-    A: Send + Copy,
-    B: std::iter::FromIterator<I>,
-    I: Send,
-    E: Send,
-{
-    let (sender, receiver) = mpsc::channel();
-    ignore::WalkBuilder::new(&path)
-        .standard_filters(false)
-        .build_parallel()
-        .run(move || {
+trait WalkParallelMap {
+    fn map<F, I>(self, fnmap: F) -> mpsc::IntoIter<I>
+    where
+        F: Fn(ignore::DirEntry) -> I,
+        F: Send + Copy,
+        I: Send;
+}
+
+impl WalkParallelMap for ignore::WalkParallel {
+    fn map<F, I>(self, fnmap: F) -> mpsc::IntoIter<I>
+    where
+        F: Fn(ignore::DirEntry) -> I,
+        F: Send + Copy,
+        I: Send,
+    {
+        let (sender, receiver) = mpsc::channel();
+        self.run(move || {
             let sender = sender.clone();
             Box::new(move |result| {
-                sender.send(walker_fn(result)).unwrap();
+                if let Ok(entry) = result {
+                    sender.send(fnmap(entry)).unwrap();
+                }
                 ignore::WalkState::Continue
             })
         });
-    receiver.iter().filter_map(Result::ok).collect()
+        receiver.into_iter()
+    }
 }
