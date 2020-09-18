@@ -22,7 +22,7 @@ where
     H: Hasher + Default,
 {
     /// Get a checksum of the first 4 KiB (at most) of a file.
-    pub fn partial<P: AsRef<Path>>(&self, path: P) -> io::Result<u64> {
+    pub fn partial<P: AsRef<Path>>(self, path: P) -> io::Result<u64> {
         let mut file = File::open(path)?;
         let mut buffer = [0u8; BLOCK_SIZE];
         let mut n = 0;
@@ -40,7 +40,7 @@ where
     }
 
     /// Get a complete checksum of a file.
-    pub fn full<P: AsRef<Path>>(&self, path: P) -> io::Result<u64> {
+    pub fn full<P: AsRef<Path>>(self, path: P) -> io::Result<u64> {
         let mut file = File::open(path)?;
         let mut hasher = H::default();
         let mut buffer = [0u8; BLOCK_SIZE * 4];
