@@ -11,41 +11,41 @@ Output of [`bench.sh`](bench.sh):
 
 ```
 Benchmark #1: fdupes -r ~
-  Time (mean ± σ):     57.283 s ±  0.153 s    [User: 25.219 s, System: 32.011 s]
-  Range (min … max):   57.013 s … 57.496 s    10 runs
+  Time (mean ± σ):     62.750 s ±  0.340 s    [User: 28.247 s, System: 34.419 s]
+  Range (min … max):   62.059 s … 63.133 s    10 runs
 
 Benchmark #2: jdupes -z -r ~
-  Time (mean ± σ):      9.986 s ±  0.040 s    [User: 4.963 s, System: 4.968 s]
-  Range (min … max):    9.899 s … 10.045 s    10 runs
+  Time (mean ± σ):     11.151 s ±  0.032 s    [User: 5.675 s, System: 5.406 s]
+  Range (min … max):   11.106 s … 11.201 s    10 runs
 
 Benchmark #3: rmlint --hidden ~
-  Time (mean ± σ):     15.354 s ±  0.055 s    [User: 40.894 s, System: 15.305 s]
-  Range (min … max):   15.264 s … 15.433 s    10 runs
+  Time (mean ± σ):     16.370 s ±  0.040 s    [User: 44.962 s, System: 15.873 s]
+  Range (min … max):   16.294 s … 16.407 s    10 runs
 
 Benchmark #4: ddh ~
-  Time (mean ± σ):      9.454 s ±  0.071 s    [User: 34.400 s, System: 27.332 s]
-  Range (min … max):    9.356 s …  9.569 s    10 runs
+  Time (mean ± σ):     10.080 s ±  0.125 s    [User: 36.864 s, System: 28.908 s]
+  Range (min … max):    9.869 s … 10.211 s    10 runs
 
 Benchmark #5: dupe-krill -s -d ~
-  Time (mean ± σ):      7.919 s ±  0.062 s    [User: 5.002 s, System: 2.880 s]
-  Range (min … max):    7.857 s …  8.063 s    10 runs
+  Time (mean ± σ):      8.820 s ±  0.087 s    [User: 5.618 s, System: 3.158 s]
+  Range (min … max):    8.712 s …  8.961 s    10 runs
 
 Benchmark #6: fddf -m 0 ~
-  Time (mean ± σ):      5.076 s ±  0.031 s    [User: 9.800 s, System: 12.766 s]
-  Range (min … max):    5.026 s …  5.114 s    10 runs
+  Time (mean ± σ):      5.309 s ±  0.056 s    [User: 10.526 s, System: 13.561 s]
+  Range (min … max):    5.216 s …  5.373 s    10 runs
 
 Benchmark #7: yadf ~
-  Time (mean ± σ):      3.755 s ±  0.019 s    [User: 6.158 s, System: 7.101 s]
-  Range (min … max):    3.732 s …  3.796 s    10 runs
+  Time (mean ± σ):      2.944 s ±  0.015 s    [User: 9.975 s, System: 12.670 s]
+  Range (min … max):    2.930 s …  2.978 s    10 runs
 
 Summary
   'yadf ~' ran
-    1.35 ± 0.01 times faster than 'fddf -m 0 ~'
-    2.11 ± 0.02 times faster than 'dupe-krill -s -d ~'
-    2.52 ± 0.02 times faster than 'ddh ~'
-    2.66 ± 0.02 times faster than 'jdupes -z -r ~'
-    4.09 ± 0.03 times faster than 'rmlint --hidden ~'
-   15.25 ± 0.09 times faster than 'fdupes -r ~'
+    1.80 ± 0.02 times faster than 'fddf -m 0 ~'
+    3.00 ± 0.03 times faster than 'dupe-krill -s -d ~'
+    3.42 ± 0.05 times faster than 'ddh ~'
+    3.79 ± 0.02 times faster than 'jdupes -z -r ~'
+    5.56 ± 0.03 times faster than 'rmlint --hidden ~'
+   21.32 ± 0.16 times faster than 'fdupes -r ~'
 ```
 
 Results as a csv [table](bench.csv).

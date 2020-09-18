@@ -26,9 +26,9 @@ where
     H: Hasher + Default,
 {
     let (min, max) = min_max_file_size.unwrap_or((0, u64::MAX));
-
     ignore::WalkBuilder::new(&dir)
         .standard_filters(false)
+        .threads(num_cpus::get() - 1)
         .build_parallel()
         .map(|entry| {
             let meta = fs::symlink_metadata(entry.path()).map_err(|_| ())?;

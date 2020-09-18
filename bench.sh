@@ -13,7 +13,6 @@
 
 hyperfine --warmup 1 \
   --min-runs 10 \
-  --export-csv bench.csv \
   --prepare "rm Results.txt rmlint.* || true" \
   "fdupes -r ~" \
   "jdupes -z -r ~" \
