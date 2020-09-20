@@ -87,6 +87,11 @@ jobs:
         rust: [stable, nightly]
     steps:
       - uses: actions/checkout@v2
+      - name: Fix MacOS env
+        if: matrix.os == 'macos-latest'
+        run: |
+          # gnu tar for cache issue
+          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
       - uses: actions/cache@v2
         with:
           path: |
@@ -95,9 +100,6 @@ jobs:
             target
           key: tests-${{ runner.os }}-${{ matrix.rust }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
-        # sometimes the cache on macos can be flaky, I want this to run even if the
-        # the cache step failed
-        if: ${{ always() }}
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
