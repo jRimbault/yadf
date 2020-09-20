@@ -91,6 +91,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           # gnu tar for cache issue
+          brew install gnu-tar
           echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
       - uses: actions/cache@v2
         with:
