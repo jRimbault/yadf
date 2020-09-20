@@ -29,7 +29,7 @@ where
 {
     let (first, rest) = dir.split_first().unwrap();
     ignore::WalkBuilder::new(first)
-        .add_paths(rest.into_iter())
+        .add_paths(rest.iter())
         .standard_filters(false)
         .threads(num_cpus::get())
         .build_parallel()
