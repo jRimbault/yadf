@@ -17,13 +17,13 @@ pub enum Algorithm {
 }
 
 impl Args {
-    pub fn file_constraints(&self) -> Option<(u64, u64)> {
-        Some((
+    pub fn file_constraints(&self) -> (Option<u64>, Option<u64>) {
+        (
             self.min
                 .map(|m| m.get_bytes() as _)
-                .unwrap_or(if self.no_empty { 1 } else { 0 }),
-            self.max.map(|m| m.get_bytes() as _).unwrap_or(u64::MAX),
-        ))
+                .or(Some(if self.no_empty { 1 } else { 0 })),
+            self.max.map(|m| m.get_bytes() as _).or(Some(u64::MAX)),
+        )
     }
 }
 
@@ -129,7 +129,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, Some((u64::MIN, u64::MAX)));
+            assert_eq!(constraints, (Some(u64::MIN), Some(u64::MAX)));
         }
 
         #[test]
@@ -141,7 +141,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, Some((1, u64::MAX)));
+            assert_eq!(constraints, (Some(1), Some(u64::MAX)));
         }
 
         #[test]
@@ -153,7 +153,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, Some((1536, u64::MAX)));
+            assert_eq!(constraints, (Some(1536), Some(u64::MAX)));
         }
 
         #[test]
@@ -165,7 +165,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, Some((1, 4096)));
+            assert_eq!(constraints, (Some(1), Some(4096)));
         }
     }
 }

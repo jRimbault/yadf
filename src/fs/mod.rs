@@ -18,26 +18,35 @@ const BLOCK_SIZE: usize = 4096;
 /// Foundation of the API.
 /// This will attemps a naive scan of every file,
 /// within the given size constraints, at the given path.
-pub(crate) fn find_dupes_partial<H>(
-    dir: &Path,
-    min_max_file_size: Option<(u64, u64)>,
+pub(crate) fn find_dupes_partial<H, P>(
+    dir: &[P],
+    min: Option<u64>,
+    max: Option<u64>,
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
+    P: AsRef<Path>,
 {
-    let (min, max) = min_max_file_size.unwrap_or((0, u64::MAX));
-    ignore::WalkBuilder::new(&dir)
+    let (first, rest) = dir.split_first().unwrap();
+    ignore::WalkBuilder::new(first)
+        .add_paths(rest.into_iter())
         .standard_filters(false)
-        .threads(num_cpus::get() - 1)
+        .threads(num_cpus::get())
         .build_parallel()
         .map(|entry| {
             let meta = fs::symlink_metadata(entry.path()).map_err(|_| ())?;
-            let len = meta.len();
-            if meta.is_file() && len >= min && len <= max {
-                let hasher: FsHasher<H> = Default::default();
-                if let Ok(hash) = hasher.partial(entry.path()) {
-                    return Ok((hash, DirEntry(entry)));
-                }
+            if !meta.is_file() {
+                return Err(());
+            }
+            if min.map_or(false, |m| meta.len() < m) {
+                return Err(());
+            }
+            if max.map_or(false, |m| meta.len() > m) {
+                return Err(());
+            }
+            let hasher: FsHasher<H> = Default::default();
+            if let Ok(hash) = hasher.partial(entry.path()) {
+                return Ok((hash, DirEntry(entry)));
             }
             Err(())
         })
@@ -100,5 +109,25 @@ impl WalkParallelMap for ignore::WalkParallel {
             })
         });
         receiver.into_iter()
+    }
+}
+
+trait WalkBuilderAddPaths {
+    fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
+    where
+        P: AsRef<Path>,
+        I: Iterator<Item = P>;
+}
+
+impl WalkBuilderAddPaths for ignore::WalkBuilder {
+    fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
+    where
+        P: AsRef<Path>,
+        I: Iterator<Item = P>,
+    {
+        for path in paths {
+            self.add(path);
+        }
+        self
     }
 }

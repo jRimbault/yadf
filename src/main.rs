@@ -6,7 +6,7 @@ use byte_unit::Byte;
 use highway::HighwayHasher;
 use seahash::SeaHasher;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
@@ -14,25 +14,33 @@ use yadf::{Fdupes, Machine, Report};
 /// Yet Another Dupes Finder
 #[derive(StructOpt, Debug, Default)]
 pub struct Args {
-    /// directory to search
-    #[structopt(default_value = ".", parse(from_os_str))]
-    path: PathBuf,
-    /// output format `standard`, `json`, `json_pretty`, `fdupes` or `machine`
+    /// Directories to search
+    #[structopt(parse(from_os_str))]
+    paths: Vec<PathBuf>,
+    /// output format
+    ///
+    /// `standard`, `json`, `json_pretty`, `fdupes`, or `machine`
     #[structopt(short, long, default_value)]
     format: Format,
-    /// print human readable report to stderr
+    /// Prints human readable report to stderr
     #[structopt(short, long)]
     report: bool,
     /// hashing algorithm
+    ///
+    /// `highway`, `seahash`, or `xxhash`
     #[structopt(short, long, default_value)]
     algorithm: Algorithm,
-    /// exclude empty files
+    /// Exclude empty files
     #[structopt(short, long)]
     no_empty: bool,
-    /// minimum file size (default 0 byte)
+    /// minimum file size [default: no minimum]
+    ///
+    /// accepts standard formats
     #[structopt(long)]
     min: Option<Byte>,
-    /// maximum file size (default no maximum)
+    /// maximum file size [default: no maximum]
+    ///
+    /// accepts standard formats
     #[structopt(long)]
     max: Option<Byte>,
 }
@@ -40,11 +48,12 @@ pub struct Args {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::from_args();
-    let min_max_file_size = args.file_constraints();
+    let (min, max) = args.file_constraints();
+    let paths = normalize(&args.paths);
     let counter = match args.algorithm {
-        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher>(&args.path, min_max_file_size),
-        Algorithm::XxHash => yadf::find_dupes::<XxHash64>(&args.path, min_max_file_size),
-        Algorithm::Highway => yadf::find_dupes::<HighwayHasher>(&args.path, min_max_file_size),
+        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher, PathBuf>(&paths, min, max),
+        Algorithm::XxHash => yadf::find_dupes::<XxHash64, PathBuf>(&paths, min, max),
+        Algorithm::Highway => yadf::find_dupes::<HighwayHasher, PathBuf>(&paths, min, max),
     };
     match args.format {
         Format::Json => {
@@ -61,5 +70,20 @@ fn main() {
     if args.report {
         let report = Report::from(&counter);
         eprintln!("{}", report);
+    }
+}
+
+fn normalize<P: AsRef<Path>>(paths: &[P]) -> Vec<PathBuf> {
+    use std::collections::HashSet;
+    if paths.is_empty() {
+        ["."].iter().map(Into::into).collect()
+    } else {
+        paths
+            .iter()
+            .map(AsRef::as_ref)
+            .map(Into::into)
+            .collect::<HashSet<PathBuf>>()
+            .into_iter()
+            .collect()
     }
 }

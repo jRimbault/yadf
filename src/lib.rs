@@ -22,9 +22,10 @@ use std::path::Path;
 
 /// This will attemps a complete scan of every file,
 /// within the given size constraints, at the given path.
-pub fn find_dupes<H>(dir: &Path, min_max_file_size: Option<(u64, u64)>) -> TreeBag<u64, DirEntry>
+pub fn find_dupes<H, P>(dir: &[P], min: Option<u64>, max: Option<u64>) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
+    P: AsRef<Path>,
 {
-    fs::dedupe::<H>(fs::find_dupes_partial::<H>(dir, min_max_file_size))
+    fs::dedupe::<H>(fs::find_dupes_partial::<H, P>(dir, min, max))
 }

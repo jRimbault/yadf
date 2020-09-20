@@ -7,7 +7,7 @@
 #[ignore]
 fn sanity_test() {
     let home = dirs::home_dir().unwrap();
-    let counter = yadf::find_dupes::<seahash::SeaHasher>(&home, None);
+    let counter = yadf::find_dupes::<seahash::SeaHasher, std::path::PathBuf>(&[home], None, None);
     for bucket in counter.duplicates() {
         let (first, bucket) = bucket.split_first().unwrap();
         let reference = std::fs::read(first.path()).unwrap();

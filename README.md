@@ -1,6 +1,6 @@
 # Yet Another Dupes Finder
 
-*It's [fast][benchmarks] on my machine.*
+_It's [fast][benchmarks] on my machine._
 
 Installation:
 
@@ -11,27 +11,26 @@ cargo install yadf
 CLI Usage:
 
 ```
-yadf 0.3.0
+yadf 0.3.1
 Yet Another Dupes Finder
 
 USAGE:
-    yadf [FLAGS] [OPTIONS] [path]
+    yadf [FLAGS] [OPTIONS] [paths]...
 
 FLAGS:
     -h, --help        Prints help information
-    -n, --no-empty    exclude empty files
-    -r, --report      print human readable report to stderr
+    -n, --no-empty    Exclude empty files
+    -r, --report      Prints human readable report to stderr
     -V, --version     Prints version information
 
 OPTIONS:
-    -a, --algorithm <algorithm>    hashing algorithm [default: highway]
-    -f, --format <format>          output format `standard`, `json`, `json_pretty`, `fdupes` or `machine` [default:
-                                   fdupes]
-        --max <max>                maximum file size (default no maximum)
-        --min <min>                minimum file size (default 0 byte)
+    -a, --algorithm <algorithm>    hashing algorithm [default: xxhash]
+    -f, --format <format>          output format [default: fdupes]
+        --max <max>                maximum file size [default: no maximum]
+        --min <min>                minimum file size [default: no minimum]
 
 ARGS:
-    <path>    directory to search [default: .]
+    <paths>...    Directories to search
 ```
 
 [benchmarks]: bench.md

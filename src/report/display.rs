@@ -46,7 +46,11 @@ mod tests {
     #[test]
     #[cfg(not(windows))]
     fn basic() {
-        let bag = crate::find_dupes::<seahash::SeaHasher>("./tests/static".as_ref(), None);
+        let bag = crate::find_dupes::<seahash::SeaHasher, &std::path::Path>(
+            &["./tests/static".as_ref()],
+            None,
+            None,
+        );
         let report = Report::from(&bag).to_string();
         let expected = "\
             5 scanned files: 14 B\n\
