@@ -20,9 +20,9 @@ impl Args {
     pub fn file_constraints(&self) -> (Option<u64>, Option<u64>) {
         (
             self.min
-                .map(|m| m.get_bytes() as _)
-                .or(Some(if self.no_empty { 1 } else { 0 })),
-            self.max.map(|m| m.get_bytes() as _).or(Some(u64::MAX)),
+                .map(|m| m.get_bytes())
+                .or(if self.no_empty { Some(1) } else { None }),
+            self.max.map(|m| m.get_bytes()),
         )
     }
 }
@@ -129,7 +129,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, (Some(u64::MIN), Some(u64::MAX)));
+            assert_eq!(constraints, (None, None));
         }
 
         #[test]
@@ -141,7 +141,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, (Some(1), Some(u64::MAX)));
+            assert_eq!(constraints, (Some(1), None));
         }
 
         #[test]
@@ -153,7 +153,7 @@ mod tests {
                 ..Args::default()
             };
             let constraints = args.file_constraints();
-            assert_eq!(constraints, (Some(1536), Some(u64::MAX)));
+            assert_eq!(constraints, (Some(1536), None));
         }
 
         #[test]

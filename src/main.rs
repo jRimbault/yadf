@@ -35,12 +35,12 @@ pub struct Args {
     no_empty: bool,
     /// minimum file size [default: no minimum]
     ///
-    /// accepts standard formats
+    /// accepts standard formats: K, M, G, T, P
     #[structopt(long)]
     min: Option<Byte>,
     /// maximum file size [default: no maximum]
     ///
-    /// accepts standard formats
+    /// accepts standard formats: K, M, G, T, P
     #[structopt(long)]
     max: Option<Byte>,
 }
