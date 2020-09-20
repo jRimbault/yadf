@@ -30,7 +30,7 @@ pub struct Args {
     /// `highway`, `seahash`, or `xxhash`
     #[structopt(short, long, default_value)]
     algorithm: Algorithm,
-    /// Exclude empty files
+    /// Excludes empty files
     #[structopt(short, long)]
     no_empty: bool,
     /// minimum file size [default: no minimum]

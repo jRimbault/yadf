@@ -1,0 +1,119 @@
+name: Deploy
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # Publish yadf to crates.io
+  publish:
+    name: Publish crates.io package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Publish
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+
+  # Build sources for every OS
+  github_build:
+    name: Build release binaries
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - x86_64-apple-darwin
+          - x86_64-pc-windows-msvc
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: yadf-x86_64-unknown-linux-gnu.tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            name: yadf-x86_64-unknown-linux-musl.tar.gz
+          - target: x86_64-apple-darwin
+            os: macOS-latest
+            name: yadf-x86_64-apple-darwin.tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: yadf-x86_64-pc-windows-msvc.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          target: ${{ matrix.target }}
+
+      - name: Setup musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt install -y musl-tools
+
+      - name: Build
+        if: matrix.target != 'x86_64-unknown-linux-musl'
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (musl)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare artifacts [Windows]
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          strip yadf.exe
+          7z a ../../../${{ matrix.name }} yadf.exe
+          cd -
+
+      - name: Prepare artifacts [-nix]
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/${{ matrix.target }}/release
+          strip yadf
+          tar czvf ../../../${{ matrix.name }} yadf
+          cd -
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  # Create GitHub release with Rust build targets and release notes
+  github_release:
+    name: GitHub Release
+    needs: github_build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "^1.13.1"
+
+      - uses: actions/download-artifact@v2
+
+      - name: Compute checksums
+        run: for file in yadf-*/yadf-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
+
+      - name: Build release notes
+        run: |
+          go get -u github.com/git-chglog/git-chglog/cmd/git-chglog
+          git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
+
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          files: yadf-*/yadf-*
+          body_path: RELEASE.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
