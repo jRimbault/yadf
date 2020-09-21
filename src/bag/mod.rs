@@ -26,8 +26,8 @@ pub struct TreeBag<H: Ord, T>(pub(crate) BTreeMap<H, Vec<T>>);
 
 impl<H: Ord, T> TreeBag<H, T> {
     /// Provides a view on all the buckets containing more than one element.
-    pub fn duplicates(&self) -> impl Iterator<Item = &Vec<T>> {
-        self.values().filter(|b| b.len() > 1)
+    pub fn duplicates(&self) -> impl Iterator<Item = &[T]> {
+        self.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
     }
 }
 

@@ -78,8 +78,8 @@ fn main() {
             serde_json::to_writer_pretty(io::stdout(), &counter).unwrap();
             println!();
         }
-        Format::Fdupes => print!("{}", counter.display::<Fdupes>()),
-        Format::Machine => print!("{}", counter.display::<Machine>()),
+        Format::Fdupes => println!("{}", counter.display::<Fdupes>()),
+        Format::Machine => println!("{}", counter.display::<Machine>()),
     };
     if args.report {
         let report = Report::from(&counter);

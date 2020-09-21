@@ -6,12 +6,19 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for duplicates in self.counter.duplicates() {
-            for dupe in duplicates {
+        let mut duplicates = self.counter.duplicates().peekable();
+        while let Some(bucket) = duplicates.next() {
+            let mut bucket = bucket.iter().peekable();
+            let is_last_bucket = duplicates.peek().is_none();
+            while let Some(dupe) = bucket.next() {
                 dupe.fmt(f)?;
+                if bucket.peek().is_some() || !is_last_bucket {
+                    f.write_str("\n")?;
+                }
+            }
+            if !is_last_bucket {
                 f.write_str("\n")?;
             }
-            f.write_str("\n")?;
         }
         Ok(())
     }
@@ -22,14 +29,17 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for duplicates in self.counter.duplicates() {
-            let (last, duplicates) = duplicates.split_last().unwrap();
-            for dupe in duplicates {
+        let mut duplicates = self.counter.duplicates().peekable();
+        while let Some(bucket) = duplicates.next() {
+            let (last, rest) = bucket.split_last().unwrap();
+            for dupe in rest {
                 fmt::Debug::fmt(dupe, f)?;
                 f.write_str(" ")?;
             }
             fmt::Debug::fmt(last, f)?;
-            f.write_str("\n")?;
+            if duplicates.peek().is_some() {
+                f.write_str("\n")?;
+            }
         }
         Ok(())
     }
@@ -53,8 +63,7 @@ mod tests {
         .collect();
         let result = counter.display::<Machine>().to_string();
         let expected = r#""foo" "bar"
-"hello" "world"
-"#;
+"hello" "world""#;
         assert_eq!(result, expected);
     }
 
@@ -70,7 +79,7 @@ mod tests {
         .into_iter()
         .collect();
         let result = counter.display::<Fdupes>().to_string();
-        let expected = "foo\nbar\n\nhello\nworld\n\n";
+        let expected = "foo\nbar\n\nhello\nworld";
         assert_eq!(result, expected);
     }
 }
