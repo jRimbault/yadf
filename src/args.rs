@@ -184,4 +184,30 @@ mod tests {
             assert_eq!(constraints, (Some(1), Some(4096)));
         }
     }
+
+    mod paths {
+        use super::super::*;
+
+        #[test]
+        fn if_empty_should_get_cwd() {
+            let args = Args::default();
+            let cwd = PathBuf::from("default");
+            let paths = args.paths(cwd.clone());
+            assert_eq!(paths[0], cwd);
+        }
+
+        #[test]
+        fn should_remove_duplicates() {
+            let args = Args {
+                paths: ["hello", "world", "hello", "world"]
+                    .iter()
+                    .map(PathBuf::from)
+                    .collect(),
+                ..Default::default()
+            };
+            let paths = args.paths("cwd".into());
+            assert_eq!(args.paths.len(), 4);
+            assert_eq!(paths.len(), 2);
+        }
+    }
 }
