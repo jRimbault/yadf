@@ -16,9 +16,9 @@ impl Args {
     }
 
     /// returns a list of the deduped paths
-    fn paths(&self, cwd: PathBuf) -> Vec<PathBuf> {
+    fn paths(&self, cwd: impl Fn() -> PathBuf) -> Vec<PathBuf> {
         if self.paths.is_empty() {
-            vec![cwd]
+            vec![cwd()]
         } else {
             self.paths
                 .iter()
@@ -31,7 +31,7 @@ impl Args {
 
     pub fn from_env() -> Self {
         let mut args = Self::from_args();
-        let cwd = env::current_dir().expect("couldn't get current working directory");
+        let cwd = || env::current_dir().expect("couldn't get current working directory");
         args.paths = args.paths(cwd);
         args
     }
@@ -186,7 +186,7 @@ mod tests {
         fn if_empty_should_get_cwd() {
             let args = Args::default();
             let cwd = PathBuf::from("default");
-            let paths = args.paths(cwd.clone());
+            let paths = args.paths(|| cwd.clone());
             assert_eq!(paths[0], cwd);
         }
 
@@ -197,9 +197,9 @@ mod tests {
                     .iter()
                     .map(PathBuf::from)
                     .collect(),
-                ..Default::default()
+                ..Args::default()
             };
-            let paths = args.paths("cwd".into());
+            let paths = args.paths(|| unimplemented!());
             assert_eq!(args.paths.len(), 4);
             assert_eq!(paths.len(), 2);
         }
