@@ -1,7 +1,6 @@
 #[cfg(not(tarpaulin_include))]
 mod args;
 
-use args::{Algorithm, Format};
 use byte_unit::Byte;
 use highway::HighwayHasher;
 use seahash::SeaHasher;
@@ -44,6 +43,21 @@ pub struct Args {
     /// accepts standard formats: K, M, G, T, P
     #[structopt(long)]
     max: Option<Byte>,
+}
+
+#[derive(Debug)]
+enum Format {
+    Fdupes,
+    Json,
+    JsonPretty,
+    Machine,
+}
+
+#[derive(Debug)]
+enum Algorithm {
+    Highway,
+    SeaHash,
+    XxHash,
 }
 
 #[cfg(not(tarpaulin_include))]

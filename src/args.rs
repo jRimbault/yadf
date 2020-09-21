@@ -1,24 +1,9 @@
-use super::Args;
+use super::{Algorithm, Args, Format};
 use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::path::PathBuf;
 use structopt::StructOpt;
-
-#[derive(Debug)]
-pub enum Format {
-    Fdupes,
-    Json,
-    JsonPretty,
-    Machine,
-}
-
-#[derive(Debug)]
-pub enum Algorithm {
-    Highway,
-    SeaHash,
-    XxHash,
-}
 
 impl Args {
     pub fn file_constraints(&self) -> (Option<u64>, Option<u64>) {
