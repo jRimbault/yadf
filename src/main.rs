@@ -5,15 +5,13 @@ use args::{Algorithm, Format};
 use byte_unit::Byte;
 use highway::HighwayHasher;
 use seahash::SeaHasher;
-use std::env;
 use std::io;
 use std::path::PathBuf;
-use structopt::StructOpt;
 use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
-#[derive(StructOpt, Debug, Default)]
+#[derive(structopt::StructOpt, Debug, Default)]
 pub struct Args {
     /// Directories to search
     ///
@@ -50,15 +48,12 @@ pub struct Args {
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
-    let args = Args::from_args();
-    let cwd = env::current_dir().expect("couldn't get current working directory");
+    let args = Args::from_env();
     let (min, max) = args.file_constraints();
     let counter = match args.algorithm {
-        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher, PathBuf>(&args.paths(cwd), min, max),
-        Algorithm::XxHash => yadf::find_dupes::<XxHash64, PathBuf>(&args.paths(cwd), min, max),
-        Algorithm::Highway => {
-            yadf::find_dupes::<HighwayHasher, PathBuf>(&args.paths(cwd), min, max)
-        }
+        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher, PathBuf>(&args.paths, min, max),
+        Algorithm::XxHash => yadf::find_dupes::<XxHash64, PathBuf>(&args.paths, min, max),
+        Algorithm::Highway => yadf::find_dupes::<HighwayHasher, PathBuf>(&args.paths, min, max),
     };
     match args.format {
         Format::Json => {

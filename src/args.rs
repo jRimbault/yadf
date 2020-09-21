@@ -1,7 +1,9 @@
 use super::Args;
 use std::collections::HashSet;
+use std::env;
 use std::fmt;
 use std::path::PathBuf;
+use structopt::StructOpt;
 
 #[derive(Debug)]
 pub enum Format {
@@ -29,7 +31,7 @@ impl Args {
     }
 
     /// returns a list of the deduped paths
-    pub fn paths(&self, cwd: PathBuf) -> Vec<PathBuf> {
+    fn paths(&self, cwd: PathBuf) -> Vec<PathBuf> {
         if self.paths.is_empty() {
             vec![cwd]
         } else {
@@ -40,6 +42,13 @@ impl Args {
                 .into_iter()
                 .collect()
         }
+    }
+
+    pub fn from_env() -> Self {
+        let mut args = Self::from_args();
+        let cwd = env::current_dir().expect("couldn't get current working directory");
+        args.paths = args.paths(cwd);
+        args
     }
 }
 
