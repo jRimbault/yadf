@@ -48,8 +48,6 @@ Summary
    21.32 ± 0.16 times faster than 'fdupes -r ~'
 ```
 
-Results as a csv [table](bench.csv).
-
 Hardware information (extract from `neofetch` and `hwinfo --disk`):
 
 ```
