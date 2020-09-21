@@ -10,6 +10,8 @@ use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
+///
+/// For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive)
 #[derive(structopt::StructOpt, Debug, Default)]
 pub struct Args {
     /// Directories to search
@@ -34,13 +36,9 @@ pub struct Args {
     #[structopt(short, long)]
     no_empty: bool,
     /// minimum file size [default: no minimum]
-    ///
-    /// accepts standard formats: K, M, G, T, P
     #[structopt(long)]
     min: Option<Byte>,
     /// maximum file size [default: no maximum]
-    ///
-    /// accepts standard formats: K, M, G, T, P
     #[structopt(long)]
     max: Option<Byte>,
 }
