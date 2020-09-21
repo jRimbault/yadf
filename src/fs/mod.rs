@@ -45,10 +45,8 @@ where
                 return Err(());
             }
             let hasher: FsHasher<H> = Default::default();
-            if let Ok(hash) = hasher.partial(entry.path()) {
-                return Ok((hash, DirEntry(entry)));
-            }
-            Err(())
+            let hash = hasher.partial(entry.path()).map_err(|_| ())?;
+            Ok((hash, DirEntry(entry)))
         })
         .filter_map(Result::ok)
         .collect()
