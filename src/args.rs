@@ -1,5 +1,7 @@
 use super::Args;
+use std::collections::HashSet;
 use std::fmt;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum Format {
@@ -24,6 +26,20 @@ impl Args {
                 .or(if self.no_empty { Some(1) } else { None }),
             self.max.map(|m| m.get_bytes()),
         )
+    }
+
+    /// returns a list of the deduped paths
+    pub fn paths(&self, cwd: PathBuf) -> Vec<PathBuf> {
+        if self.paths.is_empty() {
+            vec![cwd]
+        } else {
+            self.paths
+                .iter()
+                .cloned()
+                .collect::<HashSet<PathBuf>>()
+                .into_iter()
+                .collect()
+        }
     }
 }
 

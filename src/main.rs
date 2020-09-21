@@ -5,8 +5,9 @@ use args::{Algorithm, Format};
 use byte_unit::Byte;
 use highway::HighwayHasher;
 use seahash::SeaHasher;
+use std::env;
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use structopt::StructOpt;
 use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
@@ -15,6 +16,8 @@ use yadf::{Fdupes, Machine, Report};
 #[derive(StructOpt, Debug, Default)]
 pub struct Args {
     /// Directories to search
+    ///
+    /// default is to search inside the current working directory
     #[structopt(parse(from_os_str))]
     paths: Vec<PathBuf>,
     /// output format
@@ -48,12 +51,14 @@ pub struct Args {
 #[cfg(not(tarpaulin_include))]
 fn main() {
     let args = Args::from_args();
+    let cwd = env::current_dir().expect("couldn't get current working directory");
     let (min, max) = args.file_constraints();
-    let paths = normalize(&args.paths);
     let counter = match args.algorithm {
-        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher, PathBuf>(&paths, min, max),
-        Algorithm::XxHash => yadf::find_dupes::<XxHash64, PathBuf>(&paths, min, max),
-        Algorithm::Highway => yadf::find_dupes::<HighwayHasher, PathBuf>(&paths, min, max),
+        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher, PathBuf>(&args.paths(cwd), min, max),
+        Algorithm::XxHash => yadf::find_dupes::<XxHash64, PathBuf>(&args.paths(cwd), min, max),
+        Algorithm::Highway => {
+            yadf::find_dupes::<HighwayHasher, PathBuf>(&args.paths(cwd), min, max)
+        }
     };
     match args.format {
         Format::Json => {
@@ -70,20 +75,5 @@ fn main() {
     if args.report {
         let report = Report::from(&counter);
         eprintln!("{}", report);
-    }
-}
-
-fn normalize<P: AsRef<Path>>(paths: &[P]) -> Vec<PathBuf> {
-    use std::collections::HashSet;
-    if paths.is_empty() {
-        ["."].iter().map(Into::into).collect()
-    } else {
-        paths
-            .iter()
-            .map(AsRef::as_ref)
-            .map(Into::into)
-            .collect::<HashSet<PathBuf>>()
-            .into_iter()
-            .collect()
     }
 }
