@@ -44,6 +44,7 @@ pub struct Args {
 }
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 enum Format {
     Fdupes,
     Json,
@@ -52,6 +53,7 @@ enum Format {
 }
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 enum Algorithm {
     Highway(marker::PhantomData<HighwayHasher>),
     SeaHash(marker::PhantomData<SeaHasher>),

@@ -248,6 +248,7 @@ mod tests {
             for case in cases.iter() {
                 let result = case.to_string().parse::<Algorithm>();
                 assert!(result.is_ok());
+                assert_eq!(result.unwrap(), *case);
             }
         }
     }
@@ -287,6 +288,7 @@ mod tests {
             for case in cases.iter() {
                 let result = case.to_string().parse::<Format>();
                 assert!(result.is_ok());
+                assert_eq!(result.unwrap(), *case);
             }
         }
     }
