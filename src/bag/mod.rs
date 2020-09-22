@@ -24,10 +24,33 @@ use std::collections::BTreeMap;
 #[repr(transparent)]
 pub struct TreeBag<H: Ord, T>(pub(crate) BTreeMap<H, Vec<T>>);
 
+/// Display marker.
+#[derive(Debug)]
+pub struct Machine;
+#[derive(Debug)]
+/// Display marker.
+pub struct Fdupes;
+
+pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
+    _marker: std::marker::PhantomData<U>,
+    counter: &'a TreeBag<H, T>,
+}
+
 impl<H: Ord, T> TreeBag<H, T> {
     /// Provides a view on all the buckets containing more than one element.
     pub fn duplicates(&self) -> impl Iterator<Item = &[T]> {
-        self.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
+        self.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
+    }
+
+    /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html).
+    ///
+    /// Depending on the contents of the [`TreeBag`](struct.TreeBag.html), the display object
+    /// can be parameterized to get a different `Display` implemenation.
+    pub fn display<D: marker::OutputFormat>(&self) -> Display<'_, H, T, D> {
+        Display {
+            counter: self,
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 
@@ -46,31 +69,6 @@ impl<H: Ord, T> std::ops::Deref for TreeBag<H, T> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-/// Display marker.
-#[derive(Debug)]
-pub struct Machine;
-#[derive(Debug)]
-/// Display marker.
-pub struct Fdupes;
-
-pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
-    _marker: std::marker::PhantomData<U>,
-    counter: &'a TreeBag<H, T>,
-}
-
-impl<H: Ord, T> TreeBag<H, T> {
-    /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html).
-    ///
-    /// Depending on the contents of the [`TreeBag`](struct.TreeBag.html), the display object
-    /// can be parameterized to get a different `Display` implemenation.
-    pub fn display<D: marker::OutputFormat>(&self) -> Display<'_, H, T, D> {
-        Display {
-            counter: self,
-            _marker: std::marker::PhantomData,
-        }
     }
 }
 

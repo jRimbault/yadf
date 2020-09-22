@@ -37,7 +37,7 @@ impl Report {
     /// the information with the correct formatting.
     pub fn with_locale<H: Ord>(bag: &TreeBag<H, DirEntry>, locale: Locale) -> Self {
         let (duplicates, uniques): (Vec<_>, Vec<_>) =
-            bag.values().partition(|bucket| bucket.len() > 1);
+            bag.0.values().partition(|bucket| bucket.len() > 1);
         let uniques: Vec<_> = uniques.into_iter().flatten().collect();
         let number_uniques = uniques.len();
         let uniques_bytes: u64 = uniques

@@ -19,7 +19,7 @@ const BLOCK_SIZE: usize = 4096;
 /// This will attemps a naive scan of every file,
 /// within the given size constraints, at the given path.
 pub(crate) fn find_dupes_partial<H, P>(
-    dir: &[P],
+    directories: &[P],
     min: Option<u64>,
     max: Option<u64>,
 ) -> TreeBag<u64, DirEntry>
@@ -27,7 +27,7 @@ where
     H: Hasher + Default,
     P: AsRef<Path>,
 {
-    let (first, rest) = dir.split_first().unwrap();
+    let (first, rest) = directories.split_first().unwrap();
     ignore::WalkBuilder::new(first)
         .add_paths(rest.iter())
         .standard_filters(false)
