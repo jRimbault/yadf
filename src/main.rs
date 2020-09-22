@@ -61,27 +61,23 @@ enum Algorithm {
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
+    use Algorithm::*;
     let args = Args::from_env();
     let (min, max) = args.file_constraints();
-    let counter = match args.algorithm {
-        Algorithm::SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-        Algorithm::XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-        Algorithm::Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+    let dupes = match args.algorithm {
+        SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
     };
     match args.format {
-        Format::Json => {
-            serde_json::to_writer(io::stdout(), &counter).unwrap();
-            println!();
-        }
-        Format::JsonPretty => {
-            serde_json::to_writer_pretty(io::stdout(), &counter).unwrap();
-            println!();
-        }
-        Format::Fdupes => println!("{}", counter.display::<Fdupes>()),
-        Format::Machine => println!("{}", counter.display::<Machine>()),
+        Format::Json => serde_json::to_writer(io::stdout(), &dupes).unwrap(),
+        Format::JsonPretty => serde_json::to_writer_pretty(io::stdout(), &dupes).unwrap(),
+        Format::Fdupes => print!("{}", dupes.display::<Fdupes>()),
+        Format::Machine => print!("{}", dupes.display::<Machine>()),
     };
+    println!();
     if args.report {
-        let report = Report::from(&counter);
+        let report = Report::from(&dupes);
         eprintln!("{}", report);
     }
 }
