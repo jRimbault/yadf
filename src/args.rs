@@ -46,14 +46,14 @@ impl Default for Format {
 #[cfg(target_feature = "avx2")]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::Highway
+        Self::Highway(Default::default())
     }
 }
 
 #[cfg(not(target_feature = "avx2"))]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::XxHash
+        Self::XxHash(Default::default())
     }
 }
 
@@ -102,9 +102,9 @@ impl Algorithm {
 impl fmt::Display for Algorithm {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Highway => f.write_str(Self::HIGHWAY),
-            Self::SeaHash => f.write_str(Self::SEAHASH),
-            Self::XxHash => f.write_str(Self::XXHASH),
+            Self::Highway(_) => f.write_str(Self::HIGHWAY),
+            Self::SeaHash(_) => f.write_str(Self::SEAHASH),
+            Self::XxHash(_) => f.write_str(Self::XXHASH),
         }
     }
 }
@@ -114,9 +114,9 @@ impl std::str::FromStr for Algorithm {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            Self::HIGHWAY => Ok(Self::Highway),
-            Self::SEAHASH => Ok(Self::SeaHash),
-            Self::XXHASH => Ok(Self::XxHash),
+            Self::HIGHWAY => Ok(Self::Highway(Default::default())),
+            Self::SEAHASH => Ok(Self::SeaHash(Default::default())),
+            Self::XXHASH => Ok(Self::XxHash(Default::default())),
             _ => Err(format!(
                 "can only be seahash, xxhash, or highway, found: {:?}",
                 s

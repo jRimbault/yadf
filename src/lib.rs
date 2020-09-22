@@ -5,8 +5,9 @@
 //! Find, display, and report, all the duplicate files at the given path :
 //!
 //! ```no_run
-//! let paths: &[&str] = &["."];
-//! let files_counter = yadf::find_dupes::<twox_hash::XxHash64, &str>(&paths, None, None);
+//! let hasher: std::marker::PhantomData<twox_hash::XxHash64> = Default::default();
+//! let paths = ["."];
+//! let files_counter = yadf::find_dupes(hasher, &paths, None, None);
 //! println!("{}", files_counter.display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&files_counter));
 //! ```
@@ -24,6 +25,7 @@ use std::path::Path;
 /// This will attemps a complete scan of every file,
 /// within the given size constraints, at the given path.
 pub fn find_dupes<H, P>(
+    _hasher: std::marker::PhantomData<H>,
     directories: &[P],
     min: Option<u64>,
     max: Option<u64>,

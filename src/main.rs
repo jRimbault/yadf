@@ -5,6 +5,7 @@ use byte_unit::Byte;
 use highway::HighwayHasher;
 use seahash::SeaHasher;
 use std::io;
+use std::marker;
 use std::path::PathBuf;
 use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
@@ -53,9 +54,9 @@ enum Format {
 
 #[derive(Debug)]
 enum Algorithm {
-    Highway,
-    SeaHash,
-    XxHash,
+    Highway(marker::PhantomData<HighwayHasher>),
+    SeaHash(marker::PhantomData<SeaHasher>),
+    XxHash(marker::PhantomData<XxHash64>),
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -63,9 +64,9 @@ fn main() {
     let args = Args::from_env();
     let (min, max) = args.file_constraints();
     let counter = match args.algorithm {
-        Algorithm::SeaHash => yadf::find_dupes::<SeaHasher, PathBuf>(&args.paths, min, max),
-        Algorithm::XxHash => yadf::find_dupes::<XxHash64, PathBuf>(&args.paths, min, max),
-        Algorithm::Highway => yadf::find_dupes::<HighwayHasher, PathBuf>(&args.paths, min, max),
+        Algorithm::SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        Algorithm::XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        Algorithm::Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
     };
     match args.format {
         Format::Json => {

@@ -6,8 +6,9 @@
 #[test]
 #[ignore]
 fn sanity_test() {
+    let hasher: std::marker::PhantomData<seahash::SeaHasher> = Default::default();
     let home = dirs::home_dir().unwrap();
-    let counter = yadf::find_dupes::<seahash::SeaHasher, std::path::PathBuf>(&[home], None, None);
+    let counter = yadf::find_dupes(hasher, &[home], None, None);
     for bucket in counter.duplicates() {
         let (first, bucket) = bucket.split_first().unwrap();
         let reference = std::fs::read(first.path()).unwrap();
