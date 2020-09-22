@@ -29,6 +29,7 @@ impl Args {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub fn from_env() -> Self {
         let mut args = Self::from_args();
         let cwd = || env::current_dir().expect("couldn't get current working directory");
@@ -46,14 +47,14 @@ impl Default for Format {
 #[cfg(target_feature = "avx2")]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::Highway(Default::default())
+        Self::highway()
     }
 }
 
 #[cfg(not(target_feature = "avx2"))]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::XxHash(Default::default())
+        Self::xxhash()
     }
 }
 
@@ -97,6 +98,15 @@ impl Algorithm {
     const HIGHWAY: &'static str = "highway";
     const SEAHASH: &'static str = "seahash";
     const XXHASH: &'static str = "xxhash";
+    const fn seahash() -> Self {
+        Self::SeaHash(std::marker::PhantomData)
+    }
+    const fn xxhash() -> Self {
+        Self::XxHash(std::marker::PhantomData)
+    }
+    const fn highway() -> Self {
+        Self::Highway(std::marker::PhantomData)
+    }
 }
 
 impl fmt::Display for Algorithm {
@@ -114,9 +124,9 @@ impl std::str::FromStr for Algorithm {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            Self::HIGHWAY => Ok(Self::Highway(Default::default())),
-            Self::SEAHASH => Ok(Self::SeaHash(Default::default())),
-            Self::XXHASH => Ok(Self::XxHash(Default::default())),
+            Self::HIGHWAY => Ok(Self::highway()),
+            Self::SEAHASH => Ok(Self::seahash()),
+            Self::XXHASH => Ok(Self::xxhash()),
             _ => Err(format!(
                 "can only be seahash, xxhash, or highway, found: {:?}",
                 s
@@ -202,6 +212,82 @@ mod tests {
             let paths = args.paths(|| unimplemented!());
             assert_eq!(args.paths.len(), 4);
             assert_eq!(paths.len(), 2);
+        }
+    }
+
+    mod algorithm {
+        use super::super::*;
+
+        #[test]
+        fn parsing() {
+            let cases = [
+                ("seahash", true),
+                ("highway", true),
+                ("xxhash", true),
+                ("siphash", false),
+            ];
+            for case in cases.iter() {
+                let result = case.0.parse::<Algorithm>();
+                assert_eq!(result.is_ok(), case.1);
+            }
+        }
+
+        #[test]
+        fn parse_error_shows_erroneous_input() {
+            let error = "siphash".parse::<Algorithm>().unwrap_err();
+            assert!(error.contains("siphash"));
+        }
+
+        #[test]
+        fn display_human_readable_values_which_can_be_parsed_back() {
+            let cases = [
+                Algorithm::seahash(),
+                Algorithm::highway(),
+                Algorithm::xxhash(),
+            ];
+            for case in cases.iter() {
+                let result = case.to_string().parse::<Algorithm>();
+                assert!(result.is_ok());
+            }
+        }
+    }
+
+    mod format {
+        use super::super::*;
+
+        #[test]
+        fn parsing() {
+            let cases = [
+                ("json", true),
+                ("json_pretty", true),
+                ("fdupes", true),
+                ("machine", true),
+                ("-?human?-", false),
+            ];
+            for case in cases.iter() {
+                let result = case.0.parse::<Format>();
+                assert_eq!(result.is_ok(), case.1);
+            }
+        }
+
+        #[test]
+        fn parse_error_shows_erroneous_input() {
+            let error = "-?human?-".parse::<Format>().unwrap_err();
+            assert!(error.contains("-?human?-"));
+        }
+
+        #[test]
+        fn display_human_readable_values_which_can_be_parsed_back() {
+            let cases = [
+                Format::Json,
+                Format::JsonPretty,
+                Format::Fdupes,
+                Format::Machine,
+            ];
+            for case in cases.iter() {
+                let result = case.to_string().parse::<Format>();
+                assert!(result.is_ok());
+            }
         }
     }
 }

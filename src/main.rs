@@ -1,4 +1,3 @@
-#[cfg(not(tarpaulin_include))]
 mod args;
 
 use byte_unit::Byte;
