@@ -115,6 +115,6 @@ jobs:
         with:
           files: yadf-*/yadf-*
           body_path: RELEASE.md
-          prerelease: ${{ endsWith(github.ref, "pre") }}
+          prerelease: ${{ endsWith(github.ref, 'pre') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
