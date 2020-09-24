@@ -709,6 +709,7 @@ dependencies = [
  "dirs",
  "highway",
  "ignore",
+ "lazy_static",
  "num-format",
  "num_cpus",
  "rayon",

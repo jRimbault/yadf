@@ -31,7 +31,14 @@ impl Args {
 
     #[cfg(not(tarpaulin_include))]
     pub fn from_env() -> Self {
-        let mut args = Self::from_args();
+        // Clap requires that every string we give it will be
+        // 'static, but we need to build the version string dynamically.
+        // We can fake the 'static lifetime with lazy_static.
+        lazy_static::lazy_static! {
+            static ref LONG_VERSION: String = env!("YADF_BUILD_VERSION").replace("|", "\n");
+        }
+        let app = Self::clap().long_version(LONG_VERSION.as_str());
+        let mut args = Self::from_clap(&app.get_matches());
         let cwd = || env::current_dir().expect("couldn't get current working directory");
         args.paths = args.paths(cwd);
         args
