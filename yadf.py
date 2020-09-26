@@ -120,7 +120,7 @@ def parse_args(argv):
         if " " not in size:
             size = re.sub(r"([KMGT]?B?)", r" \1", size)
         number, unit = [string.strip() for string in size.split()]
-        if len(unit) == 1:
+        if len(unit) < 2:
             unit += "B"
         return int(float(number) * units[unit])
 
