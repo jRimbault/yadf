@@ -1,12 +1,12 @@
 #[macro_export]
 macro_rules! newtype_impl_write {
     ($hasher:ident) => {
-        impl std::io::Write for $hasher {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                core::hash::Hasher::write(&mut self.0, buf);
+        impl ::std::io::Write for $hasher {
+            fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
+                ::core::hash::Hasher::write(&mut self.0, buf);
                 Ok(buf.len())
             }
-            fn flush(&mut self) -> std::io::Result<()> {
+            fn flush(&mut self) -> ::std::io::Result<()> {
                 Ok(())
             }
         }
@@ -16,12 +16,12 @@ macro_rules! newtype_impl_write {
 #[macro_export]
 macro_rules! newtype_impl_hasher {
     ($hasher:ident) => {
-        impl core::hash::Hasher for $hasher {
+        impl ::core::hash::Hasher for $hasher {
             fn write(&mut self, buf: &[u8]) {
-                core::hash::Hasher::write(&mut self.0, buf)
+                ::core::hash::Hasher::write(&mut self.0, buf)
             }
             fn finish(&self) -> u64 {
-                self.0.finish()
+                ::core::hash::Hasher::finish(&self.0)
             }
         }
     };
