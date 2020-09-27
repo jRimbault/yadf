@@ -1,12 +1,9 @@
 mod args;
 
 use byte_unit::Byte;
-use highway::HighwayHasher;
-use seahash::SeaHasher;
 use std::io;
 use std::marker;
 use std::path::PathBuf;
-use twox_hash::XxHash64;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
@@ -55,9 +52,9 @@ enum Format {
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 enum Algorithm {
-    Highway(marker::PhantomData<HighwayHasher>),
-    SeaHash(marker::PhantomData<SeaHasher>),
-    XxHash(marker::PhantomData<XxHash64>),
+    Highway(marker::PhantomData<yadf::HighwayHasher>),
+    SeaHash(marker::PhantomData<yadf::SeaHasher>),
+    XxHash(marker::PhantomData<yadf::XxHasher>),
 }
 
 #[cfg(not(tarpaulin_include))]

@@ -25,6 +25,7 @@ pub(crate) fn find_dupes_partial<H, P>(
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
+    H: std::io::Write,
     P: AsRef<Path>,
 {
     let (first, rest) = directories.split_first().unwrap();
@@ -45,7 +46,7 @@ where
                 return Err(());
             }
             let hasher: FsHasher<H> = Default::default();
-            let hash = hasher.partial(entry.path()).map_err(|_| ())?;
+            let hash = hasher.partial(&entry.path()).map_err(|_| ())?;
             Ok((hash, DirEntry(entry)))
         })
         .filter_map(Result::ok)
@@ -55,6 +56,7 @@ where
 pub(crate) fn dedupe<H>(counter: TreeBag<u64, DirEntry>) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
+    H: std::io::Write,
 {
     let (sender, receiver) = mpsc::channel();
     counter
@@ -70,7 +72,7 @@ where
                     .for_each_with(sender.clone(), |sender, file| {
                         if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
                             let hasher: FsHasher<H> = Default::default();
-                            let hash = hasher.full(file.path()).unwrap_or(old_hash);
+                            let hash = hasher.full(&file.path()).unwrap_or(old_hash);
                             sender.send((hash, file)).unwrap();
                         } else {
                             sender.send((old_hash, file)).unwrap();

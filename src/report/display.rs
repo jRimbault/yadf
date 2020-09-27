@@ -46,7 +46,7 @@ mod tests {
     #[test]
     #[cfg(not(windows))]
     fn basic() {
-        let hasher: std::marker::PhantomData<seahash::SeaHasher> = Default::default();
+        let hasher: std::marker::PhantomData<crate::hashers::SeaHasher> = Default::default();
         let bag = crate::find_dupes(hasher, &["./tests/static"], None, None);
         let report = Report::from(&bag).to_string();
         let expected = "\

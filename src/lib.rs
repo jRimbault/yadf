@@ -5,7 +5,7 @@
 //! Find, display, and report, all the duplicate files at the given path :
 //!
 //! ```no_run
-//! let hasher: std::marker::PhantomData<twox_hash::XxHash64> = Default::default();
+//! let hasher: std::marker::PhantomData<yadf::XxHasher> = Default::default();
 //! let paths = ["."];
 //! let files_counter = yadf::find_dupes(hasher, &paths, None, None);
 //! println!("{}", files_counter.display::<yadf::Fdupes>());
@@ -14,10 +14,13 @@
 
 mod bag;
 pub mod fs;
+mod macros;
 mod report;
 
 pub use bag::{Fdupes, Machine, TreeBag};
 pub use fs::wrapper::DirEntry;
+#[cfg(any(test, feature = "build-bin"))]
+pub use hashers::{HighwayHasher, SeaHasher, XxHasher};
 pub use report::Report;
 use std::hash::Hasher;
 use std::path::Path;
@@ -32,7 +35,28 @@ pub fn find_dupes<H, P>(
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
+    H: std::io::Write,
     P: AsRef<Path>,
 {
     fs::dedupe::<H>(fs::find_dupes_partial::<H, P>(directories, min, max))
+}
+
+#[cfg(any(test, feature = "build-bin"))]
+mod hashers {
+    #[derive(Default)]
+    #[repr(transparent)]
+    pub struct HighwayHasher(highway::HighwayHasher);
+    #[derive(Default)]
+    #[repr(transparent)]
+    pub struct SeaHasher(seahash::SeaHasher);
+    #[derive(Default)]
+    #[repr(transparent)]
+    pub struct XxHasher(twox_hash::XxHash64);
+
+    super::newtype_impl_write!(HighwayHasher);
+    super::newtype_impl_hasher!(HighwayHasher);
+    super::newtype_impl_write!(SeaHasher);
+    super::newtype_impl_hasher!(SeaHasher);
+    super::newtype_impl_write!(XxHasher);
+    super::newtype_impl_hasher!(XxHasher);
 }
