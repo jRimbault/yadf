@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! newtype_impl_write {
-    ($hasher:ident) => {
+    ($hasher:ty) => {
         impl ::std::io::Write for $hasher {
             fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
                 ::core::hash::Hasher::write(&mut self.0, buf);
@@ -15,7 +15,7 @@ macro_rules! newtype_impl_write {
 
 #[macro_export]
 macro_rules! newtype_impl_hasher {
-    ($hasher:ident) => {
+    ($hasher:ty) => {
         impl ::core::hash::Hasher for $hasher {
             fn write(&mut self, buf: &[u8]) {
                 ::core::hash::Hasher::write(&mut self.0, buf)
@@ -29,8 +29,8 @@ macro_rules! newtype_impl_hasher {
 
 #[macro_export]
 macro_rules! newtype_impl_hasher_and_write {
-    ($hasher:ident) => {
-        crate::newtype_impl_hasher!($hasher);
-        crate::newtype_impl_write!($hasher);
+    ($hasher:ty) => {
+        $crate::newtype_impl_hasher!($hasher);
+        $crate::newtype_impl_write!($hasher);
     };
 }
