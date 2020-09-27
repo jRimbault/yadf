@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import functools
 import hashlib
 import locale
 import math
 import multiprocessing
 import os
-import pathlib
-import pprint
 import re
 import sys
 from collections import defaultdict
@@ -53,25 +52,21 @@ def find_dupes(directories, algorithm, min=0, max=math.inf):
         if min <= os.stat(file).st_size <= max
     )
 
-    hasher = FileHasher(algorithm)
+    hasher = functools.partial(hash_file, algorithm=algorithm)
     with multiprocessing.Pool() as pool:
         tuples = pool.imap_unordered(hasher, walker, chunksize=32)
         return build_bag(tuples).values()
 
 
-class FileHasher:
-    def __init__(self, hasher):
-        self.hasher = hasher
-
-    def __call__(self, path):
-        hasher = self.hasher()
-        with open(path, "rb") as fd:
-            while True:
-                buf = fd.read(4096)
-                if len(buf) == 0:
-                    break
-                hasher.update(buf)
-        return hasher.digest(), path
+def hash_file(path, algorithm):
+    hasher = algorithm()
+    with open(path, "rb") as fd:
+        while True:
+            buf = fd.read(4096)
+            if len(buf) == 0:
+                break
+            hasher.update(buf)
+    return hasher.digest(), path
 
 
 def fdupes(duplicates):
