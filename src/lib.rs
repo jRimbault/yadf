@@ -53,10 +53,7 @@ mod hashers {
     #[repr(transparent)]
     pub struct XxHasher(twox_hash::XxHash64);
 
-    super::newtype_impl_write!(HighwayHasher);
-    super::newtype_impl_hasher!(HighwayHasher);
-    super::newtype_impl_write!(SeaHasher);
-    super::newtype_impl_hasher!(SeaHasher);
-    super::newtype_impl_write!(XxHasher);
-    super::newtype_impl_hasher!(XxHasher);
+    super::newtype_impl_hasher_and_write!(HighwayHasher);
+    super::newtype_impl_hasher_and_write!(SeaHasher);
+    super::newtype_impl_hasher_and_write!(XxHasher);
 }

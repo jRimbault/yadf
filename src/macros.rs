@@ -26,3 +26,11 @@ macro_rules! newtype_impl_hasher {
         }
     };
 }
+
+#[macro_export]
+macro_rules! newtype_impl_hasher_and_write {
+    ($hasher:ident) => {
+        crate::newtype_impl_hasher!($hasher);
+        crate::newtype_impl_write!($hasher);
+    };
+}
