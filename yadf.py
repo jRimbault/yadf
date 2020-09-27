@@ -21,11 +21,12 @@ def main(args):
     full_counter = find_dupes(
         args.directories, HASHERS[args.algorithm], args.min, args.max
     )
-    duplicates, uniques = partition(full_counter, lambda b: len(b) > 1)
+    partitioned = partition(full_counter, lambda b: len(b) > 1)
+    duplicates, uniques = partitioned[True], partitioned[False]
     DISPLAY[args.format](duplicates)
     if args.report:
-        files_scanned = sum(map(len, full_counter))
         duplicates_files = sum(map(len, duplicates))
+        files_scanned = len(uniques) + duplicates_files
         print(f"{files_scanned:n} scanned files", file=sys.stderr)
         print(f"{len(uniques):n} unique files", file=sys.stderr)
         print(
@@ -44,12 +45,12 @@ def find_dupes(directories, algorithm, min=0, max=math.inf):
     walker = (
         file
         for file in (
-            pathlib.Path(os.path.join(path, file))
+            os.path.join(path, file)
             for directory in set(directories)
             for (path, _, files) in os.walk(directory)
             for file in files
         )
-        if min <= file.stat().st_size <= max
+        if min <= os.stat(file).st_size <= max
     )
 
     hasher = FileHasher(algorithm)
@@ -97,31 +98,26 @@ HASHERS = {
 }
 
 
-def partition(iterable, predicate, map_ok=None, map_nok=None):
-    def identity(item):
-        return item
-
-    map_ok = map_ok if map_ok is not None else identity
-    map_nok = map_nok if map_nok is not None else identity
-    trues, falses = [], []
+def partition(iterable, predicate):
+    results = defaultdict(list)
     for item in iterable:
-        if predicate(item):
-            trues.append(map_ok(item))
-        else:
-            falses.append(map_nok(item))
-    return trues, falses
+        results[predicate(item)].append(item)
+    return results
 
 
 def parse_args(argv):
     units = {"B": 1, "KB": 2 ** 10, "MB": 2 ** 20, "GB": 2 ** 30, "TB": 2 ** 40}
 
-    def parse_size(size):
+    def byte_size(size):
         size = size.upper()
         if " " not in size:
             size = re.sub(r"([KMGT]?B?)", r" \1", size)
-        number, unit = [string.strip() for string in size.split()]
-        if len(unit) < 2:
-            unit += "B"
+        size = size.split()
+        if len(size) < 2:
+            size.append("B")
+        elif len(size[1]) < 2:
+            size[1] += "B"
+        number, unit = [string.strip() for string in size]
         return int(float(number) * units[unit])
 
     parser = argparse.ArgumentParser()
@@ -151,8 +147,8 @@ def parse_args(argv):
         default=next(iter(HASHERS)),
         help="hashing algorithm",
     )
-    parser.add_argument("--min", type=parse_size, default=0)
-    parser.add_argument("--max", type=parse_size, default=math.inf)
+    parser.add_argument("--min", type=byte_size, default=0)
+    parser.add_argument("--max", type=byte_size, default=math.inf)
     return parser.parse_args(argv)
 
 
