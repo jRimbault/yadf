@@ -4,7 +4,7 @@
 #
 # rmlint produces a number of files all named rmlint.{ext}
 #
-# fdupes and jdupes both don't scan recursively by default
+# fclones and jdupes both don't scan recursively by default
 #
 # dupe-krill skips file smaller than the block size, hence the -s flag,
 # and will hardlinks files together, hence the --dry-run flag
@@ -14,7 +14,7 @@
 hyperfine --warmup 1 \
   --min-runs 10 \
   --prepare "rm Results.txt rmlint.* || true" \
-  "fdupes -r ~" \
+  "fclones -R ~" \
   "jdupes -z -r ~" \
   "rmlint --hidden ~" \
   "ddh ~" \

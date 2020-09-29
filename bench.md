@@ -1,51 +1,51 @@
 Other software:
-- [fdupes 1.6.1](https://github.com/adrianlopezroche/fdupes)
+
+- [fclones 0.8.0](https://github.com/pkolaczk/fclones)
 - [jdupes 1.14.0](https://github.com/jbruchon/jdupes)
 - [ddh 0.11.3](https://github.com/darakian/ddh)
 - [fddf 1.7.0](https://github.com/birkenfeld/fddf)
 - [rmlint 2.9.0](https://github.com/sahib/rmlint)
 - [dupe-krill 1.4.4](https://github.com/kornelski/dupe-krill)
 
-
 Output of [`bench.sh`](bench.sh):
 
 ```
-Benchmark #1: fdupes -r ~
-  Time (mean ± σ):     62.750 s ±  0.340 s    [User: 28.247 s, System: 34.419 s]
-  Range (min … max):   62.059 s … 63.133 s    10 runs
+Benchmark #1: fclones -R ~
+  Time (mean ± σ):      3.648 s ±  0.035 s    [User: 15.911 s, System: 12.630 s]
+  Range (min … max):    3.610 s …  3.717 s    10 runs
 
 Benchmark #2: jdupes -z -r ~
-  Time (mean ± σ):     11.151 s ±  0.032 s    [User: 5.675 s, System: 5.406 s]
-  Range (min … max):   11.106 s … 11.201 s    10 runs
+  Time (mean ± σ):     10.941 s ±  0.038 s    [User: 5.597 s, System: 5.274 s]
+  Range (min … max):   10.892 s … 10.999 s    10 runs
 
 Benchmark #3: rmlint --hidden ~
-  Time (mean ± σ):     16.370 s ±  0.040 s    [User: 44.962 s, System: 15.873 s]
-  Range (min … max):   16.294 s … 16.407 s    10 runs
+  Time (mean ± σ):     16.009 s ±  0.098 s    [User: 42.302 s, System: 15.475 s]
+  Range (min … max):   15.831 s … 16.202 s    10 runs
 
 Benchmark #4: ddh ~
-  Time (mean ± σ):     10.080 s ±  0.125 s    [User: 36.864 s, System: 28.908 s]
-  Range (min … max):    9.869 s … 10.211 s    10 runs
+  Time (mean ± σ):     10.007 s ±  0.072 s    [User: 35.950 s, System: 28.828 s]
+  Range (min … max):    9.831 s … 10.103 s    10 runs
 
 Benchmark #5: dupe-krill -s -d ~
-  Time (mean ± σ):      8.820 s ±  0.087 s    [User: 5.618 s, System: 3.158 s]
-  Range (min … max):    8.712 s …  8.961 s    10 runs
+  Time (mean ± σ):      8.458 s ±  0.051 s    [User: 5.274 s, System: 3.139 s]
+  Range (min … max):    8.381 s …  8.547 s    10 runs
 
 Benchmark #6: fddf -m 0 ~
-  Time (mean ± σ):      5.309 s ±  0.056 s    [User: 10.526 s, System: 13.561 s]
-  Range (min … max):    5.216 s …  5.373 s    10 runs
+  Time (mean ± σ):      5.200 s ±  0.042 s    [User: 10.376 s, System: 13.075 s]
+  Range (min … max):    5.119 s …  5.251 s    10 runs
 
 Benchmark #7: yadf ~
-  Time (mean ± σ):      2.944 s ±  0.015 s    [User: 9.975 s, System: 12.670 s]
-  Range (min … max):    2.930 s …  2.978 s    10 runs
+  Time (mean ± σ):      2.984 s ±  0.021 s    [User: 10.272 s, System: 13.711 s]
+  Range (min … max):    2.958 s …  3.025 s    10 runs
 
 Summary
   'yadf ~' ran
-    1.80 ± 0.02 times faster than 'fddf -m 0 ~'
-    3.00 ± 0.03 times faster than 'dupe-krill -s -d ~'
-    3.42 ± 0.05 times faster than 'ddh ~'
-    3.79 ± 0.02 times faster than 'jdupes -z -r ~'
-    5.56 ± 0.03 times faster than 'rmlint --hidden ~'
-   21.32 ± 0.16 times faster than 'fdupes -r ~'
+    1.22 ± 0.01 times faster than 'fclones -R ~'
+    1.74 ± 0.02 times faster than 'fddf -m 0 ~'
+    2.83 ± 0.03 times faster than 'dupe-krill -s -d ~'
+    3.35 ± 0.03 times faster than 'ddh ~'
+    3.67 ± 0.03 times faster than 'jdupes -z -r ~'
+    5.37 ± 0.05 times faster than 'rmlint --hidden ~'
 ```
 
 Hardware information (extract from `neofetch` and `hwinfo --disk`):
