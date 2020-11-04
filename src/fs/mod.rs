@@ -49,7 +49,7 @@ where
             let hash = match hasher.partial(&entry.path()) {
                 Ok(hash) => hash,
                 Err(error) => {
-                    log::error!("{}, couldn't hash {}", error, entry.path().display());
+                    log::error!("{}, couldn't hash {:?}", error, entry.path());
                     return Err(());
                 }
             };
@@ -95,9 +95,9 @@ where
             Ok(hash) => hash,
             Err(error) => {
                 log::error!(
-                    "{}, couldn't hash {}, reusing partial hash",
+                    "{}, couldn't hash {:?}, reusing partial hash",
                     error,
-                    file.path().display()
+                    file.path()
                 );
                 old_hash
             }
