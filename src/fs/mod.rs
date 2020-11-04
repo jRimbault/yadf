@@ -46,7 +46,13 @@ where
                 return Err(());
             }
             let hasher: FsHasher<H> = Default::default();
-            let hash = hasher.partial(&entry.path()).map_err(|_| ())?;
+            let hash = match hasher.partial(&entry.path()) {
+                Ok(hash) => hash,
+                Err(error) => {
+                    log::error!("{}, couldn't hash {}", error, entry.path().display());
+                    return Err(());
+                }
+            };
             Ok((hash, DirEntry(entry)))
         })
         .filter_map(Result::ok)
@@ -70,17 +76,36 @@ where
                 bucket
                     .into_par_iter()
                     .for_each_with(sender.clone(), |sender, file| {
-                        if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
-                            let hasher: FsHasher<H> = Default::default();
-                            let hash = hasher.full(&file.path()).unwrap_or(old_hash);
-                            sender.send((hash, file)).unwrap();
-                        } else {
-                            sender.send((old_hash, file)).unwrap();
-                        }
+                        rehash::<H>(sender, file, old_hash)
                     });
             }
         });
     receiver.into_iter().collect()
+}
+
+// decrease indent level of the dedupe function
+fn rehash<H>(sender: &mut mpsc::Sender<(u64, DirEntry)>, file: DirEntry, old_hash: u64)
+where
+    H: Hasher + Default,
+    H: std::io::Write,
+{
+    if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
+        let hasher: FsHasher<H> = Default::default();
+        let hash = match hasher.full(&file.path()) {
+            Ok(hash) => hash,
+            Err(error) => {
+                log::error!(
+                    "{}, couldn't hash {}, reusing partial hash",
+                    error,
+                    file.path().display()
+                );
+                old_hash
+            }
+        };
+        sender.send((hash, file)).unwrap();
+    } else {
+        sender.send((old_hash, file)).unwrap();
+    }
 }
 
 trait WalkParallelMap {
@@ -102,8 +127,9 @@ impl WalkParallelMap for ignore::WalkParallel {
         self.run(move || {
             let sender = sender.clone();
             Box::new(move |result| {
-                if let Ok(entry) = result {
-                    sender.send(fnmap(entry)).unwrap();
+                match result {
+                    Ok(entry) => sender.send(fnmap(entry)).unwrap(),
+                    Err(error) => log::error!("{}", error),
                 }
                 ignore::WalkState::Continue
             })

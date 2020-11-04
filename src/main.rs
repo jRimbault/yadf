@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
-#[derive(structopt::StructOpt, Debug, Default)]
+#[derive(structopt::StructOpt, Debug)]
 pub struct Args {
     /// Directories to search
     ///
@@ -36,6 +36,8 @@ pub struct Args {
     /// maximum file size [default: no maximum]
     #[structopt(long, value_name = "size")]
     max: Option<Byte>,
+    #[structopt(flatten)]
+    verbosity: clap_verbosity_flag::Verbosity,
 }
 
 #[derive(Debug)]
@@ -59,6 +61,16 @@ enum Algorithm {
 fn main() {
     use Algorithm::*;
     let args = Args::from_env();
+    env_logger::Builder::new()
+        .filter_level(
+            args.verbosity
+                .log_level()
+                .unwrap_or(log::Level::Error)
+                .to_level_filter(),
+        )
+        .try_init()
+        .expect("couldn't initialize logger");
+    log::debug!("started with {:?}", args);
     let (min, max) = args.file_constraints();
     let dupes = match args.algorithm {
         SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),

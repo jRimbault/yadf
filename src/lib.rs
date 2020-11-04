@@ -38,7 +38,26 @@ where
     H: std::io::Write,
     P: AsRef<Path>,
 {
-    fs::dedupe::<H>(fs::find_dupes_partial::<H, P>(directories, min, max))
+    let dupes = fs::find_dupes_partial::<H, P>(directories, min, max);
+    if log::log_enabled!(log::Level::Info) {
+        log::info!(
+            "scanned {} files",
+            dupes.values().map(|b| b.len()).sum::<usize>()
+        );
+        log::info!(
+            "found {} possible duplicates after initial scan",
+            dupes.duplicates().map(|b| b.len()).sum::<usize>()
+        );
+    }
+    let dupes = fs::dedupe::<H>(dupes);
+    if log::log_enabled!(log::Level::Info) {
+        log::info!(
+            "found {} duplicates in {} groups after checksumming",
+            dupes.duplicates().map(|b| b.len()).sum::<usize>(),
+            dupes.duplicates().count(),
+        );
+    }
+    dupes
 }
 
 #[cfg(any(test, feature = "build-bin"))]
