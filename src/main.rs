@@ -8,6 +8,7 @@ use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
 #[derive(structopt::StructOpt, Debug)]
+#[structopt(setting(structopt::clap::AppSettings::ColoredHelp))]
 pub struct Args {
     /// Directories to search
     ///
