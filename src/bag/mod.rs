@@ -22,7 +22,12 @@ use std::collections::BTreeMap;
 /// assert_eq!(bag[&3][0], "hello world");
 /// ```
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct TreeBag<H: Ord, T>(pub(crate) BTreeMap<H, Vec<T>>);
+
+/// A view which only provides access to duplicate entries
+#[derive(Debug)]
+pub struct Duplicates<'a, H: Ord, T>(&'a TreeBag<H, T>);
 
 /// Display marker.
 #[derive(Debug)]
@@ -31,18 +36,26 @@ pub struct Machine;
 /// Display marker.
 pub struct Fdupes;
 
+#[derive(Debug)]
 pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
     _marker: std::marker::PhantomData<U>,
-    counter: &'a TreeBag<H, T>,
+    counter: &'a Duplicates<'a, H, T>,
 }
 
 impl<H: Ord, T> TreeBag<H, T> {
-    /// Provides a view on all the buckets containing more than one element.
-    pub fn duplicates(&self) -> impl Iterator<Item = &[T]> {
+    /// Provides a view only on the buckets containing more than one element.
+    pub fn duplicates(&self) -> Duplicates<'_, H, T> {
+        Duplicates(self)
+    }
+}
+
+impl<'a, H: Ord, T> Duplicates<'a, H, T> {
+    /// Iterator over the buckets
+    pub fn values(&self) -> impl Iterator<Item = &[T]> {
         self.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
     }
 
-    /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html).
+    /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html)
     ///
     /// Depending on the contents of the [`TreeBag`](struct.TreeBag.html), the display object
     /// can be parameterized to get a different `Display` implemenation.

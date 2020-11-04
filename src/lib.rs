@@ -8,7 +8,7 @@
 //! let hasher: std::marker::PhantomData<yadf::XxHasher> = Default::default();
 //! let paths = ["."];
 //! let files_counter = yadf::find_dupes(hasher, &paths, None, None);
-//! println!("{}", files_counter.display::<yadf::Fdupes>());
+//! println!("{}", files_counter.duplicates().display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&files_counter));
 //! ```
 
@@ -46,15 +46,15 @@ where
         );
         log::info!(
             "found {} possible duplicates after initial scan",
-            dupes.duplicates().map(|b| b.len()).sum::<usize>()
+            dupes.duplicates().values().map(|b| b.len()).sum::<usize>()
         );
     }
     let dupes = fs::dedupe::<H>(dupes);
     if log::log_enabled!(log::Level::Info) {
         log::info!(
             "found {} duplicates in {} groups after checksumming",
-            dupes.duplicates().map(|b| b.len()).sum::<usize>(),
-            dupes.duplicates().count(),
+            dupes.duplicates().values().map(|b| b.len()).sum::<usize>(),
+            dupes.duplicates().values().count(),
         );
     }
     dupes

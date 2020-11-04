@@ -10,7 +10,7 @@ where
     where
         S: Serializer,
     {
-        serializer.collect_seq(self.duplicates())
+        serializer.collect_seq(self.duplicates().values())
     }
 }
 

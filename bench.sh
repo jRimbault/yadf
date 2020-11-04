@@ -14,7 +14,7 @@
 hyperfine --warmup 1 \
   --min-runs 10 \
   --prepare "rm Results.txt rmlint.* || true" \
-  "fclones -R ~" \
+  "fclones --min-size 0 -R ~" \
   "jdupes -z -r ~" \
   "rmlint --hidden ~" \
   "ddh ~" \

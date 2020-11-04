@@ -6,7 +6,7 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut duplicates = self.counter.duplicates().peekable();
+        let mut duplicates = self.counter.values().peekable();
         while let Some(bucket) = duplicates.next() {
             let mut bucket = bucket.iter().peekable();
             let is_last_bucket = duplicates.peek().is_none();
@@ -29,7 +29,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut duplicates = self.counter.duplicates().peekable();
+        let mut duplicates = self.counter.values().peekable();
         while let Some(bucket) = duplicates.next() {
             let (last, rest) = bucket.split_last().unwrap();
             for dupe in rest {
@@ -61,7 +61,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let result = counter.display::<Machine>().to_string();
+        let result = counter.duplicates().display::<Machine>().to_string();
         let expected = r#""foo" "bar"
 "hello" "world""#;
         assert_eq!(result, expected);
@@ -78,7 +78,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let result = counter.display::<Fdupes>().to_string();
+        let result = counter.duplicates().display::<Fdupes>().to_string();
         let expected = "foo\nbar\n\nhello\nworld";
         assert_eq!(result, expected);
     }

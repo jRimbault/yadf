@@ -1,3 +1,4 @@
+#[cfg(not(tarpaulin_include))]
 mod args;
 
 use byte_unit::Byte;
@@ -62,6 +63,29 @@ enum Algorithm {
 fn main() {
     use Algorithm::*;
     let args = Args::from_env();
+    init_logger(&args);
+    log::debug!("started with {:?}", args);
+    let (min, max) = args.file_constraints();
+    let counter = match args.algorithm {
+        SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+    };
+    match args.format {
+        Format::Json => serde_json::to_writer(io::stdout(), &counter).unwrap(),
+        Format::JsonPretty => serde_json::to_writer_pretty(io::stdout(), &counter).unwrap(),
+        Format::Fdupes => print!("{}", counter.duplicates().display::<Fdupes>()),
+        Format::Machine => print!("{}", counter.duplicates().display::<Machine>()),
+    };
+    println!();
+    if args.report {
+        let report = Report::from(&counter);
+        eprintln!("{}", report);
+    }
+}
+
+#[cfg(not(tarpaulin_include))]
+fn init_logger(args: &Args) {
     env_logger::Builder::new()
         .filter_level(
             args.verbosity
@@ -69,24 +93,5 @@ fn main() {
                 .unwrap_or(log::Level::Error)
                 .to_level_filter(),
         )
-        .try_init()
-        .expect("couldn't initialize logger");
-    log::debug!("started with {:?}", args);
-    let (min, max) = args.file_constraints();
-    let dupes = match args.algorithm {
-        SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-        XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-        Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-    };
-    match args.format {
-        Format::Json => serde_json::to_writer(io::stdout(), &dupes).unwrap(),
-        Format::JsonPretty => serde_json::to_writer_pretty(io::stdout(), &dupes).unwrap(),
-        Format::Fdupes => print!("{}", dupes.display::<Fdupes>()),
-        Format::Machine => print!("{}", dupes.display::<Machine>()),
-    };
-    println!();
-    if args.report {
-        let report = Report::from(&dupes);
-        eprintln!("{}", report);
-    }
+        .init();
 }
