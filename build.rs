@@ -51,7 +51,7 @@ fn long_version(rev: Option<String>) -> String {
 /// Returns the relevant CPU features enabled at compile time.
 fn compile_cpu_features() -> Vec<&'static str> {
     let mut features = vec![];
-    if cfg!(feature = "avx-accel") {
+    if cfg!(feature = "avx2") {
         features.push("+AVX");
     } else {
         features.push("-AVX");

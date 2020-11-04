@@ -37,7 +37,9 @@ impl Args {
         lazy_static::lazy_static! {
             static ref LONG_VERSION: String = env!("YADF_BUILD_VERSION").replace("|", "\n");
         }
-        let app = Self::clap().long_version(LONG_VERSION.as_str());
+        let app = Self::clap()
+            .long_version(LONG_VERSION.as_str())
+            .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
         let mut args = Self::from_clap(&app.get_matches());
         let cwd = || env::current_dir().expect("couldn't get current working directory");
         args.paths = args.paths(cwd);

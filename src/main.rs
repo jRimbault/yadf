@@ -7,8 +7,6 @@ use std::path::PathBuf;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
-///
-/// For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive)
 #[derive(structopt::StructOpt, Debug, Default)]
 pub struct Args {
     /// Directories to search
@@ -18,7 +16,7 @@ pub struct Args {
     paths: Vec<PathBuf>,
     /// output format
     ///
-    /// `standard`, `json`, `json_pretty`, `fdupes`, or `machine`
+    /// `json`, `json_pretty`, `fdupes`, or `machine`
     #[structopt(short, long, default_value)]
     format: Format,
     /// Prints human readable report to stderr
@@ -33,10 +31,10 @@ pub struct Args {
     #[structopt(short, long)]
     no_empty: bool,
     /// minimum file size [default: no minimum]
-    #[structopt(long)]
+    #[structopt(long, value_name = "size")]
     min: Option<Byte>,
     /// maximum file size [default: no maximum]
-    #[structopt(long)]
+    #[structopt(long, value_name = "size")]
     max: Option<Byte>,
 }
 
