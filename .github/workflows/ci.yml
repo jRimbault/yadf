@@ -93,7 +93,7 @@ jobs:
         run: |
           # gnu tar for cache issue
           brew install gnu-tar
-          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
+          echo "/usr/local/opt/gnu-tar/libexec/gnubin" >> $GITHUB_PATH
       - uses: actions/cache@v2
         with:
           path: |
