@@ -65,9 +65,7 @@ enum Algorithm {
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
-    use Algorithm::*;
-    let args = Args::from_env();
-    init_logger(&args);
+    let args = Args::init_from_env();
     log::debug!("started with {:?}", args);
     let (min, max) = args.file_constraints();
     let config = yadf::Config::builder()
@@ -77,10 +75,10 @@ fn main() {
         .regex(args.regex.clone())
         .build();
     let counter = match args.algorithm {
-        SeaHash => config.find_dupes::<yadf::SeaHasher>(),
+        Algorithm::SeaHash => config.find_dupes::<yadf::SeaHasher>(),
 
-        XxHash => config.find_dupes::<yadf::XxHasher>(),
-        Highway => config.find_dupes::<yadf::HighwayHasher>(),
+        Algorithm::XxHash => config.find_dupes::<yadf::XxHasher>(),
+        Algorithm::Highway => config.find_dupes::<yadf::HighwayHasher>(),
     };
     match args.format {
         Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),
@@ -95,16 +93,4 @@ fn main() {
         let report = Report::from(&counter);
         eprintln!("{}", report);
     }
-}
-
-#[cfg(not(tarpaulin_include))]
-fn init_logger(args: &Args) {
-    env_logger::Builder::new()
-        .filter_level(
-            args.verbosity
-                .log_level()
-                .unwrap_or(log::Level::Error)
-                .to_level_filter(),
-        )
-        .init();
 }

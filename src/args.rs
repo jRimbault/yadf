@@ -29,8 +29,18 @@ impl Args {
         }
     }
 
-    #[cfg(not(tarpaulin_include))]
-    pub fn from_env() -> Self {
+    fn init_logger(&self) {
+        env_logger::Builder::new()
+            .filter_level(
+                self.verbosity
+                    .log_level()
+                    .unwrap_or(log::Level::Error)
+                    .to_level_filter(),
+            )
+            .init();
+    }
+
+    pub fn init_from_env() -> Self {
         // Clap requires that every string we give it will be
         // 'static, but we need to build the version string dynamically.
         // We can fake the 'static lifetime with lazy_static.
@@ -43,6 +53,7 @@ impl Args {
         let mut args = Self::from_clap(&app.get_matches());
         let cwd = || env::current_dir().expect("couldn't get current working directory");
         args.paths = args.paths(cwd);
+        args.init_logger();
         args
     }
 }
