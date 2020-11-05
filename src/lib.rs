@@ -36,6 +36,8 @@ where
     max: Option<u64>,
     #[builder(default)]
     regex: Option<regex::Regex>,
+    #[builder(default)]
+    glob: Option<globset::GlobMatcher>,
 }
 
 impl<P> Config<'_, P>
@@ -49,7 +51,8 @@ where
         H: Hasher + Default,
         H: std::io::Write,
     {
-        let dupes = fs::find_dupes_partial::<H, P>(self.paths, self.min, self.max, self.regex);
+        let dupes =
+            fs::find_dupes_partial::<H, P>(self.paths, self.min, self.max, self.regex, self.glob);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",

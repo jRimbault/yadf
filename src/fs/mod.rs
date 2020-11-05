@@ -15,6 +15,17 @@ use wrapper::DirEntry;
 
 const BLOCK_SIZE: usize = 4096;
 
+macro_rules! is_match {
+    ($regex:expr, $entry:expr) => {{
+        $regex
+            .as_ref()
+            .and_then(|r| $entry.path().file_name().map(|n| (r, n)))
+            .map_or(true, |(regex, name)| {
+                regex.is_match(name.to_string_lossy().as_ref())
+            })
+    }};
+}
+
 /// Foundation of the API.
 /// This will attemps a naive scan of every file,
 /// within the given size constraints, at the given path.
@@ -23,6 +34,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     min: Option<u64>,
     max: Option<u64>,
     regex: Option<regex::Regex>,
+    glob: Option<globset::GlobMatcher>,
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
@@ -46,7 +58,10 @@ where
             if max.map_or(false, |m| meta.len() > m) {
                 return Err(());
             }
-            if !is_match(&regex, &entry) {
+            if !is_match!(regex, entry) {
+                return Err(());
+            }
+            if !is_match!(glob, entry) {
                 return Err(());
             }
             let hasher: FsHasher<H> = Default::default();
@@ -61,15 +76,6 @@ where
         })
         .filter_map(Result::ok)
         .collect()
-}
-
-fn is_match(regex: &Option<regex::Regex>, entry: &ignore::DirEntry) -> bool {
-    regex
-        .as_ref()
-        .and_then(|r| entry.path().file_name().map(|n| (r, n)))
-        .map_or(true, |(regex, name)| {
-            regex.is_match(&name.to_string_lossy())
-        })
 }
 
 pub(crate) fn dedupe<H>(counter: TreeBag<u64, DirEntry>) -> TreeBag<u64, DirEntry>

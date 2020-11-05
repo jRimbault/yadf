@@ -40,8 +40,13 @@ pub struct Args {
     /// check files with a name matching a PCRE regex
     ///
     /// almost PCRE, see: https://docs.rs/regex/1.4.2/regex/struct.Regex.html
-    #[structopt(short, long, value_name = "regex")]
+    #[structopt(short = "R", long)]
     regex: Option<regex::Regex>,
+    /// check files with a name matching a glob pattern
+    ///
+    /// see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
+    #[structopt(short, long, value_name = "glob")]
+    pattern: Option<globset::Glob>,
     #[structopt(flatten)]
     verbosity: clap_verbosity_flag::Verbosity,
 }
@@ -73,6 +78,7 @@ fn main() {
         .min(min)
         .max(max)
         .regex(args.regex.clone())
+        .glob(args.pattern.clone().map(|g| g.compile_matcher()))
         .build();
     let counter = match args.algorithm {
         Algorithm::SeaHash => config.find_dupes::<yadf::SeaHasher>(),
