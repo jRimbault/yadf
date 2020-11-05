@@ -1,4 +1,4 @@
-use super::Duplicates;
+use super::{Duplicates, TreeBag};
 use serde::ser::{Serialize, Serializer};
 
 impl<H, T> Serialize for Duplicates<'_, H, T>
@@ -11,6 +11,19 @@ where
         S: Serializer,
     {
         serializer.collect_seq(self.iter())
+    }
+}
+
+impl<H, T> Serialize for TreeBag<H, T>
+where
+    H: Ord + Serialize,
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_map(self.iter())
     }
 }
 
