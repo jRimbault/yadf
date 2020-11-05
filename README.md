@@ -11,7 +11,7 @@ cargo install yadf
 CLI Usage:
 
 ```
-yadf 0.6.0
+yadf 0.7.0
 Yet Another Dupes Finder
 
 USAGE:
@@ -20,19 +20,23 @@ USAGE:
 FLAGS:
     -h, --help        Prints help information
     -n, --no-empty    Excludes empty files
+    -q, --quiet       Pass many times for less log output
     -r, --report      Prints human readable report to stderr
     -V, --version     Prints version information
+    -v, --verbose     Pass many times for more log output
 
 OPTIONS:
     -a, --algorithm <algorithm>    hashing algorithm [default: highway]
     -f, --format <format>          output format [default: fdupes]
         --max <size>               maximum file size [default: no maximum]
         --min <size>               minimum file size [default: no minimum]
+    -p, --pattern <glob>           check files with a name matching a glob pattern
+    -R, --regex <regex>            check files with a name matching a PCRE regex
 
 ARGS:
     <paths>...    Directories to search
 
-For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive)
+For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 ```
 
 [benchmarks]: bench.md
