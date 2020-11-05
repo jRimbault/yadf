@@ -1,7 +1,7 @@
-use super::TreeBag;
+use super::Duplicates;
 use serde::ser::{Serialize, Serializer};
 
-impl<H, T> Serialize for TreeBag<H, T>
+impl<H, T> Serialize for Duplicates<'_, H, T>
 where
     H: Ord,
     T: Serialize,
@@ -10,7 +10,7 @@ where
     where
         S: Serializer,
     {
-        serializer.collect_seq(self.duplicates().iter())
+        serializer.collect_seq(self.iter())
     }
 }
 
@@ -29,7 +29,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let result = serde_json::to_string(&counter).unwrap();
+        let result = serde_json::to_string(&counter.duplicates()).unwrap();
         let expected = r#"[["foo","bar"],["hello","world"]]"#;
         assert_eq!(result, expected);
     }

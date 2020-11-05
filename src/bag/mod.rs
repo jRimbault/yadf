@@ -49,7 +49,7 @@ impl<H: Ord, T> TreeBag<H, T> {
     }
 }
 
-impl<'a, H: Ord, T> Duplicates<'a, H, T> {
+impl<H: Ord, T> Duplicates<'_, H, T> {
     /// Iterator over the buckets
     pub fn iter(&self) -> impl Iterator<Item = &[T]> {
         self.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)

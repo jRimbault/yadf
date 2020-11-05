@@ -1,7 +1,7 @@
 use super::{Display, Fdupes, Machine};
 use std::fmt;
 
-impl<'a, H: Ord, T> fmt::Display for Display<'a, H, T, Fdupes>
+impl<H: Ord, T> fmt::Display for Display<'_, H, T, Fdupes>
 where
     T: fmt::Display,
 {
@@ -24,7 +24,7 @@ where
     }
 }
 
-impl<'a, H: Ord, T> fmt::Display for Display<'a, H, T, Machine>
+impl<H: Ord, T> fmt::Display for Display<'_, H, T, Machine>
 where
     T: fmt::Debug,
 {

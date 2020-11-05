@@ -72,8 +72,10 @@ fn main() {
         Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
     };
     match args.format {
-        Format::Json => serde_json::to_writer(io::stdout(), &counter).unwrap(),
-        Format::JsonPretty => serde_json::to_writer_pretty(io::stdout(), &counter).unwrap(),
+        Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),
+        Format::JsonPretty => {
+            serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap()
+        }
         Format::Fdupes => print!("{}", counter.duplicates().display::<Fdupes>()),
         Format::Machine => print!("{}", counter.duplicates().display::<Machine>()),
     };
