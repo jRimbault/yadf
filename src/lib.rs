@@ -5,9 +5,7 @@
 //! Find, display, and report, all the duplicate files at the given path :
 //!
 //! ```no_run
-//! let hasher: std::marker::PhantomData<yadf::XxHasher> = Default::default();
-//! let paths = ["."];
-//! let counter = yadf::find_dupes(hasher, yadf::SearchConfig::builder().paths(&paths).build());
+//! let counter = yadf::Config::builder().paths(&["."]).build().find_dupes::<yadf::SeaHasher>();
 //! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&counter));
 //! ```
@@ -25,8 +23,9 @@ pub use report::Report;
 use std::hash::Hasher;
 use std::path::Path;
 
+/// Search configuration
 #[derive(Debug, Default, typed_builder::TypedBuilder)]
-pub struct SearchConfig<'a, P>
+pub struct Config<'a, P>
 where
     P: AsRef<Path>,
 {
@@ -39,43 +38,44 @@ where
     regex: Option<regex::Regex>,
 }
 
-/// This will attemps a complete scan of every file,
-/// within the given size constraints, at the given path.
-pub fn find_dupes<H, P>(
-    _hasher: std::marker::PhantomData<H>,
-    config: SearchConfig<P>,
-) -> TreeBag<u64, DirEntry>
+impl<P> Config<'_, P>
 where
-    H: Hasher + Default,
-    H: std::io::Write,
     P: AsRef<Path>,
 {
-    let dupes = fs::find_dupes_partial::<H, P>(config.paths, config.min, config.max, config.regex);
-    if log::log_enabled!(log::Level::Info) {
-        log::info!(
-            "scanned {} files",
-            dupes.values().map(|b| b.len()).sum::<usize>()
-        );
-        log::info!(
-            "found {} possible duplicates after initial scan",
-            dupes.duplicates().iter().map(|b| b.len()).sum::<usize>()
-        );
-        if log::log_enabled!(log::Level::Debug) {
-            log::debug!("{:?}", dupes);
+    /// This will attemps a complete scan of every file,
+    /// within the given size constraints, at the given path.
+    pub fn find_dupes<H>(self) -> TreeBag<u64, DirEntry>
+    where
+        H: Hasher + Default,
+        H: std::io::Write,
+    {
+        let dupes = fs::find_dupes_partial::<H, P>(self.paths, self.min, self.max, self.regex);
+        if log::log_enabled!(log::Level::Info) {
+            log::info!(
+                "scanned {} files",
+                dupes.values().map(|b| b.len()).sum::<usize>()
+            );
+            log::info!(
+                "found {} possible duplicates after initial scan",
+                dupes.duplicates().iter().map(|b| b.len()).sum::<usize>()
+            );
+            if log::log_enabled!(log::Level::Debug) {
+                log::debug!("{:?}", dupes);
+            }
         }
-    }
-    let dupes = fs::dedupe::<H>(dupes);
-    if log::log_enabled!(log::Level::Info) {
-        log::info!(
-            "found {} duplicates in {} groups after checksumming",
-            dupes.duplicates().iter().map(|b| b.len()).sum::<usize>(),
-            dupes.duplicates().iter().count(),
-        );
-        if log::log_enabled!(log::Level::Debug) {
-            log::debug!("{:?}", dupes);
+        let dupes = fs::dedupe::<H>(dupes);
+        if log::log_enabled!(log::Level::Info) {
+            log::info!(
+                "found {} duplicates in {} groups after checksumming",
+                dupes.duplicates().iter().map(|b| b.len()).sum::<usize>(),
+                dupes.duplicates().iter().count(),
+            );
+            if log::log_enabled!(log::Level::Debug) {
+                log::debug!("{:?}", dupes);
+            }
         }
+        dupes
     }
-    dupes
 }
 
 #[cfg(any(test, feature = "build-bin"))]

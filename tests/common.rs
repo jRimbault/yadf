@@ -1,6 +1,5 @@
 mod test_dir;
 
-use std::marker::PhantomData;
 use test_dir::TestDir;
 
 const MAX_LEN: usize = 256 * 1024;
@@ -13,9 +12,11 @@ const MAX_LEN: usize = 256 * 1024;
 #[test]
 #[ignore]
 fn sanity_test() {
-    let hasher: PhantomData<yadf::SeaHasher> = Default::default();
     let home = dirs::home_dir().unwrap();
-    let counter = yadf::find_dupes(hasher, yadf::SearchConfig::builder().paths(&[home]).build());
+    let counter = yadf::Config::builder()
+        .paths(&[home])
+        .build()
+        .find_dupes::<yadf::SeaHasher>();
     for bucket in counter.duplicates().iter() {
         let (first, bucket) = bucket.split_first().unwrap();
         let reference = std::fs::read(first.path()).unwrap();
@@ -40,8 +41,10 @@ macro_rules! DIR {
 
 /// test shortcut
 fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::DirEntry> {
-    let hasher: PhantomData<yadf::SeaHasher> = Default::default();
-    yadf::find_dupes(hasher, yadf::SearchConfig::builder().paths(&[path]).build())
+    yadf::Config::builder()
+        .paths(&[path])
+        .build()
+        .find_dupes::<yadf::SeaHasher>()
 }
 
 #[test]

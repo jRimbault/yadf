@@ -46,13 +46,10 @@ mod tests {
     #[test]
     #[cfg(not(windows))]
     fn basic() {
-        let hasher: std::marker::PhantomData<crate::hashers::SeaHasher> = Default::default();
-        let bag = crate::find_dupes(
-            hasher,
-            crate::SearchConfig::builder()
-                .paths(&["./tests/static"])
-                .build(),
-        );
+        let bag = crate::Config::builder()
+            .paths(&["./tests/static"])
+            .build()
+            .find_dupes::<crate::SeaHasher>();
         let report = Report::from(&bag).to_string();
         let expected = "\
             5 scanned files: 14 B\n\

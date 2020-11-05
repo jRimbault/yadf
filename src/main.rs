@@ -3,7 +3,6 @@ mod args;
 
 use byte_unit::Byte;
 use std::io;
-use std::marker;
 use std::path::PathBuf;
 use yadf::{Fdupes, Machine, Report};
 
@@ -59,9 +58,9 @@ enum Format {
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 enum Algorithm {
-    Highway(marker::PhantomData<yadf::HighwayHasher>),
-    SeaHash(marker::PhantomData<yadf::SeaHasher>),
-    XxHash(marker::PhantomData<yadf::XxHasher>),
+    Highway,
+    SeaHash,
+    XxHash,
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -71,17 +70,17 @@ fn main() {
     init_logger(&args);
     log::debug!("started with {:?}", args);
     let (min, max) = args.file_constraints();
-    let config = yadf::SearchConfig::builder()
+    let config = yadf::Config::builder()
         .paths(&args.paths)
         .min(min)
         .max(max)
         .regex(args.regex.clone())
         .build();
     let counter = match args.algorithm {
-        SeaHash(hasher) => yadf::find_dupes(hasher, config),
+        SeaHash => config.find_dupes::<yadf::SeaHasher>(),
 
-        XxHash(hasher) => yadf::find_dupes(hasher, config),
-        Highway(hasher) => yadf::find_dupes(hasher, config),
+        XxHash => config.find_dupes::<yadf::XxHasher>(),
+        Highway => config.find_dupes::<yadf::HighwayHasher>(),
     };
     match args.format {
         Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),
