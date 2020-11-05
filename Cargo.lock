@@ -656,6 +656,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "typed-builder"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d942c3f63d40f62b3fece2ab34a5bfc0d427ef148010fa732f5d56da0ac6d6ec"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "unicode-segmentation"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -760,4 +771,5 @@ dependencies = [
  "serde_json",
  "structopt",
  "twox-hash",
+ "typed-builder",
 ]

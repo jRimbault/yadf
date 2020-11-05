@@ -7,9 +7,9 @@
 //! ```no_run
 //! let hasher: std::marker::PhantomData<yadf::XxHasher> = Default::default();
 //! let paths = ["."];
-//! let files_counter = yadf::find_dupes(hasher, &paths, None, None, None);
-//! println!("{}", files_counter.duplicates().display::<yadf::Fdupes>());
-//! eprintln!("{}", yadf::Report::from(&files_counter));
+//! let counter = yadf::find_dupes(hasher, yadf::SearchConfig::builder().paths(&paths).build());
+//! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
+//! eprintln!("{}", yadf::Report::from(&counter));
 //! ```
 
 mod bag;
@@ -25,21 +25,29 @@ pub use report::Report;
 use std::hash::Hasher;
 use std::path::Path;
 
+#[derive(Default, typed_builder::TypedBuilder)]
+pub struct SearchConfig<'a, P: AsRef<Path>> {
+    paths: &'a [P],
+    #[builder(default)]
+    min: Option<u64>,
+    #[builder(default)]
+    max: Option<u64>,
+    #[builder(default)]
+    regex: Option<regex::Regex>,
+}
+
 /// This will attemps a complete scan of every file,
 /// within the given size constraints, at the given path.
 pub fn find_dupes<H, P>(
     _hasher: std::marker::PhantomData<H>,
-    directories: &[P],
-    min: Option<u64>,
-    max: Option<u64>,
-    pattern: Option<regex::Regex>,
+    config: SearchConfig<P>,
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
     H: std::io::Write,
     P: AsRef<Path>,
 {
-    let dupes = fs::find_dupes_partial::<H, P>(directories, min, max, pattern);
+    let dupes = fs::find_dupes_partial::<H, P>(config.paths, config.min, config.max, config.regex);
     if log::log_enabled!(log::Level::Info) {
         log::info!(
             "scanned {} files",
