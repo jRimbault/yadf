@@ -7,7 +7,7 @@
 //! ```no_run
 //! let hasher: std::marker::PhantomData<yadf::XxHasher> = Default::default();
 //! let paths = ["."];
-//! let files_counter = yadf::find_dupes(hasher, &paths, None, None);
+//! let files_counter = yadf::find_dupes(hasher, &paths, None, None, None);
 //! println!("{}", files_counter.duplicates().display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&files_counter));
 //! ```
