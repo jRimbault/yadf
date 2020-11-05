@@ -52,7 +52,7 @@ fn identical_small_files() -> std::io::Result<()> {
     let _ = root.write_file(&"file2", b"aaa", b"", b"");
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
-    assert_eq!(counter.values().count(), 1);
+    assert_eq!(counter.len(), 1);
     Ok(())
 }
 
@@ -63,7 +63,7 @@ fn identical_large_files() -> std::io::Result<()> {
     let _ = root.write_file(&"file2", &[0; MAX_LEN], &[1; 4096], &[2; 4096]);
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
-    assert_eq!(counter.values().count(), 1);
+    assert_eq!(counter.len(), 1);
     Ok(())
 }
 
@@ -74,7 +74,7 @@ fn files_differing_by_size() -> std::io::Result<()> {
     let _ = root.write_file(&"file2", b"aaa", b"", b"");
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.values().count(), 2);
+    assert_eq!(counter.len(), 2);
     Ok(())
 }
 
@@ -85,7 +85,7 @@ fn files_differing_by_prefix() -> std::io::Result<()> {
     let _ = root.write_file(&"file2", b"bbb", b"", b"");
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.values().count(), 2);
+    assert_eq!(counter.len(), 2);
     Ok(())
 }
 
@@ -98,7 +98,7 @@ fn files_differing_by_suffix() -> std::io::Result<()> {
     let _ = root.write_file(&"file2", &prefix, &middle, b"suffix2");
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.values().count(), 2);
+    assert_eq!(counter.len(), 2);
     Ok(())
 }
 
@@ -111,6 +111,6 @@ fn files_differing_by_middle() -> std::io::Result<()> {
     let _ = root.write_file(&"file2", &prefix, b"middle2", &suffix);
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.values().count(), 2);
+    assert_eq!(counter.len(), 2);
     Ok(())
 }
