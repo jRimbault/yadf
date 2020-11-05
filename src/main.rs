@@ -38,6 +38,9 @@ pub struct Args {
     /// maximum file size [default: no maximum]
     #[structopt(long, value_name = "size")]
     max: Option<Byte>,
+    /// only matching files with a name matching a PCRE regex
+    #[structopt(short, long, value_name = "regex")]
+    pattern: Option<regex::Regex>,
     #[structopt(flatten)]
     verbosity: clap_verbosity_flag::Verbosity,
 }
@@ -67,9 +70,9 @@ fn main() {
     log::debug!("started with {:?}", args);
     let (min, max) = args.file_constraints();
     let counter = match args.algorithm {
-        SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-        XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
-        Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max),
+        SeaHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max, args.pattern.clone()),
+        XxHash(hasher) => yadf::find_dupes(hasher, &args.paths, min, max, args.pattern.clone()),
+        Highway(hasher) => yadf::find_dupes(hasher, &args.paths, min, max, args.pattern.clone()),
     };
     match args.format {
         Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),

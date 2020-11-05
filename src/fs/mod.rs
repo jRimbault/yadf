@@ -22,6 +22,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     directories: &[P],
     min: Option<u64>,
     max: Option<u64>,
+    pattern: Option<regex::Regex>,
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
@@ -43,6 +44,15 @@ where
                 return Err(());
             }
             if max.map_or(false, |m| meta.len() > m) {
+                return Err(());
+            }
+            if pattern
+                .as_ref()
+                .and_then(|r| entry.path().file_name().map(|n| (r, n)))
+                .map_or(false, |(regex, name)| {
+                    !regex.is_match(&name.to_string_lossy())
+                })
+            {
                 return Err(());
             }
             let hasher: FsHasher<H> = Default::default();

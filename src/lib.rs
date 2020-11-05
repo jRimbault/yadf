@@ -32,13 +32,14 @@ pub fn find_dupes<H, P>(
     directories: &[P],
     min: Option<u64>,
     max: Option<u64>,
+    pattern: Option<regex::Regex>,
 ) -> TreeBag<u64, DirEntry>
 where
     H: Hasher + Default,
     H: std::io::Write,
     P: AsRef<Path>,
 {
-    let dupes = fs::find_dupes_partial::<H, P>(directories, min, max);
+    let dupes = fs::find_dupes_partial::<H, P>(directories, min, max, pattern);
     if log::log_enabled!(log::Level::Info) {
         log::info!(
             "scanned {} files",
@@ -48,6 +49,9 @@ where
             "found {} possible duplicates after initial scan",
             dupes.duplicates().iter().map(|b| b.len()).sum::<usize>()
         );
+        if log::log_enabled!(log::Level::Debug) {
+            log::debug!("{:?}", dupes);
+        }
     }
     let dupes = fs::dedupe::<H>(dupes);
     if log::log_enabled!(log::Level::Info) {
@@ -56,6 +60,9 @@ where
             dupes.duplicates().iter().map(|b| b.len()).sum::<usize>(),
             dupes.duplicates().iter().count(),
         );
+        if log::log_enabled!(log::Level::Debug) {
+            log::debug!("{:?}", dupes);
+        }
     }
     dupes
 }
