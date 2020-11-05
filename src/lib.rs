@@ -25,8 +25,11 @@ pub use report::Report;
 use std::hash::Hasher;
 use std::path::Path;
 
-#[derive(Default, typed_builder::TypedBuilder)]
-pub struct SearchConfig<'a, P: AsRef<Path>> {
+#[derive(Debug, Default, typed_builder::TypedBuilder)]
+pub struct SearchConfig<'a, P>
+where
+    P: AsRef<Path>,
+{
     paths: &'a [P],
     #[builder(default)]
     min: Option<u64>,
