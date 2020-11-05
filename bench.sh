@@ -11,7 +11,7 @@
 #
 # fddf ignores zero length files
 
-hyperfine --warmup 1 \
+hyperfine --warmup 5 \
   --min-runs 10 \
   --prepare "rm Results.txt rmlint.* || true" \
   "fclones --min-size 0 -R ~" \
