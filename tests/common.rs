@@ -48,8 +48,8 @@ fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::D
 fn identical_small_files() -> std::io::Result<()> {
     let root = TestDir::try_new(&DIR!(identical_small_files))?;
     println!("{:?}", root.as_ref());
-    let _ = root.write_file(&"file1", b"aaa", b"", b"");
-    let _ = root.write_file(&"file2", b"aaa", b"", b"");
+    assert!(root.write_file(&"file1", b"aaa", b"", b"").is_ok());
+    assert!(root.write_file(&"file2", b"aaa", b"", b"").is_ok());
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.len(), 1);
@@ -57,10 +57,13 @@ fn identical_small_files() -> std::io::Result<()> {
 }
 
 #[test]
-fn identical_large_files() -> std::io::Result<()> {
-    let root = TestDir::try_new(&DIR!(identical_large_files))?;
-    let _ = root.write_file(&"file1", &[0; MAX_LEN], &[1; 4096], &[2; 4096]);
-    let _ = root.write_file(&"file2", &[0; MAX_LEN], &[1; 4096], &[2; 4096]);
+fn identical_larger_files() -> std::io::Result<()> {
+    let root = TestDir::try_new(&DIR!(identical_larger_files))?;
+    let prefix = [0; MAX_LEN];
+    let middle = [1; MAX_LEN];
+    let suffix = [2; MAX_LEN];
+    assert!(root.write_file(&"file1", &prefix, &middle, &suffix).is_ok());
+    assert!(root.write_file(&"file2", &prefix, &middle, &suffix).is_ok());
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.len(), 1);
@@ -70,8 +73,8 @@ fn identical_large_files() -> std::io::Result<()> {
 #[test]
 fn files_differing_by_size() -> std::io::Result<()> {
     let root = TestDir::try_new(&DIR!(files_differing_by_size))?;
-    let _ = root.write_file(&"file1", b"aaaa", b"", b"");
-    let _ = root.write_file(&"file2", b"aaa", b"", b"");
+    assert!(root.write_file(&"file1", b"aaaa", b"", b"").is_ok());
+    assert!(root.write_file(&"file2", b"aaa", b"", b"").is_ok());
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
@@ -81,8 +84,8 @@ fn files_differing_by_size() -> std::io::Result<()> {
 #[test]
 fn files_differing_by_prefix() -> std::io::Result<()> {
     let root = TestDir::try_new(&DIR!(files_differing_by_prefix))?;
-    let _ = root.write_file(&"file1", b"aaa", b"", b"");
-    let _ = root.write_file(&"file2", b"bbb", b"", b"");
+    assert!(root.write_file(&"file1", b"aaa", b"", b"").is_ok());
+    assert!(root.write_file(&"file2", b"bbb", b"", b"").is_ok());
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
@@ -94,8 +97,8 @@ fn files_differing_by_suffix() -> std::io::Result<()> {
     let root = TestDir::try_new(&DIR!(files_differing_by_suffix))?;
     let prefix = [0; MAX_LEN];
     let middle = [1; MAX_LEN * 2];
-    let _ = root.write_file(&"file1", &prefix, &middle, b"suffix1");
-    let _ = root.write_file(&"file2", &prefix, &middle, b"suffix2");
+    assert!(root.write_file(&"file1", &prefix, &middle, b"suf1").is_ok());
+    assert!(root.write_file(&"file2", &prefix, &middle, b"suf2").is_ok());
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
@@ -107,8 +110,8 @@ fn files_differing_by_middle() -> std::io::Result<()> {
     let root = TestDir::try_new(&DIR!(files_differing_by_middle))?;
     let prefix = [0; MAX_LEN];
     let suffix = [1; MAX_LEN];
-    let _ = root.write_file(&"file1", &prefix, b"middle1", &suffix);
-    let _ = root.write_file(&"file2", &prefix, b"middle2", &suffix);
+    assert!(root.write_file(&"file1", &prefix, b"mid1", &suffix).is_ok());
+    assert!(root.write_file(&"file2", &prefix, b"mid2", &suffix).is_ok());
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
