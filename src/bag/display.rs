@@ -6,7 +6,7 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut duplicates = self.counter.values().peekable();
+        let mut duplicates = self.duplicates.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let mut bucket = bucket.iter().peekable();
             let is_last_bucket = duplicates.peek().is_none();
@@ -29,7 +29,7 @@ where
     T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut duplicates = self.counter.values().peekable();
+        let mut duplicates = self.duplicates.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let (last, rest) = bucket.split_last().unwrap();
             for dupe in rest {

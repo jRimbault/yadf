@@ -39,7 +39,7 @@ pub struct Fdupes;
 #[derive(Debug)]
 pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
     _marker: std::marker::PhantomData<U>,
-    counter: &'a Duplicates<'a, H, T>,
+    duplicates: &'a Duplicates<'a, H, T>,
 }
 
 impl<H: Ord, T> TreeBag<H, T> {
@@ -51,7 +51,7 @@ impl<H: Ord, T> TreeBag<H, T> {
 
 impl<'a, H: Ord, T> Duplicates<'a, H, T> {
     /// Iterator over the buckets
-    pub fn values(&self) -> impl Iterator<Item = &[T]> {
+    pub fn iter(&self) -> impl Iterator<Item = &[T]> {
         self.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
     }
 
@@ -61,7 +61,7 @@ impl<'a, H: Ord, T> Duplicates<'a, H, T> {
     /// can be parameterized to get a different `Display` implemenation.
     pub fn display<D: marker::OutputFormat>(&self) -> Display<'_, H, T, D> {
         Display {
-            counter: self,
+            duplicates: self,
             _marker: std::marker::PhantomData,
         }
     }
