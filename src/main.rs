@@ -55,6 +55,7 @@ pub struct Args {
 arg_enum! {
     #[derive(Debug)]
     enum Format {
+        Csv,
         Fdupes,
         Json,
         JsonPretty,
@@ -89,6 +90,7 @@ fn main() {
         Algorithm::Highway => config.scan::<yadf::HighwayHasher>(),
     };
     match args.format {
+        Format::Csv => csv_to_writer(io::stdout(), &counter.duplicates()).unwrap(),
         Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),
         Format::JsonPretty => {
             serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap()
@@ -101,4 +103,34 @@ fn main() {
         let report = Report::from(&counter);
         eprintln!("{}", report);
     }
+}
+
+fn csv_to_writer<W: std::io::Write>(
+    writer: W,
+    duplicates: &yadf::Duplicates<u64, yadf::DirEntry>,
+) -> csv::Result<()> {
+    use serde::ser::{Serialize, SerializeStruct, Serializer};
+    struct Line<'a> {
+        count: usize,
+        files: &'a [yadf::DirEntry],
+    }
+    impl Serialize for Line<'_> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let mut state = serializer.serialize_struct("Line", 2)?;
+            state.serialize_field("count", &self.count)?;
+            state.serialize_field("files", &self.files)?;
+            state.end()
+        }
+    }
+    let mut writer = csv::WriterBuilder::new().flexible(true).from_writer(writer);
+    for bucket in duplicates.iter() {
+        writer.serialize(Line {
+            count: bucket.len(),
+            files: bucket,
+        })?;
+    }
+    Ok(())
 }

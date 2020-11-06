@@ -24,7 +24,7 @@ mod fs;
 mod macros;
 mod report;
 
-pub use bag::{Fdupes, Machine, TreeBag};
+pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
 pub use fs::wrapper::DirEntry;
 pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
