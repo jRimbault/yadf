@@ -75,15 +75,15 @@ fn main() {
     let (min, max) = args.file_constraints();
     let config = yadf::Config::builder()
         .paths(&args.paths)
-        .minimum(min)
-        .maximum(max)
+        .minimum_file_size(min)
+        .maximum_file_size(max)
         .regex(args.regex.clone())
-        .glob(args.pattern.clone().map(|g| g.compile_matcher()))
+        .glob(args.pattern.clone())
         .build();
     let counter = match args.algorithm {
-        Algorithm::SeaHash => config.find_dupes::<yadf::SeaHasher>(),
-        Algorithm::XxHash => config.find_dupes::<yadf::XxHasher>(),
-        Algorithm::Highway => config.find_dupes::<yadf::HighwayHasher>(),
+        Algorithm::SeaHash => config.scan::<yadf::SeaHasher>(),
+        Algorithm::XxHash => config.scan::<yadf::XxHasher>(),
+        Algorithm::Highway => config.scan::<yadf::HighwayHasher>(),
     };
     match args.format {
         Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),

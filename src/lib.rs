@@ -1,3 +1,5 @@
+//! This a binary crate. You _can_ use it as a library, but I wouldn't recommend it.
+//!
 //! A collection of functions and structs to find duplicate files.
 //!
 //! # Example :
@@ -5,13 +7,20 @@
 //! Find, display, and report, all the duplicate files at the given path :
 //!
 //! ```no_run
-//! let counter = yadf::Config::builder().paths(&["."]).build().find_dupes::<yadf::SeaHasher>();
+//! let counter = yadf::Config::builder()
+//!     .paths(&["path/to/somewhere", "another/path"]) // required
+//!     .minimum_file_size(64) // optional
+//!     .maximum_file_size(1024 * 8) // optional
+//!     .regex(None) // optional
+//!     .glob(None) // optional
+//!     .build()
+//!     .scan::<yadf::HighwayHasher>();
 //! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&counter));
 //! ```
 
 mod bag;
-pub mod fs;
+mod fs;
 mod macros;
 mod report;
 
@@ -24,39 +33,55 @@ use std::hash::Hasher;
 use std::path::Path;
 
 /// Search configuration
+///
+/// # Example
+///
+/// ```no_run
+/// let counter = yadf::Config::builder()
+///     .paths(&["path/to/somewhere", "another/path"]) // required
+///     .minimum_file_size(64) // optional
+///     .maximum_file_size(1024 * 8) // optional
+///     .regex(None) // optional
+///     .glob(None) // optional
+///     .build()
+///     .scan::<yadf::HighwayHasher>();
+/// ```
+///
+/// see the docs for the [ConfigBuilder](struct.ConfigBuilder.html)
 #[derive(Debug, Default, typed_builder::TypedBuilder)]
+#[builder(doc)]
 pub struct Config<'a, P>
 where
     P: AsRef<Path>,
 {
+    #[builder(setter(doc = "Paths that will be checked for duplicate files"))]
     paths: &'a [P],
-    #[builder(default)]
-    minimum: Option<u64>,
-    #[builder(default)]
-    maximum: Option<u64>,
-    #[builder(default)]
+    #[builder(default, setter(into, doc = "Minimum file size"))]
+    minimum_file_size: Option<u64>,
+    #[builder(default, setter(into, doc = "Maximum file size"))]
+    maximum_file_size: Option<u64>,
+    #[builder(default, setter(into, doc = "File name must match this regex"))]
     regex: Option<regex::Regex>,
-    #[builder(default)]
-    glob: Option<globset::GlobMatcher>,
+    #[builder(default, setter(into, doc = "File name must match this glob"))]
+    glob: Option<globset::Glob>,
 }
 
 impl<P> Config<'_, P>
 where
     P: AsRef<Path>,
 {
-    /// This will attemps a complete scan of every file,
-    /// within the given size constraints, at the given path.
-    pub fn find_dupes<H>(self) -> TreeBag<u64, DirEntry>
+    /// This will attemps a complete scan according to its configuration.
+    pub fn scan<H>(self) -> TreeBag<u64, DirEntry>
     where
         H: Hasher + Default,
         H: std::io::Write,
     {
         let bag = fs::find_dupes_partial::<H, P>(
             self.paths,
-            self.minimum,
-            self.maximum,
+            self.minimum_file_size,
+            self.maximum_file_size,
             self.regex,
-            self.glob,
+            self.glob.map(|g| g.compile_matcher()),
         );
         if log::log_enabled!(log::Level::Info) {
             log::info!(
@@ -88,12 +113,15 @@ where
 
 #[cfg(any(test, feature = "build-bin"))]
 mod hashers {
+    /// Hasher struct implementing Hasher, Default and Write
     #[derive(Default)]
     #[repr(transparent)]
     pub struct HighwayHasher(highway::HighwayHasher);
+    /// Hasher struct implementing Hasher, Default and Write
     #[derive(Default)]
     #[repr(transparent)]
     pub struct SeaHasher(seahash::SeaHasher);
+    /// Hasher struct implementing Hasher, Default and Write
     #[derive(Default)]
     #[repr(transparent)]
     pub struct XxHasher(twox_hash::XxHash64);

@@ -1,13 +1,3 @@
-//! Functions used to checksum files.
-//!
-//! # Examples :
-//!
-//! ```no_run
-//! use yadf::fs::hash::FsHasher;
-//! let hasher: FsHasher<yadf::SeaHasher> = Default::default();
-//! let cargo_toml_hash = hasher.partial(&"./Cargo.toml").unwrap();
-//! ```
-
 use super::BLOCK_SIZE;
 use std::fs::File;
 use std::hash::Hasher;

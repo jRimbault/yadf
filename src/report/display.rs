@@ -49,7 +49,7 @@ mod tests {
         let bag = crate::Config::builder()
             .paths(&["./tests/static"])
             .build()
-            .find_dupes::<crate::SeaHasher>();
+            .scan::<crate::SeaHasher>();
         let report = Report::from(&bag).to_string();
         let expected = "\
             5 scanned files: 14 B\n\
