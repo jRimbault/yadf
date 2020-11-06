@@ -5,13 +5,14 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 impl Args {
-    pub fn file_constraints(&self) -> (Option<u64>, Option<u64>) {
-        (
-            self.min
-                .map(|m| m.get_bytes())
-                .or(if self.no_empty { Some(1) } else { None }),
-            self.max.map(|m| m.get_bytes()),
-        )
+    pub fn max(&self) -> Option<u64> {
+        self.max.map(|m| m.get_bytes())
+    }
+
+    pub fn min(&self) -> Option<u64> {
+        self.min
+            .map(|m| m.get_bytes())
+            .or(if self.no_empty { Some(1) } else { None })
     }
 
     /// returns a list of the deduped paths

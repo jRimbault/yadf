@@ -75,14 +75,14 @@ arg_enum! {
 fn main() {
     let args = Args::init_from_env();
     log::debug!("started with {:?}", args);
-    let (min, max) = args.file_constraints();
     let config = yadf::Config::builder()
         .paths(&args.paths)
-        .minimum_file_size(min)
-        .maximum_file_size(max)
+        .minimum_file_size(args.min())
+        .maximum_file_size(args.max())
         .regex(args.regex.clone())
         .glob(args.pattern.clone())
         .build();
+    log::debug!("config is {:?}", config);
     let counter = match args.algorithm {
         Algorithm::SeaHash => config.scan::<yadf::SeaHasher>(),
         Algorithm::XxHash => config.scan::<yadf::XxHasher>(),
