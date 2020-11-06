@@ -109,27 +109,20 @@ fn csv_to_writer<W: std::io::Write>(
     writer: W,
     duplicates: &yadf::Duplicates<u64, yadf::DirEntry>,
 ) -> csv::Result<()> {
-    use serde::ser::{Serialize, SerializeStruct, Serializer};
+    #[derive(serde::Serialize)]
     struct Line<'a> {
         count: usize,
         files: &'a [yadf::DirEntry],
     }
-    impl Serialize for Line<'_> {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            let mut state = serializer.serialize_struct("Line", 2)?;
-            state.serialize_field("count", &self.count)?;
-            state.serialize_field("files", &self.files)?;
-            state.end()
-        }
-    }
-    let mut writer = csv::WriterBuilder::new().flexible(true).from_writer(writer);
-    for bucket in duplicates.iter() {
+    let mut writer = csv::WriterBuilder::new()
+        .flexible(true)
+        .has_headers(false)
+        .from_writer(writer);
+    writer.write_record(&["count", "files"])?;
+    for files in duplicates.iter() {
         writer.serialize(Line {
-            count: bucket.len(),
-            files: bucket,
+            count: files.len(),
+            files,
         })?;
     }
     Ok(())
