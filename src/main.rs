@@ -82,7 +82,6 @@ fn main() {
         .build();
     let counter = match args.algorithm {
         Algorithm::SeaHash => config.find_dupes::<yadf::SeaHasher>(),
-
         Algorithm::XxHash => config.find_dupes::<yadf::XxHasher>(),
         Algorithm::Highway => config.find_dupes::<yadf::HighwayHasher>(),
     };
