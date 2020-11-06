@@ -31,9 +31,9 @@ where
 {
     paths: &'a [P],
     #[builder(default)]
-    min: Option<u64>,
+    minimum: Option<u64>,
     #[builder(default)]
-    max: Option<u64>,
+    maximum: Option<u64>,
     #[builder(default)]
     regex: Option<regex::Regex>,
     #[builder(default)]
@@ -51,22 +51,27 @@ where
         H: Hasher + Default,
         H: std::io::Write,
     {
-        let dupes =
-            fs::find_dupes_partial::<H, P>(self.paths, self.min, self.max, self.regex, self.glob);
+        let bag = fs::find_dupes_partial::<H, P>(
+            self.paths,
+            self.minimum,
+            self.maximum,
+            self.regex,
+            self.glob,
+        );
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",
-                dupes.values().map(|b| b.len()).sum::<usize>()
+                bag.values().map(|b| b.len()).sum::<usize>()
             );
             log::info!(
                 "found {} possible duplicates after initial scan",
-                dupes.duplicates().iter().map(|b| b.len()).sum::<usize>()
+                bag.duplicates().iter().map(|b| b.len()).sum::<usize>()
             );
             if log::log_enabled!(log::Level::Debug) {
-                log::debug!("{:?}", dupes);
+                log::debug!("{:?}", bag);
             }
         }
-        let dupes = fs::dedupe::<H>(dupes);
+        let dupes = fs::dedupe::<H>(bag);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "found {} duplicates in {} groups after checksumming",

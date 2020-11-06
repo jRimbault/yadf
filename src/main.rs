@@ -75,8 +75,8 @@ fn main() {
     let (min, max) = args.file_constraints();
     let config = yadf::Config::builder()
         .paths(&args.paths)
-        .min(min)
-        .max(max)
+        .minimum(min)
+        .maximum(max)
         .regex(args.regex.clone())
         .glob(args.pattern.clone().map(|g| g.compile_matcher()))
         .build();
