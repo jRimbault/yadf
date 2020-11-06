@@ -26,8 +26,10 @@ mod report;
 
 pub use bag::{Fdupes, Machine, TreeBag};
 pub use fs::wrapper::DirEntry;
+pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
 pub use hashers::{HighwayHasher, SeaHasher, XxHasher};
+pub use regex;
 pub use report::Report;
 use std::path::Path;
 
