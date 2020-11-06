@@ -18,7 +18,7 @@ pub struct Args {
     paths: Vec<PathBuf>,
     /// output format
     ///
-    /// `json`, `json_pretty`, `fdupes`, or `machine`
+    /// `csv`, `json`, `json_pretty`, `fdupes`, or `machine`
     #[structopt(short, long, default_value)]
     format: Format,
     /// Prints human readable report to stderr
