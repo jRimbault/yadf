@@ -8,7 +8,6 @@ use super::TreeBag;
 use hash::FsHasher;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs;
-use std::hash::Hasher;
 use std::path::Path;
 use std::sync::mpsc;
 use wrapper::DirEntry;
@@ -37,8 +36,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     glob: Option<globset::GlobMatcher>,
 ) -> TreeBag<u64, DirEntry>
 where
-    H: Hasher + Default,
-    H: std::io::Write,
+    H: crate::Hasher,
     P: AsRef<Path>,
 {
     let (first, rest) = directories.split_first().unwrap();
@@ -78,11 +76,7 @@ where
         .collect()
 }
 
-pub(crate) fn dedupe<H>(counter: TreeBag<u64, DirEntry>) -> TreeBag<u64, DirEntry>
-where
-    H: Hasher + Default,
-    H: std::io::Write,
-{
+pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, DirEntry>) -> TreeBag<u64, DirEntry> {
     let (sender, receiver) = mpsc::channel();
     counter
         .0
@@ -103,11 +97,11 @@ where
 }
 
 // decrease indent level of the dedupe function
-fn rehash<H>(sender: &mut mpsc::Sender<(u64, DirEntry)>, file: DirEntry, old_hash: u64)
-where
-    H: Hasher + Default,
-    H: std::io::Write,
-{
+fn rehash<H: crate::Hasher>(
+    sender: &mut mpsc::Sender<(u64, DirEntry)>,
+    file: DirEntry,
+    old_hash: u64,
+) {
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
         let hasher: FsHasher<H> = Default::default();
         let hash = match hasher.full(&file.path()) {

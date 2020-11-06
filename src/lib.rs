@@ -29,8 +29,17 @@ pub use fs::wrapper::DirEntry;
 #[cfg(any(test, feature = "build-bin"))]
 pub use hashers::{HighwayHasher, SeaHasher, XxHasher};
 pub use report::Report;
-use std::hash::Hasher;
 use std::path::Path;
+
+/// Meta trait for the Hasher, Default and Write traits
+pub trait Hasher: core::hash::Hasher + std::io::Write + core::default::Default {}
+impl<T> Hasher for T
+where
+    T: core::hash::Hasher,
+    T: core::default::Default,
+    T: std::io::Write,
+{
+}
 
 /// Search configuration
 ///
@@ -71,11 +80,7 @@ where
     P: AsRef<Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H>(self) -> TreeBag<u64, DirEntry>
-    where
-        H: Hasher + Default,
-        H: std::io::Write,
-    {
+    pub fn scan<H: Hasher>(self) -> TreeBag<u64, DirEntry> {
         let bag = fs::find_dupes_partial::<H, P>(
             self.paths,
             self.minimum_file_size,

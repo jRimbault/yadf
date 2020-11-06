@@ -5,16 +5,9 @@ use std::io::{self, Read};
 use std::path::Path;
 
 #[derive(Copy, Clone)]
-pub struct FsHasher<H>(std::marker::PhantomData<H>)
-where
-    H: Hasher + Default,
-    H: std::io::Write;
+pub struct FsHasher<H: crate::Hasher>(std::marker::PhantomData<H>);
 
-impl<H> FsHasher<H>
-where
-    H: Hasher + Default,
-    H: std::io::Write,
-{
+impl<H: crate::Hasher> FsHasher<H> {
     /// Get a checksum of the first 4 KiB (at most) of a file.
     pub fn partial<P: AsRef<Path>>(self, path: &P) -> io::Result<u64> {
         let mut file = File::open(path)?;
