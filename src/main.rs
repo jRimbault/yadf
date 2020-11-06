@@ -4,6 +4,7 @@ mod args;
 use byte_unit::Byte;
 use std::io;
 use std::path::PathBuf;
+use structopt::clap::arg_enum;
 use yadf::{Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
@@ -51,21 +52,23 @@ pub struct Args {
     verbosity: clap_verbosity_flag::Verbosity,
 }
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
-enum Format {
-    Fdupes,
-    Json,
-    JsonPretty,
-    Machine,
+arg_enum! {
+    #[derive(Debug)]
+    enum Format {
+        Fdupes,
+        Json,
+        JsonPretty,
+        Machine,
+    }
 }
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq))]
-enum Algorithm {
-    Highway,
-    SeaHash,
-    XxHash,
+arg_enum! {
+    #[derive(Debug)]
+    enum Algorithm {
+        Highway,
+        SeaHash,
+        XxHash,
+    }
 }
 
 #[cfg(not(tarpaulin_include))]
