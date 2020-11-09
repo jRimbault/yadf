@@ -38,9 +38,9 @@ pub struct Args {
     /// maximum file size [default: no maximum]
     #[structopt(long, value_name = "size")]
     max: Option<Byte>,
-    /// check files with a name matching a PCRE regex
+    /// check files with a name matching a Perl-style regex
     ///
-    /// almost PCRE, see: https://docs.rs/regex/1.4.2/regex/struct.Regex.html
+    /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
     #[structopt(short = "R", long)]
     regex: Option<regex::Regex>,
     /// check files with a name matching a glob pattern
