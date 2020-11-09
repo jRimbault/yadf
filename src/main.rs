@@ -74,6 +74,7 @@ arg_enum! {
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
+    human_panic::setup_panic!();
     let args = Args::init_from_env();
     log::debug!("started with {:?}", args);
     let config = yadf::Config::builder()

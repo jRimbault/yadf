@@ -43,6 +43,7 @@ typed-builder = "0.7.0"
 globset = "0.4.6"
 csv = "1.1.4"
 bstr = "0.2.14"
+human-panic = "1.0.3"
 
 [dev-dependencies]
 dirs = "3.0.1"
