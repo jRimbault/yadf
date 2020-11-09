@@ -91,9 +91,9 @@ OPTIONS:
 
             see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
     -R, --regex <regex>
-            check files with a name matching a PCRE regex
+            check files with a name matching a Perl-style regex
 
-            almost PCRE, see: https://docs.rs/regex/1.4.2/regex/struct.Regex.html
+            see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
 
 ARGS:
     <paths>...
