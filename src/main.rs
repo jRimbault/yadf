@@ -34,13 +34,11 @@ pub struct Args {
     /// Maximum file size
     #[structopt(long, value_name = "size")]
     max: Option<Byte>,
-    /// Check files with a name matching a Perl-style regex
-    ///
+    /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
     #[structopt(short = "R", long)]
     regex: Option<regex::Regex>,
-    /// Check files with a name matching a glob pattern
-    ///
+    /// Check files with a name matching a glob pattern,
     /// see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
     #[structopt(short, long, value_name = "glob")]
     pattern: Option<globset::Glob>,
