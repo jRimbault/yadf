@@ -2,6 +2,9 @@ mod test_dir;
 
 use test_dir::TestDir;
 
+/// quick-n-dirty any result type alias
+type AnyResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
 const MAX_LEN: usize = 256 * 1024;
 
 /// Test to be sure the sorting by hash only groups together files
@@ -48,11 +51,11 @@ fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::D
 }
 
 #[test]
-fn identical_small_files() -> std::io::Result<()> {
+fn identical_small_files() -> AnyResult {
     let root = TestDir::try_new(&DIR!(identical_small_files))?;
     println!("{:?}", root.as_ref());
-    assert!(root.write_file(&"file1", b"aaa", b"", b"").is_ok());
-    assert!(root.write_file(&"file2", b"aaa", b"", b"").is_ok());
+    root.write_file_in_three_parts(&"file1", b"aaa", b"", b"")?;
+    root.write_file_in_three_parts(&"file2", b"aaa", b"", b"")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.len(), 1);
@@ -60,13 +63,13 @@ fn identical_small_files() -> std::io::Result<()> {
 }
 
 #[test]
-fn identical_larger_files() -> std::io::Result<()> {
+fn identical_larger_files() -> AnyResult {
     let root = TestDir::try_new(&DIR!(identical_larger_files))?;
     let prefix = [0; MAX_LEN];
     let middle = [1; MAX_LEN];
     let suffix = [2; MAX_LEN];
-    assert!(root.write_file(&"file1", &prefix, &middle, &suffix).is_ok());
-    assert!(root.write_file(&"file2", &prefix, &middle, &suffix).is_ok());
+    root.write_file_in_three_parts(&"file1", &prefix, &middle, &suffix)?;
+    root.write_file_in_three_parts(&"file2", &prefix, &middle, &suffix)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.len(), 1);
@@ -74,10 +77,10 @@ fn identical_larger_files() -> std::io::Result<()> {
 }
 
 #[test]
-fn files_differing_by_size() -> std::io::Result<()> {
+fn files_differing_by_size() -> AnyResult {
     let root = TestDir::try_new(&DIR!(files_differing_by_size))?;
-    assert!(root.write_file(&"file1", b"aaaa", b"", b"").is_ok());
-    assert!(root.write_file(&"file2", b"aaa", b"", b"").is_ok());
+    root.write_file_in_three_parts(&"file1", b"aaaa", b"", b"")?;
+    root.write_file_in_three_parts(&"file2", b"aaa", b"", b"")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
@@ -85,10 +88,10 @@ fn files_differing_by_size() -> std::io::Result<()> {
 }
 
 #[test]
-fn files_differing_by_prefix() -> std::io::Result<()> {
+fn files_differing_by_prefix() -> AnyResult {
     let root = TestDir::try_new(&DIR!(files_differing_by_prefix))?;
-    assert!(root.write_file(&"file1", b"aaa", b"", b"").is_ok());
-    assert!(root.write_file(&"file2", b"bbb", b"", b"").is_ok());
+    root.write_file_in_three_parts(&"file1", b"aaa", b"", b"")?;
+    root.write_file_in_three_parts(&"file2", b"bbb", b"", b"")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
@@ -96,12 +99,12 @@ fn files_differing_by_prefix() -> std::io::Result<()> {
 }
 
 #[test]
-fn files_differing_by_suffix() -> std::io::Result<()> {
+fn files_differing_by_suffix() -> AnyResult {
     let root = TestDir::try_new(&DIR!(files_differing_by_suffix))?;
     let prefix = [0; MAX_LEN];
     let middle = [1; MAX_LEN * 2];
-    assert!(root.write_file(&"file1", &prefix, &middle, b"suf1").is_ok());
-    assert!(root.write_file(&"file2", &prefix, &middle, b"suf2").is_ok());
+    root.write_file_in_three_parts(&"file1", &prefix, &middle, b"suf1")?;
+    root.write_file_in_three_parts(&"file2", &prefix, &middle, b"suf2")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
@@ -109,14 +112,65 @@ fn files_differing_by_suffix() -> std::io::Result<()> {
 }
 
 #[test]
-fn files_differing_by_middle() -> std::io::Result<()> {
+fn files_differing_by_middle() -> AnyResult {
     let root = TestDir::try_new(&DIR!(files_differing_by_middle))?;
     let prefix = [0; MAX_LEN];
     let suffix = [1; MAX_LEN];
-    assert!(root.write_file(&"file1", &prefix, b"mid1", &suffix).is_ok());
-    assert!(root.write_file(&"file2", &prefix, b"mid2", &suffix).is_ok());
+    root.write_file_in_three_parts(&"file1", &prefix, b"mid1", &suffix)?;
+    root.write_file_in_three_parts(&"file2", &prefix, b"mid2", &suffix)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.len(), 2);
+    Ok(())
+}
+
+fn random_vec<T>(size: usize) -> Vec<T>
+where
+    rand::distributions::Standard: rand::distributions::Distribution<T>,
+{
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    std::iter::repeat(())
+        .map(|_| rng.gen())
+        .take(size)
+        .collect()
+}
+
+#[test]
+fn test_cli() -> AnyResult {
+    use predicates::prelude::*;
+    let root = TestDir::try_new(&DIR!(help_debug_logging_level))?;
+    let bytes: Vec<u8> = random_vec(MAX_LEN);
+    let file1 = root.write_file(&"file1", &bytes)?;
+    let file2 = root.write_file(&"file2", &bytes)?;
+    root.write_file(&"file3", &bytes[..4096])?;
+    root.write_file(&"file4", &bytes[..2048])?;
+    let expected1 = serde_json::to_string(&vec![vec![
+        file1.to_string_lossy(),
+        file2.to_string_lossy(),
+    ]])
+    .unwrap()
+        + "\n";
+    let expected2 = serde_json::to_string(&vec![vec![
+        file2.to_string_lossy(),
+        file1.to_string_lossy(),
+    ]])
+    .unwrap()
+        + "\n";
+    let assert = assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+        .arg("-vvv") // test stderr contains enough debug output
+        .args(&["--format", "json"])
+        .arg(root.as_ref())
+        .assert();
+    assert
+        .success()
+        .stderr(predicate::str::contains("started with Args {").from_utf8())
+        .stderr(predicate::str::contains(root.as_ref().to_string_lossy()).from_utf8())
+        .stderr(predicate::str::contains("algorithm: ").from_utf8())
+        .stdout(
+            predicate::str::similar(expected1)
+                .from_utf8()
+                .or(predicate::str::similar(expected2).from_utf8()),
+        );
     Ok(())
 }

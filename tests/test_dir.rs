@@ -16,7 +16,21 @@ impl TestDir {
         Ok(TestDir(dir.as_ref().to_path_buf()))
     }
 
-    pub fn write_file<P: AsRef<Path>>(
+    pub fn write_file<P: AsRef<Path>, B: AsRef<[u8]>>(
+        &self,
+        path: &P,
+        bytes: B,
+    ) -> io::Result<PathBuf> {
+        let path = self.0.join(path);
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&path)?;
+        file.write_all(bytes.as_ref())?;
+        Ok(path)
+    }
+
+    pub fn write_file_in_three_parts<P: AsRef<Path>>(
         &self,
         path: &P,
         prefix: &[u8],
