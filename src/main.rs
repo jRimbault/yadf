@@ -16,34 +16,30 @@ pub struct Args {
     /// default is to search inside the current working directory
     #[structopt(parse(from_os_str))]
     paths: Vec<PathBuf>,
-    /// output format
-    ///
-    /// `csv`, `json`, `json_pretty`, `fdupes`, or `machine`
-    #[structopt(short, long, default_value)]
+    /// Output format
+    #[structopt(short, long, default_value, possible_values = &Format::variants())]
     format: Format,
     /// Prints human readable report to stderr
     #[structopt(short, long)]
     report: bool,
-    /// hashing algorithm
-    ///
-    /// `highway`, `seahash`, or `xxhash`
-    #[structopt(short, long, default_value)]
+    /// Hashing algorithm
+    #[structopt(short, long, default_value, possible_values = &Algorithm::variants())]
     algorithm: Algorithm,
     /// Excludes empty files
     #[structopt(short, long)]
     no_empty: bool,
-    /// minimum file size [default: no minimum]
+    /// Minimum file size
     #[structopt(long, value_name = "size")]
     min: Option<Byte>,
-    /// maximum file size [default: no maximum]
+    /// Maximum file size
     #[structopt(long, value_name = "size")]
     max: Option<Byte>,
-    /// check files with a name matching a Perl-style regex
+    /// Check files with a name matching a Perl-style regex
     ///
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
     #[structopt(short = "R", long)]
     regex: Option<regex::Regex>,
-    /// check files with a name matching a glob pattern
+    /// Check files with a name matching a glob pattern
     ///
     /// see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
     #[structopt(short, long, value_name = "glob")]
