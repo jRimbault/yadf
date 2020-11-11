@@ -17,13 +17,25 @@ pub struct Args {
     #[structopt(parse(from_os_str))]
     paths: Vec<PathBuf>,
     /// Output format
-    #[structopt(short, long, default_value, possible_values = &Format::variants())]
+    #[structopt(
+        short,
+        long,
+        default_value,
+        possible_values = &Format::variants(),
+        case_insensitive = true
+    )]
     format: Format,
     /// Prints human readable report to stderr
     #[structopt(short, long)]
     report: bool,
     /// Hashing algorithm
-    #[structopt(short, long, default_value, possible_values = &Algorithm::variants())]
+    #[structopt(
+        short,
+        long,
+        default_value,
+        possible_values = &Algorithm::variants(),
+        case_insensitive = true
+    )]
     algorithm: Algorithm,
     /// Excludes empty files
     #[structopt(short, long)]
