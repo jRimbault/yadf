@@ -36,9 +36,17 @@ fn sanity_test() {
     }
 }
 
+#[cfg(windows)]
+macro_rules! DIR {
+    ($name:ty) => {{
+        concat!("target", "\\", file!(), "\\", stringify!($name))
+    }};
+}
+
+#[cfg(not(windows))]
 macro_rules! DIR {
     ($name:ty) => {
-        concat!("target/", file!(), "/", stringify!($name))
+        concat!("target", "/", file!(), "/", stringify!($name))
     };
 }
 
@@ -139,7 +147,7 @@ where
 #[test]
 fn test_cli() -> AnyResult {
     use predicates::prelude::*;
-    let root = TestDir::try_new(&DIR!(help_debug_logging_level))?;
+    let root = TestDir::try_new(&DIR!(test_cli))?;
     let bytes: Vec<u8> = random_vec(MAX_LEN);
     let file1 = root.write_file(&"file1", &bytes)?;
     let file2 = root.write_file(&"file2", &bytes)?;
@@ -160,13 +168,22 @@ fn test_cli() -> AnyResult {
     let assert = assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg("-vvv") // test stderr contains enough debug output
         .args(&["--format", "json"])
+        .args(&["--algorithm", "seahash"])
         .arg(root.as_ref())
         .assert();
     assert
         .success()
         .stderr(predicate::str::contains("started with Args {").from_utf8())
-        .stderr(predicate::str::contains(root.as_ref().to_string_lossy()).from_utf8())
-        .stderr(predicate::str::contains("algorithm: ").from_utf8())
+        .stderr(predicate::str::contains("format: Json").from_utf8())
+        .stderr(predicate::str::contains("algorithm: SeaHash").from_utf8())
+        .stderr(predicate::str::contains("verbose: 3").from_utf8())
+        .stderr(
+            predicate::str::contains("found 3 possible duplicates after initial scan").from_utf8(),
+        )
+        .stderr(
+            predicate::str::contains("found 2 duplicates in 1 groups after checksumming")
+                .from_utf8(),
+        )
         .stdout(
             predicate::str::similar(expected1)
                 .from_utf8()
