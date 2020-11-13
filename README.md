@@ -71,23 +71,26 @@ For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 
 ## Benchmarks
 
-The performance of `yadf` is heavily tied to the hardware, specifically the NVMe SSD.
-The script used to benchmark can be read [here](bench.sh).
+The performance of `yadf` is heavily tied to the hardware, specifically the NVMe SSD. I recommend `fclones` as it has specific hardware heuristics. and in general more features.
 
 My home directory contains about 615k paths and 32 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc.
 
-| Program         | Version | Mean time (s) |
-| :-------------- | ------: | ------------: |
-| yadf            |   0.8.1 |     **2.856** |
-| [fclones][0]    |   0.8.0 |         3.627 |
-| [jdupes][1]     |  1.14.0 |        10.526 |
-| [ddh][2]        |  0.11.3 |         8.221 |
-| [fddf][3]       |   1.7.0 |         5.047 |
-| [rmlint][4]     |   2.9.0 |        14.143 |
-| [dupe-krill][5] |   1.4.4 |         8.072 |
+| Program         | Version | Warm Mean time (s) | Cold Mean time (s) |
+| :-------------- | ------: | -----------------: | -----------------: |
+| yadf            |   0.8.1 |          **2.856** |             21.810 |
+| [fclones][0]    |   0.8.0 |              3.627 |         **15.439** |
+| [jdupes][1]     |  1.14.0 |             10.526 |            111.194 |
+| [ddh][2]        |  0.11.3 |              8.221 |             21.948 |
+| [fddf][3]       |   1.7.0 |              5.047 |             27.718 |
+| [rmlint][4]     |   2.9.0 |             14.143 |             60.722 |
+| [dupe-krill][5] |   1.4.4 |              8.072 |            112.815 |
+
+The script used to benchmark can be read [here](bench.sh).
 
 <details>
     <summary>Raw output of <code>hyperfine</code>.</summary>
+
+Warm cache:
 
 ```
 Benchmark #1: fclones --min-size 0 -R ~
@@ -126,6 +129,49 @@ Summary
     2.88 ± 0.02 times faster than 'ddh ~'
     3.69 ± 0.02 times faster than 'jdupes -z -r ~'
     4.95 ± 0.02 times faster than 'rmlint --hidden ~'
+```
+
+Cold cache:
+
+```
+Benchmark #1: fclones --min-size 0 -R ~
+  Time (mean ± σ):     15.439 s ±  0.690 s    [User: 22.313 s, System: 34.814 s]
+  Range (min … max):   14.715 s … 16.690 s    10 runs
+
+Benchmark #2: jdupes -z -r ~
+  Time (mean ± σ):     111.194 s ±  0.643 s    [User: 18.491 s, System: 27.820 s]
+  Range (min … max):   110.394 s … 112.507 s    10 runs
+
+Benchmark #3: rmlint --hidden ~
+  Time (mean ± σ):     60.722 s ±  3.917 s    [User: 38.825 s, System: 24.832 s]
+  Range (min … max):   57.520 s … 70.066 s    10 runs
+
+Benchmark #4: ddh ~
+  Time (mean ± σ):     21.948 s ±  1.138 s    [User: 39.015 s, System: 42.882 s]
+  Range (min … max):   21.004 s … 24.579 s    10 runs
+
+Benchmark #5: dupe-krill -s -d ~
+  Time (mean ± σ):     112.815 s ±  0.621 s    [User: 20.133 s, System: 27.512 s]
+  Range (min … max):   111.902 s … 113.747 s    10 runs
+
+Benchmark #6: fddf -m 0 ~
+  Time (mean ± σ):     27.718 s ±  0.526 s    [User: 18.505 s, System: 37.530 s]
+  Range (min … max):   26.796 s … 28.407 s    10 runs
+
+Benchmark #7: yadf ~
+  Time (mean ± σ):     21.810 s ±  2.827 s    [User: 19.814 s, System: 53.879 s]
+  Range (min … max):   20.054 s … 28.731 s    10 runs
+
+  Warning: Statistical outliers were detected. Consider re-running this benchmark on a quiet PC without any interferences from other programs. It might help to use the '--warmup' or '--prepare' options.
+
+Summary
+  'fclones --min-size 0 -R ~' ran
+    1.41 ± 0.19 times faster than 'yadf ~'
+    1.42 ± 0.10 times faster than 'ddh ~'
+    1.80 ± 0.09 times faster than 'fddf -m 0 ~'
+    3.93 ± 0.31 times faster than 'rmlint --hidden ~'
+    7.20 ± 0.32 times faster than 'jdupes -z -r ~'
+    7.31 ± 0.33 times faster than 'dupe-krill -s -d ~'
 ```
 
 </details>

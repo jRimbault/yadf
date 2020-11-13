@@ -11,9 +11,20 @@
 #
 # fddf ignores zero length files
 
-hyperfine --warmup 5 \
+case "$1" in
+  "cold")
+    prepare_cmd='rm Results.txt rmlint.* || true && echo "free && sync && echo 3 > /proc/sys/vm/drop_caches && free" | sudo sh'
+    warmups=0
+    ;;
+  *)
+    prepare_cmd="rm Results.txt rmlint.* || true"
+    warmups=5
+    ;;
+esac
+
+hyperfine --warmup "$warmups" \
   --min-runs 10 \
-  --prepare "rm Results.txt rmlint.* || true" \
+  --prepare "$prepare_cmd" \
   "fclones --min-size 0 -R ~" \
   "jdupes -z -r ~" \
   "rmlint --hidden ~" \
