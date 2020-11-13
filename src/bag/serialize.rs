@@ -23,7 +23,7 @@ where
     where
         S: Serializer,
     {
-        serializer.collect_map(self.iter())
+        serializer.collect_map(self.0.iter())
     }
 }
 

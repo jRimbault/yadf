@@ -66,7 +66,7 @@ fn identical_small_files() -> AnyResult {
     root.write_file_in_three_parts(&"file2", b"aaa", b"", b"")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
-    assert_eq!(counter.len(), 1);
+    assert_eq!(counter.as_tree().len(), 1);
     Ok(())
 }
 
@@ -80,7 +80,7 @@ fn identical_larger_files() -> AnyResult {
     root.write_file_in_three_parts(&"file2", &prefix, &middle, &suffix)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
-    assert_eq!(counter.len(), 1);
+    assert_eq!(counter.as_tree().len(), 1);
     Ok(())
 }
 
@@ -91,7 +91,7 @@ fn files_differing_by_size() -> AnyResult {
     root.write_file_in_three_parts(&"file2", b"aaa", b"", b"")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.len(), 2);
+    assert_eq!(counter.as_tree().len(), 2);
     Ok(())
 }
 
@@ -102,7 +102,7 @@ fn files_differing_by_prefix() -> AnyResult {
     root.write_file_in_three_parts(&"file2", b"bbb", b"", b"")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.len(), 2);
+    assert_eq!(counter.as_tree().len(), 2);
     Ok(())
 }
 
@@ -115,7 +115,7 @@ fn files_differing_by_suffix() -> AnyResult {
     root.write_file_in_three_parts(&"file2", &prefix, &middle, b"suf2")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.len(), 2);
+    assert_eq!(counter.as_tree().len(), 2);
     Ok(())
 }
 
@@ -128,7 +128,7 @@ fn files_differing_by_middle() -> AnyResult {
     root.write_file_in_three_parts(&"file2", &prefix, b"mid2", &suffix)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.len(), 2);
+    assert_eq!(counter.as_tree().len(), 2);
     Ok(())
 }
 

@@ -93,7 +93,7 @@ where
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",
-                bag.values().map(|b| b.len()).sum::<usize>()
+                bag.0.values().map(|b| b.len()).sum::<usize>()
             );
             log::info!(
                 "found {} possible duplicates after initial scan",

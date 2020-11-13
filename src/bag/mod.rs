@@ -17,9 +17,9 @@ use std::collections::BTreeMap;
 ///     (7, "buzz"),
 ///     (6, "rust"),
 /// ].into_iter().collect();
-/// assert_eq!(bag[&3].len(), 2);
-/// assert_eq!(bag[&6].len(), 1);
-/// assert_eq!(bag[&3][0], "hello world");
+/// assert_eq!(bag.as_tree()[&3].len(), 2);
+/// assert_eq!(bag.as_tree()[&6].len(), 1);
+/// assert_eq!(bag.as_tree()[&3][0], "hello world");
 /// ```
 #[repr(transparent)]
 #[derive(Debug)]
@@ -47,12 +47,17 @@ impl<H: Ord, T> TreeBag<H, T> {
     pub fn duplicates(&self) -> Duplicates<'_, H, T> {
         Duplicates(self)
     }
+
+    /// Borrows the backing tree map of the bag
+    pub fn as_tree(&self) -> &BTreeMap<H, Vec<T>> {
+        &self.0
+    }
 }
 
 impl<H: Ord, T> Duplicates<'_, H, T> {
     /// Iterator over the buckets
     pub fn iter(&self) -> impl Iterator<Item = &[T]> {
-        self.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
+        self.0.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
     }
 
     /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html)
@@ -77,11 +82,21 @@ impl<H: Ord, T> std::iter::FromIterator<(H, T)> for TreeBag<H, T> {
     }
 }
 
-impl<H: Ord, T> std::ops::Deref for TreeBag<H, T> {
-    type Target = BTreeMap<H, Vec<T>>;
+impl<H: Ord, T> AsRef<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
+    fn as_ref(&self) -> &BTreeMap<H, Vec<T>> {
+        self.as_tree()
+    }
+}
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl<H: Ord, T> From<TreeBag<H, T>> for BTreeMap<H, Vec<T>> {
+    fn from(value: TreeBag<H, T>) -> Self {
+        value.0
+    }
+}
+
+impl<H: Ord, T> From<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
+    fn from(value: BTreeMap<H, Vec<T>>) -> Self {
+        Self(value)
     }
 }
 
