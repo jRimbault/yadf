@@ -57,7 +57,11 @@ impl<H: Ord, T> TreeBag<H, T> {
 impl<H: Ord, T> Duplicates<'_, H, T> {
     /// Iterator over the buckets
     pub fn iter(&self) -> impl Iterator<Item = &[T]> {
-        self.0.0.values().filter(|b| b.len() > 1).map(AsRef::as_ref)
+        (self.0)
+            .0
+            .values()
+            .filter(|b| b.len() > 1)
+            .map(AsRef::as_ref)
     }
 
     /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html)
