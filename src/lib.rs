@@ -103,18 +103,18 @@ where
                 log::debug!("{:?}", bag);
             }
         }
-        let dupes = fs::dedupe::<H>(bag);
+        let bag = fs::dedupe::<H>(bag);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "found {} duplicates in {} groups after checksumming",
-                dupes.duplicates().iter().map(|b| b.len()).sum::<usize>(),
-                dupes.duplicates().iter().count(),
+                bag.duplicates().iter().map(|b| b.len()).sum::<usize>(),
+                bag.duplicates().iter().count(),
             );
             if log::log_enabled!(log::Level::Debug) {
-                log::debug!("{:?}", dupes);
+                log::debug!("{:?}", bag);
             }
         }
-        dupes
+        bag
     }
 }
 
