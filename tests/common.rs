@@ -135,10 +135,7 @@ fn files_differing_by_middle() -> AnyResult {
 mod integration {
     use super::test_dir::TestDir;
     use super::{AnyResult, MAX_LEN};
-    use predicates::{
-        prelude::{PredicateBooleanExt, PredicateStrExt},
-        str as predstr,
-    };
+    use predicates::{prelude::PredicateBooleanExt, str as predstr};
 
     fn random_collection<T, I>(size: usize) -> I
     where
@@ -174,19 +171,23 @@ mod integration {
             .arg(root.as_ref())
             .assert()
             .success()
-            .stderr(predstr::contains("started with Args {").from_utf8())
-            .stderr(predstr::contains("format: Json").from_utf8())
-            .stderr(predstr::contains("algorithm: SeaHash").from_utf8())
-            .stderr(predstr::contains("verbose: 3").from_utf8())
-            .stderr(predstr::contains("found 3 possible duplicates after initial scan").from_utf8())
             .stderr(
-                predstr::contains("found 2 duplicates in 1 groups after checksumming").from_utf8(),
+                predstr::contains("started with Args {")
+                    .and(predstr::contains("format: Json"))
+                    .and(predstr::contains("algorithm: SeaHash"))
+                    .and(predstr::contains("verbose: 3"))
+                    .and(predstr::contains(
+                        "found 3 possible duplicates after initial scan",
+                    ))
+                    .and(predstr::contains(
+                        "found 2 duplicates in 1 groups after checksumming",
+                    ))
+                    .and(predstr::contains("file1"))
+                    .and(predstr::contains("file2"))
+                    .and(predstr::contains("file3"))
+                    .and(predstr::contains("file4")),
             )
-            .stdout(
-                predstr::similar(expected1)
-                    .from_utf8()
-                    .or(predstr::similar(expected2).from_utf8()),
-            );
+            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
         Ok(())
     }
 
@@ -215,11 +216,8 @@ mod integration {
             .arg(root.as_ref())
             .assert()
             .success()
-            .stdout(
-                predstr::similar(expected1)
-                    .from_utf8()
-                    .or(predstr::similar(expected2).from_utf8()),
-            );
+            .stderr(predstr::is_empty())
+            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
         Ok(())
     }
 
@@ -248,11 +246,8 @@ mod integration {
             .arg(root.as_ref())
             .assert()
             .success()
-            .stdout(
-                predstr::similar(expected1)
-                    .from_utf8()
-                    .or(predstr::similar(expected2).from_utf8()),
-            );
+            .stderr(predstr::is_empty())
+            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
         Ok(())
     }
 
@@ -281,11 +276,8 @@ mod integration {
             .arg(root.as_ref())
             .assert()
             .success()
-            .stdout(
-                predstr::similar(expected1)
-                    .from_utf8()
-                    .or(predstr::similar(expected2).from_utf8()),
-            );
+            .stderr(predstr::is_empty())
+            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
         Ok(())
     }
 
@@ -314,11 +306,8 @@ mod integration {
             .arg(root.as_ref())
             .assert()
             .success()
-            .stdout(
-                predstr::similar(expected1)
-                    .from_utf8()
-                    .or(predstr::similar(expected2).from_utf8()),
-            );
+            .stderr(predstr::is_empty())
+            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
         Ok(())
     }
 }
