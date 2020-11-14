@@ -7,7 +7,6 @@ pub(crate) mod wrapper;
 use super::TreeBag;
 use hash::FileHasher;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::fs;
 use std::path::Path;
 use std::sync::mpsc;
 use wrapper::DirEntry;
@@ -40,28 +39,26 @@ where
     P: AsRef<Path>,
 {
     let (first, rest) = directories.split_first().unwrap();
+    let check_entry = |entry: &ignore::DirEntry| {
+        let meta = entry.metadata().map_err(|_| ())?;
+        if !meta.is_file()
+            || min.map_or(false, |m| meta.len() < m)
+            || max.map_or(false, |m| meta.len() > m)
+            || !is_match!(regex, entry)
+            || !is_match!(glob, entry)
+        {
+            Err(())
+        } else {
+            Ok(())
+        }
+    };
     ignore::WalkBuilder::new(first)
         .add_paths(rest.iter())
         .standard_filters(false)
         .threads(num_cpus::get())
         .build_parallel()
         .map(|entry| {
-            let meta = fs::symlink_metadata(entry.path()).map_err(|_| ())?;
-            if !meta.is_file() {
-                return Err(());
-            }
-            if min.map_or(false, |m| meta.len() < m) {
-                return Err(());
-            }
-            if max.map_or(false, |m| meta.len() > m) {
-                return Err(());
-            }
-            if !is_match!(regex, entry) {
-                return Err(());
-            }
-            if !is_match!(glob, entry) {
-                return Err(());
-            }
+            check_entry(&entry)?;
             let hash = match FileHasher::<H>::partial(&entry.path()) {
                 Ok(hash) => hash,
                 Err(error) => {

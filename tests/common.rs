@@ -145,33 +145,24 @@ where
 }
 
 #[test]
-fn test_cli() -> AnyResult {
+fn test_cli_debug_output() -> AnyResult {
     use predicates::prelude::*;
-    let root = TestDir::try_new(&DIR!(test_cli))?;
+    let root = TestDir::try_new(&DIR!(test_cli_debug_output))?;
     let bytes: Vec<u8> = random_vec(MAX_LEN);
     let file1 = root.write_file(&"file1", &bytes)?;
     let file2 = root.write_file(&"file2", &bytes)?;
     root.write_file(&"file3", &bytes[..4096])?;
     root.write_file(&"file4", &bytes[..2048])?;
-    let expected1 = serde_json::to_string(&vec![vec![
-        file1.to_string_lossy(),
-        file2.to_string_lossy(),
-    ]])
-    .unwrap()
-        + "\n";
-    let expected2 = serde_json::to_string(&vec![vec![
-        file2.to_string_lossy(),
-        file1.to_string_lossy(),
-    ]])
-    .unwrap()
-        + "\n";
-    let assert = assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    let expected1 =
+        serde_json::to_string(&[[file1.to_string_lossy(), file2.to_string_lossy()]]).unwrap();
+    let expected2 =
+        serde_json::to_string(&[[file2.to_string_lossy(), file1.to_string_lossy()]]).unwrap();
+    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg("-vvv") // test stderr contains enough debug output
         .args(&["--format", "json"])
         .args(&["--algorithm", "seahash"])
         .arg(root.as_ref())
-        .assert();
-    assert
+        .assert()
         .success()
         .stderr(predicate::str::contains("started with Args {").from_utf8())
         .stderr(predicate::str::contains("format: Json").from_utf8())
@@ -184,6 +175,138 @@ fn test_cli() -> AnyResult {
             predicate::str::contains("found 2 duplicates in 1 groups after checksumming")
                 .from_utf8(),
         )
+        .stdout(
+            predicate::str::contains(expected1)
+                .from_utf8()
+                .or(predicate::str::contains(expected2).from_utf8()),
+        );
+    Ok(())
+}
+
+#[test]
+fn test_cli_regex() -> AnyResult {
+    use predicates::prelude::*;
+    let root = TestDir::try_new(&DIR!(test_cli_regex))?;
+    let bytes: Vec<u8> = random_vec(4096);
+    let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
+    let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
+    root.write_file(&"not_particular_2_name", &bytes)?;
+    root.write_file(&"completely_different", &bytes)?;
+    let expected1 = [
+        particular_1_name.to_string_lossy(),
+        particular_2_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    let expected2 = [
+        particular_2_name.to_string_lossy(),
+        particular_1_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+        .args(&["--regex", "^particular_\\d_name$"])
+        .arg(root.as_ref())
+        .assert()
+        .stdout(
+            predicate::str::similar(expected1)
+                .from_utf8()
+                .or(predicate::str::similar(expected2).from_utf8()),
+        );
+    Ok(())
+}
+
+#[test]
+fn test_cli_glob_pattern() -> AnyResult {
+    use predicates::prelude::*;
+    let root = TestDir::try_new(&DIR!(test_cli_glob_pattern))?;
+    let bytes: Vec<u8> = random_vec(4096);
+    let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
+    let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
+    root.write_file(&"not_particular_2_name", &bytes)?;
+    root.write_file(&"completely_different", &bytes)?;
+    let expected1 = [
+        particular_1_name.to_string_lossy(),
+        particular_2_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    let expected2 = [
+        particular_2_name.to_string_lossy(),
+        particular_1_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+        .args(&["--pattern", "particular*name"])
+        .arg(root.as_ref())
+        .assert()
+        .stdout(
+            predicate::str::similar(expected1)
+                .from_utf8()
+                .or(predicate::str::similar(expected2).from_utf8()),
+        );
+    Ok(())
+}
+
+#[test]
+fn test_cli_min_file_size() -> AnyResult {
+    use predicates::prelude::*;
+    let root = TestDir::try_new(&DIR!(test_cli_min_file_size))?;
+    let bytes: Vec<u8> = random_vec(4096);
+    let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
+    let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
+    root.write_file(&"not_particular_2_name", &bytes[..2048])?;
+    root.write_file(&"completely_different", &bytes[..2048])?;
+    let expected1 = [
+        particular_1_name.to_string_lossy(),
+        particular_2_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    let expected2 = [
+        particular_2_name.to_string_lossy(),
+        particular_1_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+        .args(&["--min", "4K"])
+        .arg(root.as_ref())
+        .assert()
+        .stdout(
+            predicate::str::similar(expected1)
+                .from_utf8()
+                .or(predicate::str::similar(expected2).from_utf8()),
+        );
+    Ok(())
+}
+
+#[test]
+fn test_cli_max_file_size() -> AnyResult {
+    use predicates::prelude::*;
+    let root = TestDir::try_new(&DIR!(test_cli_max_file_size))?;
+    let bytes: Vec<u8> = random_vec(4096);
+    let particular_1_name = root.write_file(&"particular_1_name", &bytes[..1024])?;
+    let particular_2_name = root.write_file(&"particular_2_name", &bytes[..1024])?;
+    root.write_file(&"not_particular_2_name", &bytes)?;
+    root.write_file(&"completely_different", &bytes)?;
+    let expected1 = [
+        particular_1_name.to_string_lossy(),
+        particular_2_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    let expected2 = [
+        particular_2_name.to_string_lossy(),
+        particular_1_name.to_string_lossy(),
+    ]
+    .join("\n")
+        + "\n";
+    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+        .args(&["--max", "2K"])
+        .arg(root.as_ref())
+        .assert()
         .stdout(
             predicate::str::similar(expected1)
                 .from_utf8()
