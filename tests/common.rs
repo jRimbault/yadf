@@ -213,6 +213,7 @@ mod integration {
             .args(&["--regex", "^particular_\\d_name$"])
             .arg(root.as_ref())
             .assert()
+            .success()
             .stdout(
                 predicate::str::similar(expected1)
                     .from_utf8()
@@ -246,6 +247,7 @@ mod integration {
             .args(&["--pattern", "particular*name"])
             .arg(root.as_ref())
             .assert()
+            .success()
             .stdout(
                 predicate::str::similar(expected1)
                     .from_utf8()
@@ -279,6 +281,7 @@ mod integration {
             .args(&["--min", "4K"])
             .arg(root.as_ref())
             .assert()
+            .success()
             .stdout(
                 predicate::str::similar(expected1)
                     .from_utf8()
@@ -312,6 +315,7 @@ mod integration {
             .args(&["--max", "2K"])
             .arg(root.as_ref())
             .assert()
+            .success()
             .stdout(
                 predicate::str::similar(expected1)
                     .from_utf8()
