@@ -5,11 +5,11 @@ use std::io::{self, Read};
 use std::path::Path;
 
 #[derive(Copy, Clone)]
-pub struct FsHasher<H: crate::Hasher>(std::marker::PhantomData<H>);
+pub struct FileHasher<'a, H: crate::Hasher>(std::marker::PhantomData<&'a H>);
 
-impl<H: crate::Hasher> FsHasher<H> {
+impl<H: crate::Hasher> FileHasher<'_, H> {
     /// Get a checksum of the first 4 KiB (at most) of a file.
-    pub fn partial<P: AsRef<Path>>(self, path: &P) -> io::Result<u64> {
+    pub fn partial<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
         let mut file = File::open(path)?;
         let mut buffer = [0u8; BLOCK_SIZE];
         let mut n = 0;
@@ -27,21 +27,11 @@ impl<H: crate::Hasher> FsHasher<H> {
     }
 
     /// Get a complete checksum of a file.
-    pub fn full<P: AsRef<Path>>(self, path: &P) -> io::Result<u64> {
+    pub fn full<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
         let mut file = File::open(path)?;
         let mut hasher = H::default();
         io::copy(&mut file, &mut hasher)?;
         Ok(hasher.finish())
-    }
-}
-
-impl<H> Default for FsHasher<H>
-where
-    H: Hasher + Default,
-    H: std::io::Write,
-{
-    fn default() -> Self {
-        Self(std::marker::PhantomData)
     }
 }
 
@@ -51,10 +41,8 @@ mod tests {
 
     #[test]
     fn same_hash_partial_and_full_for_small_file() {
-        let hasher: FsHasher<crate::XxHasher> = FsHasher::default();
-        let h1 = hasher.partial(&"./tests/static/foo").unwrap();
-        let hasher: FsHasher<crate::XxHasher> = FsHasher::default();
-        let h2 = hasher.full(&"./tests/static/foo").unwrap();
+        let h1 = FileHasher::<crate::XxHasher>::partial(&"./tests/static/foo").unwrap();
+        let h2 = FileHasher::<crate::XxHasher>::full(&"./tests/static/foo").unwrap();
         assert_eq!(h1, h2);
     }
 }

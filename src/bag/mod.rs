@@ -38,7 +38,7 @@ pub struct Fdupes;
 
 #[derive(Debug)]
 pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
-    _marker: std::marker::PhantomData<U>,
+    _marker: std::marker::PhantomData<&'a U>,
     duplicates: &'a Duplicates<'a, H, T>,
 }
 

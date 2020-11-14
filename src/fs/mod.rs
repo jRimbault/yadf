@@ -5,7 +5,7 @@ pub mod hash;
 pub(crate) mod wrapper;
 
 use super::TreeBag;
-use hash::FsHasher;
+use hash::FileHasher;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs;
 use std::path::Path;
@@ -62,8 +62,7 @@ where
             if !is_match!(glob, entry) {
                 return Err(());
             }
-            let hasher: FsHasher<H> = Default::default();
-            let hash = match hasher.partial(&entry.path()) {
+            let hash = match FileHasher::<H>::partial(&entry.path()) {
                 Ok(hash) => hash,
                 Err(error) => {
                     log::error!("{}, couldn't hash {:?}", error, entry.path());
@@ -103,8 +102,7 @@ fn rehash<H: crate::Hasher>(
     old_hash: u64,
 ) {
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
-        let hasher: FsHasher<H> = Default::default();
-        let hash = match hasher.full(&file.path()) {
+        let hash = match FileHasher::<H>::full(&file.path()) {
             Ok(hash) => hash,
             Err(error) => {
                 log::error!(
