@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 pub struct TestDir(PathBuf);
 
 impl TestDir {
-    pub fn try_new<P: AsRef<Path>>(dir: &P) -> io::Result<Self> {
+    pub fn new<P: AsRef<Path>>(dir: &P) -> io::Result<Self> {
         match std::fs::remove_dir_all(dir) {
             // the directory should not exists at this stage
             // we're just double checking
