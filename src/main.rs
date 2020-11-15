@@ -5,7 +5,7 @@ use byte_unit::Byte;
 use std::io;
 use std::path::PathBuf;
 use structopt::clap::arg_enum;
-use yadf::{Fdupes, Machine, Report};
+use yadf::{Csv, Fdupes, Machine, Report};
 
 /// Yet Another Dupes Finder
 #[derive(structopt::StructOpt, Debug)]
@@ -97,11 +97,11 @@ fn main() {
         Algorithm::Highway => config.scan::<yadf::HighwayHasher>(),
     };
     match args.format {
-        Format::Csv => csv_to_writer(io::stdout(), &counter.duplicates()).unwrap(),
         Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),
         Format::JsonPretty => {
             serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap()
         }
+        Format::Csv => print!("{}", counter.duplicates().display::<Csv>()),
         Format::Fdupes => print!("{}", counter.duplicates().display::<Fdupes>()),
         Format::Machine => print!("{}", counter.duplicates().display::<Machine>()),
     };
@@ -110,27 +110,4 @@ fn main() {
         let report = Report::from(&counter);
         eprintln!("{}", report);
     }
-}
-
-fn csv_to_writer<W: std::io::Write>(
-    writer: W,
-    duplicates: &yadf::Duplicates<u64, yadf::DirEntry>,
-) -> csv::Result<()> {
-    #[derive(serde::Serialize)]
-    struct Line<'a> {
-        count: usize,
-        files: &'a [yadf::DirEntry],
-    }
-    let mut writer = csv::WriterBuilder::new()
-        .flexible(true)
-        .has_headers(false)
-        .from_writer(writer);
-    writer.write_record(&["count", "files"])?;
-    for files in duplicates.iter() {
-        writer.serialize(Line {
-            count: files.len(),
-            files,
-        })?;
-    }
-    Ok(())
 }
