@@ -95,9 +95,8 @@ mod tests {
     use super::super::TreeBag;
     use super::*;
 
-    #[test]
-    fn machine() {
-        let counter: TreeBag<i32, &str> = vec![
+    lazy_static::lazy_static! {
+        static ref BAG: TreeBag<i32, &'static str> = vec![
             (77, "hello"),
             (77, "world"),
             (1, "ignored"),
@@ -106,40 +105,34 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let result = counter.duplicates().display::<Machine>().to_string();
-        let expected = r#""foo" "bar"
-"hello" "world""#;
+    }
+
+    #[test]
+    fn machine() {
+        let result = BAG.duplicates().display::<Machine>().to_string();
+        let expected = "\
+            \"foo\" \"bar\"\n\
+            \"hello\" \"world\"\
+        ";
         assert_eq!(result, expected);
     }
 
     #[test]
     fn fdupes() {
-        let counter: TreeBag<i32, &str> = vec![
-            (77, "hello"),
-            (77, "world"),
-            (1, "ignored"),
-            (3, "foo"),
-            (3, "bar"),
-        ]
-        .into_iter()
-        .collect();
-        let result = counter.duplicates().display::<Fdupes>().to_string();
-        let expected = "foo\nbar\n\nhello\nworld";
+        let result = BAG.duplicates().display::<Fdupes>().to_string();
+        let expected = "\
+            foo\n\
+            bar\n\
+            \n\
+            hello\n\
+            world\
+        ";
         assert_eq!(result, expected);
     }
 
     #[test]
     fn csv() {
-        let counter: TreeBag<i32, &str> = vec![
-            (77, "hello"),
-            (77, "world"),
-            (1, "ignored"),
-            (3, "foo"),
-            (3, "bar"),
-        ]
-        .into_iter()
-        .collect();
-        let result = counter.duplicates().display::<Csv>().to_string();
+        let result = BAG.duplicates().display::<Csv>().to_string();
         let expected = "\
             count,bucket\n\
             2,foo,bar\n\
