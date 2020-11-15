@@ -144,8 +144,7 @@ mod integration {
     {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        std::iter::repeat(())
-            .map(|_| rng.gen())
+        std::iter::repeat_with(|| rng.gen())
             .take(size)
             .collect()
     }
