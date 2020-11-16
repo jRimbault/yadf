@@ -155,12 +155,9 @@ mod integration {
         let file2 = root.write_file(&"file2", &bytes)?;
         root.write_file(&"file3", &bytes[..4096])?;
         root.write_file(&"file4", &bytes[..2048])?;
-        let expected1 =
-            serde_json::to_string(&[[file1.to_string_lossy(), file2.to_string_lossy()]]).unwrap()
-                + "\n";
-        let expected2 =
-            serde_json::to_string(&[[file2.to_string_lossy(), file1.to_string_lossy()]]).unwrap()
-                + "\n";
+        let expected = serde_json::to_string(&[[file1.to_string_lossy(), file2.to_string_lossy()]])
+            .unwrap()
+            + "\n";
         assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
             .arg("-vvv") // test stderr contains enough debug output
             .args(&["--format", "json"])
@@ -184,7 +181,7 @@ mod integration {
                     .and(predstr::contains("file3"))
                     .and(predstr::contains("file4")),
             )
-            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
+            .stdout(predstr::similar(expected).distance(2));
         Ok(())
     }
 
@@ -196,15 +193,9 @@ mod integration {
         let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
         root.write_file(&"not_particular_2_name", &bytes)?;
         root.write_file(&"completely_different", &bytes)?;
-        let expected1 = [
+        let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
-        ]
-        .join("\n")
-            + "\n";
-        let expected2 = [
-            particular_2_name.to_string_lossy(),
-            particular_1_name.to_string_lossy(),
         ]
         .join("\n")
             + "\n";
@@ -214,7 +205,7 @@ mod integration {
             .assert()
             .success()
             .stderr(predstr::is_empty())
-            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
+            .stdout(predstr::similar(expected).distance(2));
         Ok(())
     }
 
@@ -226,15 +217,9 @@ mod integration {
         let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
         root.write_file(&"not_particular_2_name", &bytes)?;
         root.write_file(&"completely_different", &bytes)?;
-        let expected1 = [
+        let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
-        ]
-        .join("\n")
-            + "\n";
-        let expected2 = [
-            particular_2_name.to_string_lossy(),
-            particular_1_name.to_string_lossy(),
         ]
         .join("\n")
             + "\n";
@@ -244,7 +229,7 @@ mod integration {
             .assert()
             .success()
             .stderr(predstr::is_empty())
-            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
+            .stdout(predstr::similar(expected).distance(2));
         Ok(())
     }
 
@@ -256,15 +241,9 @@ mod integration {
         let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
         root.write_file(&"not_particular_2_name", &bytes[..2048])?;
         root.write_file(&"completely_different", &bytes[..2048])?;
-        let expected1 = [
+        let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
-        ]
-        .join("\n")
-            + "\n";
-        let expected2 = [
-            particular_2_name.to_string_lossy(),
-            particular_1_name.to_string_lossy(),
         ]
         .join("\n")
             + "\n";
@@ -274,7 +253,7 @@ mod integration {
             .assert()
             .success()
             .stderr(predstr::is_empty())
-            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
+            .stdout(predstr::similar(expected).distance(2));
         Ok(())
     }
 
@@ -286,15 +265,9 @@ mod integration {
         let particular_2_name = root.write_file(&"particular_2_name", &bytes[..1024])?;
         root.write_file(&"not_particular_2_name", &bytes)?;
         root.write_file(&"completely_different", &bytes)?;
-        let expected1 = [
+        let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
-        ]
-        .join("\n")
-            + "\n";
-        let expected2 = [
-            particular_2_name.to_string_lossy(),
-            particular_1_name.to_string_lossy(),
         ]
         .join("\n")
             + "\n";
@@ -304,7 +277,7 @@ mod integration {
             .assert()
             .success()
             .stderr(predstr::is_empty())
-            .stdout(predstr::similar(expected1).or(predstr::similar(expected2)));
+            .stdout(predstr::similar(expected).distance(2));
         Ok(())
     }
 }
