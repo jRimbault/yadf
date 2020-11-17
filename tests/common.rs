@@ -135,7 +135,7 @@ fn files_differing_by_middle() -> AnyResult {
 mod integration {
     use super::test_dir::TestDir;
     use super::{AnyResult, MAX_LEN};
-    use predicates::{prelude::PredicateBooleanExt, str as predstr};
+    use predicates::{boolean::PredicateBooleanExt, str as predstr};
 
     fn random_collection<T, I>(size: usize) -> I
     where
@@ -148,7 +148,7 @@ mod integration {
     }
 
     #[test]
-    fn debug_output() -> AnyResult {
+    fn trace_output() -> AnyResult {
         let root = TestDir::new(&DIR!(debug_output))?;
         let bytes: Vec<_> = random_collection(MAX_LEN);
         let file1 = root.write_file(&"file1", &bytes)?;
@@ -159,17 +159,18 @@ mod integration {
             .unwrap()
             + "\n";
         assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
-            .arg("-vvv") // test stderr contains enough debug output
+            .arg("-vvvv") // test stderr contains enough debug output
             .args(&["--format", "json"])
             .args(&["--algorithm", "seahash"])
             .arg(root.as_ref())
             .assert()
             .success()
             .stderr(
-                predstr::contains("started with Args {")
+                predstr::contains("Args {")
+                    .and(predstr::contains("Config {"))
                     .and(predstr::contains("format: Json"))
                     .and(predstr::contains("algorithm: SeaHash"))
-                    .and(predstr::contains("verbose: 3"))
+                    .and(predstr::contains("verbose: 4"))
                     .and(predstr::contains(
                         "found 3 possible duplicates after initial scan",
                     ))

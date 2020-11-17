@@ -82,7 +82,7 @@ arg_enum! {
 fn main() {
     human_panic::setup_panic!();
     let args = Args::init_from_env();
-    log::debug!("started with {:?}", args);
+    log::debug!("{:?}", args);
     let config = yadf::Config::builder()
         .paths(&args.paths)
         .minimum_file_size(args.min())
@@ -90,7 +90,7 @@ fn main() {
         .regex(args.regex.clone())
         .glob(args.pattern.clone())
         .build();
-    log::debug!("config is {:?}", config);
+    log::debug!("{:?}", config);
     let counter = match args.algorithm {
         Algorithm::SeaHash => config.scan::<yadf::SeaHasher>(),
         Algorithm::XxHash => config.scan::<yadf::XxHasher>(),

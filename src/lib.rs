@@ -99,9 +99,7 @@ where
                 "found {} possible duplicates after initial scan",
                 bag.duplicates().iter().map(|b| b.len()).sum::<usize>()
             );
-            if log::log_enabled!(log::Level::Debug) {
-                log::debug!("{:?}", bag);
-            }
+            log::trace!("{:?}", bag);
         }
         let bag = fs::dedupe::<H>(bag);
         if log::log_enabled!(log::Level::Info) {
@@ -110,9 +108,7 @@ where
                 bag.duplicates().iter().map(|b| b.len()).sum::<usize>(),
                 bag.duplicates().iter().count(),
             );
-            if log::log_enabled!(log::Level::Debug) {
-                log::debug!("{:?}", bag);
-            }
+            log::trace!("{:?}", bag);
         }
         bag
     }
