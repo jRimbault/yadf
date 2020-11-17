@@ -1007,7 +1007,6 @@ name = "yadf"
 version = "0.8.1"
 dependencies = [
  "assert_cmd",
- "bstr",
  "byte-unit",
  "clap-verbosity-flag",
  "csv",
