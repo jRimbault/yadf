@@ -31,9 +31,6 @@ pub struct Duplicates<'a, H: Ord, T>(&'a TreeBag<H, T>);
 
 /// Display marker.
 #[derive(Debug)]
-pub struct Csv;
-/// Display marker.
-#[derive(Debug)]
 pub struct Fdupes;
 /// Display marker.
 #[derive(Debug)]
@@ -109,7 +106,6 @@ impl<H: Ord, T> From<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
 
 pub mod marker {
     pub trait OutputFormat {}
-    impl OutputFormat for super::Csv {}
     impl OutputFormat for super::Fdupes {}
     impl OutputFormat for super::Machine {}
 }
