@@ -80,6 +80,7 @@ arg_enum! {
 
 #[cfg(not(tarpaulin_include))]
 fn main() {
+    let timer = std::time::Instant::now();
     human_panic::setup_panic!();
     let args = Args::init_from_env();
     log::debug!("{:?}", args);
@@ -110,4 +111,5 @@ fn main() {
         let report = Report::from(&counter);
         eprintln!("{}", report);
     }
+    log::debug!("{:?} elapsed", timer.elapsed());
 }
