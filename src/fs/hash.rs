@@ -5,7 +5,11 @@ use std::io::{self, Read};
 use std::path::Path;
 
 /// Get a checksum of the first 4 KiB (at most) of a file.
-pub fn partial<H: crate::Hasher, P: AsRef<Path>>(path: &P) -> io::Result<u64> {
+pub fn partial<H, P>(path: &P) -> io::Result<u64>
+where
+    H: crate::Hasher,
+    P: AsRef<Path>,
+{
     let mut file = File::open(path)?;
     let mut buffer = [0u8; BLOCK_SIZE];
     let mut n = 0;
@@ -23,10 +27,13 @@ pub fn partial<H: crate::Hasher, P: AsRef<Path>>(path: &P) -> io::Result<u64> {
 }
 
 /// Get a complete checksum of a file.
-pub fn full<H: crate::Hasher, P: AsRef<Path>>(path: &P) -> io::Result<u64> {
-    let mut file = File::open(path)?;
+pub fn full<H, P>(path: &P) -> io::Result<u64>
+where
+    H: crate::Hasher,
+    P: AsRef<Path>,
+{
     let mut hasher = H::default();
-    io::copy(&mut file, &mut hasher)?;
+    io::copy(&mut File::open(path)?, &mut hasher)?;
     Ok(hasher.finish())
 }
 
