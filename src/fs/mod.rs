@@ -5,8 +5,8 @@ pub mod hash;
 pub(crate) mod wrapper;
 
 use super::TreeBag;
-use hash::FileHasher;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::fs::Metadata;
 use std::path::Path;
 use std::sync::mpsc;
 use wrapper::DirEntry;
@@ -14,10 +14,10 @@ use wrapper::DirEntry;
 const BLOCK_SIZE: usize = 4096;
 
 macro_rules! is_match {
-    ($regex:expr, $entry:expr) => {{
+    ($regex:expr, $path:expr) => {{
         $regex
             .as_ref()
-            .and_then(|r| $entry.path().file_name().map(|n| (r, n)))
+            .and_then(|r| $path.file_name().map(|n| (r, n)))
             .map_or(true, |(regex, name)| {
                 regex.is_match(name.to_string_lossy().as_ref())
             })
@@ -39,34 +39,30 @@ where
     P: AsRef<Path>,
 {
     let (first, rest) = directories.split_first().unwrap();
-    let check_entry = |entry: &ignore::DirEntry| {
-        let meta = entry.metadata().map_err(|_| ())?;
-        if !meta.is_file()
+    let check_entry = |path: &Path, meta: Metadata| {
+        !meta.is_file()
             || min.map_or(false, |m| meta.len() < m)
             || max.map_or(false, |m| meta.len() > m)
-            || !is_match!(regex, entry)
-            || !is_match!(glob, entry)
-        {
-            Err(())
-        } else {
-            Ok(())
-        }
+            || !is_match!(regex, path)
+            || !is_match!(glob, path)
     };
     ignore::WalkBuilder::new(first)
         .add_paths(rest.iter())
         .standard_filters(false)
-        .threads(num_cpus::get())
+        .threads(num_cpus::get() / 2)
         .build_parallel()
         .map(|entry| {
-            check_entry(&entry)?;
-            let hash = match FileHasher::<H>::partial(&entry.path()) {
-                Ok(hash) => hash,
+            let path = entry.path();
+            if check_entry(path, entry.metadata().map_err(|_| ())?) {
+                return Err(());
+            }
+            match hash::partial::<H, _>(&path) {
+                Ok(hash) => Ok((hash, DirEntry(entry))),
                 Err(error) => {
-                    log::error!("{}, couldn't hash {:?}", error, entry.path());
-                    return Err(());
+                    log::error!("{}, couldn't hash {:?}", error, path);
+                    Err(())
                 }
-            };
-            Ok((hash, DirEntry(entry)))
+            }
         })
         .filter_map(Result::ok)
         .collect()
@@ -99,7 +95,7 @@ fn rehash<H: crate::Hasher>(
     old_hash: u64,
 ) {
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
-        let hash = match FileHasher::<H>::full(&file.path()) {
+        let hash = match hash::full::<H, _>(&file.path()) {
             Ok(hash) => hash,
             Err(error) => {
                 log::error!(

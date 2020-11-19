@@ -4,35 +4,30 @@ use std::hash::Hasher;
 use std::io::{self, Read};
 use std::path::Path;
 
-#[derive(Copy, Clone)]
-pub struct FileHasher<'a, H: crate::Hasher>(std::marker::PhantomData<&'a H>);
-
-impl<H: crate::Hasher> FileHasher<'_, H> {
-    /// Get a checksum of the first 4 KiB (at most) of a file.
-    pub fn partial<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
-        let mut file = File::open(path)?;
-        let mut buffer = [0u8; BLOCK_SIZE];
-        let mut n = 0;
-        loop {
-            match file.read(&mut buffer[n..]) {
-                Ok(0) => break,
-                Ok(len) => n += len,
-                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
-                Err(e) => return Err(e),
-            }
+/// Get a checksum of the first 4 KiB (at most) of a file.
+pub fn partial<H: crate::Hasher, P: AsRef<Path>>(path: &P) -> io::Result<u64> {
+    let mut file = File::open(path)?;
+    let mut buffer = [0u8; BLOCK_SIZE];
+    let mut n = 0;
+    loop {
+        match file.read(&mut buffer[n..]) {
+            Ok(0) => break,
+            Ok(len) => n += len,
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
         }
-        let mut hasher = H::default();
-        Hasher::write(&mut hasher, &buffer[..n]);
-        Ok(hasher.finish())
     }
+    let mut hasher = H::default();
+    Hasher::write(&mut hasher, &buffer[..n]);
+    Ok(hasher.finish())
+}
 
-    /// Get a complete checksum of a file.
-    pub fn full<P: AsRef<Path>>(path: &P) -> io::Result<u64> {
-        let mut file = File::open(path)?;
-        let mut hasher = H::default();
-        io::copy(&mut file, &mut hasher)?;
-        Ok(hasher.finish())
-    }
+/// Get a complete checksum of a file.
+pub fn full<H: crate::Hasher, P: AsRef<Path>>(path: &P) -> io::Result<u64> {
+    let mut file = File::open(path)?;
+    let mut hasher = H::default();
+    io::copy(&mut file, &mut hasher)?;
+    Ok(hasher.finish())
 }
 
 #[cfg(test)]
@@ -41,8 +36,8 @@ mod tests {
 
     #[test]
     fn same_hash_partial_and_full_for_small_file() {
-        let h1 = FileHasher::<crate::XxHasher>::partial(&"./tests/static/foo").unwrap();
-        let h2 = FileHasher::<crate::XxHasher>::full(&"./tests/static/foo").unwrap();
+        let h1 = partial::<crate::SeaHasher, _>(&"./tests/static/foo").unwrap();
+        let h2 = full::<crate::SeaHasher, _>(&"./tests/static/foo").unwrap();
         assert_eq!(h1, h2);
     }
 }
