@@ -15,12 +15,8 @@ const BLOCK_SIZE: usize = 4096;
 
 macro_rules! is_match {
     ($regex:expr, $path:expr) => {{
-        $regex
-            .as_ref()
-            .and_then(|r| $path.file_name().map(|n| (r, n)))
-            .map_or(true, |(regex, name)| {
-                regex.is_match(name.to_string_lossy().as_ref())
-            })
+        group($regex.as_ref(), $path.file_name().and_then(|p| p.to_str()))
+            .map_or(true, |(regex, name)| regex.is_match(name))
     }};
 }
 
@@ -160,4 +156,8 @@ impl WalkBuilderAddPaths for ignore::WalkBuilder {
         }
         self
     }
+}
+
+fn group<T, U>(x: Option<T>, y: Option<U>) -> Option<(T, U)> {
+    x.and_then(|r| y.map(|l| (r, l)))
 }
