@@ -36,18 +36,21 @@ fn sanity_test() {
     }
 }
 
-#[cfg(windows)]
-macro_rules! DIR {
-    ($name:ty) => {{
-        concat!("target", "\\", file!(), "\\", stringify!($name))
+macro_rules! test_dir {
+    () => {{
+        #[cfg(windows)]
+        const SEP: &str = "\\";
+        #[cfg(not(windows))]
+        const SEP: &str = "/";
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        // `3` is the length of the `::f`.
+        let name = &name[..name.len() - 3].replace("::", SEP);
+        format!("target{}tests{}{}", SEP, SEP, name)
     }};
-}
-
-#[cfg(not(windows))]
-macro_rules! DIR {
-    ($name:ty) => {
-        concat!("target", "/", file!(), "/", stringify!($name))
-    };
 }
 
 /// test shortcut
@@ -60,7 +63,7 @@ fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::D
 
 #[test]
 fn identical_small_files() -> AnyResult {
-    let root = TestDir::new(&DIR!(identical_small_files))?;
+    let root = TestDir::new(test_dir!())?;
     println!("{:?}", root.as_ref());
     root.write_file(&"file1", b"aaa")?;
     root.write_file(&"file2", b"aaa")?;
@@ -72,7 +75,7 @@ fn identical_small_files() -> AnyResult {
 
 #[test]
 fn identical_larger_files() -> AnyResult {
-    let root = TestDir::new(&DIR!(identical_larger_files))?;
+    let root = TestDir::new(test_dir!())?;
     let prefix = [0; MAX_LEN];
     let middle = [1; MAX_LEN];
     let suffix = [2; MAX_LEN];
@@ -86,7 +89,7 @@ fn identical_larger_files() -> AnyResult {
 
 #[test]
 fn files_differing_by_size() -> AnyResult {
-    let root = TestDir::new(&DIR!(files_differing_by_size))?;
+    let root = TestDir::new(test_dir!())?;
     root.write_file(&"file1", b"aaaa")?;
     root.write_file(&"file2", b"aaa")?;
     let counter = find_dupes(&root);
@@ -97,7 +100,7 @@ fn files_differing_by_size() -> AnyResult {
 
 #[test]
 fn files_differing_by_prefix() -> AnyResult {
-    let root = TestDir::new(&DIR!(files_differing_by_prefix))?;
+    let root = TestDir::new(test_dir!())?;
     root.write_file(&"file1", b"aaa")?;
     root.write_file(&"file2", b"bbb")?;
     let counter = find_dupes(&root);
@@ -108,7 +111,7 @@ fn files_differing_by_prefix() -> AnyResult {
 
 #[test]
 fn files_differing_by_suffix() -> AnyResult {
-    let root = TestDir::new(&DIR!(files_differing_by_suffix))?;
+    let root = TestDir::new(test_dir!())?;
     let prefix = [0; MAX_LEN];
     let middle = [1; MAX_LEN * 2];
     root.write_file_in_three_parts(&"file1", &prefix, &middle, b"suf1")?;
@@ -121,7 +124,7 @@ fn files_differing_by_suffix() -> AnyResult {
 
 #[test]
 fn files_differing_by_middle() -> AnyResult {
-    let root = TestDir::new(&DIR!(files_differing_by_middle))?;
+    let root = TestDir::new(test_dir!())?;
     let prefix = [0; MAX_LEN];
     let suffix = [1; MAX_LEN];
     root.write_file_in_three_parts(&"file1", &prefix, b"mid1", &suffix)?;
@@ -149,7 +152,8 @@ mod integration {
 
     #[test]
     fn trace_output() -> AnyResult {
-        let root = TestDir::new(&DIR!(debug_output))?;
+        let root = TestDir::new(test_dir!())?;
+        println!("{:?}", root.as_ref());
         let bytes: Vec<_> = random_collection(MAX_LEN);
         let file1 = root.write_file(&"file1", &bytes)?;
         let file2 = root.write_file(&"file2", &bytes)?;
@@ -188,7 +192,7 @@ mod integration {
 
     #[test]
     fn regex() -> AnyResult {
-        let root = TestDir::new(&DIR!(regex))?;
+        let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
         let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
         let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
@@ -212,7 +216,7 @@ mod integration {
 
     #[test]
     fn glob_pattern() -> AnyResult {
-        let root = TestDir::new(&DIR!(glob_pattern))?;
+        let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
         let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
         let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
@@ -236,7 +240,7 @@ mod integration {
 
     #[test]
     fn min_file_size() -> AnyResult {
-        let root = TestDir::new(&DIR!(min_file_size))?;
+        let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
         let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
         let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
@@ -260,7 +264,7 @@ mod integration {
 
     #[test]
     fn max_file_size() -> AnyResult {
-        let root = TestDir::new(&DIR!(max_file_size))?;
+        let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
         let particular_1_name = root.write_file(&"particular_1_name", &bytes[..1024])?;
         let particular_2_name = root.write_file(&"particular_2_name", &bytes[..1024])?;

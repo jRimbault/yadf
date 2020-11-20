@@ -4,15 +4,15 @@ use std::path::{Path, PathBuf};
 pub struct TestDir(PathBuf);
 
 impl TestDir {
-    pub fn new<P: AsRef<Path>>(dir: &P) -> io::Result<Self> {
-        match std::fs::remove_dir_all(dir) {
+    pub fn new<P: AsRef<Path>>(dir: P) -> io::Result<Self> {
+        match std::fs::remove_dir_all(&dir) {
             // the directory should not exists at this stage
             // we're just double checking
             Err(e) if e.kind() == io::ErrorKind::NotFound => {}
             Err(e) => return Err(e),
             _ => {}
         }
-        std::fs::create_dir_all(dir)?;
+        std::fs::create_dir_all(&dir)?;
         Ok(TestDir(dir.as_ref().to_path_buf()))
     }
 
