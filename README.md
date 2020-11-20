@@ -68,6 +68,23 @@ For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 
 </details>
 
+## Notes on the algorithm
+
+Most¹ dupe finders have a kind of 3 steps algorithm:
+
+1. group files by their size
+2. group files by a hash or comparison of their first few bytes
+3. group files by a hash or comparison of their entire content
+
+`yadf` skips the first step, and only does the step 2 and 3, preferring hashing rather than byte comparison. In my [tests][3-steps] having the first step on a SSD actually slowed down the program.
+`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], not a [`HashMap`][hashmap] because hashing the hash makes no sense and the [`BTreeMap`][btreemap] uses a cache aware implementation avoiding too many cache misses.
+
+¹: some needs a different algorithm to support different features
+
+[btreemap]: https://doc.rust-lang.org/std/collections/struct.BTreeMap.html
+[3-steps]: https://github.com/jRimbault/yadf/tree/3-steps
+[hashmap]: https://doc.rust-lang.org/std/collections/struct.HashMap.html
+
 ## Benchmarks
 
 The performance of `yadf` is heavily tied to the hardware, specifically the NVMe SSD. I recommend `fclones` as it has specific hardware heuristics. and in general more features.
@@ -84,7 +101,14 @@ My home directory contains about 615k paths and 32 GB of data, and is probably a
 | [rmlint][4]     |   2.9.0 |             14.143 |             60.722 |
 | [dupe-krill][5] |   1.4.4 |              8.072 |            112.815 |
 
-The script used to benchmark can be read [here](bench.sh).
+The script used to benchmark can be read [here](./bench.sh).
+
+[0]: https://github.com/pkolaczk/fclones
+[1]: https://github.com/jbruchon/jdupes
+[2]: https://github.com/darakian/ddh
+[3]: https://github.com/birkenfeld/fddf
+[4]: https://github.com/sahib/rmlint
+[5]: https://github.com/kornelski/dupe-krill
 
 <details>
     <summary>Raw output of <code>hyperfine</code>.</summary>
@@ -190,10 +214,3 @@ Extract from `neofetch` and `hwinfo --disk`:
   - driver: "nvme"
 
 </details>
-
-[0]: https://github.com/pkolaczk/fclones
-[1]: https://github.com/jbruchon/jdupes
-[2]: https://github.com/darakian/ddh
-[3]: https://github.com/birkenfeld/fddf
-[4]: https://github.com/sahib/rmlint
-[5]: https://github.com/kornelski/dupe-krill
