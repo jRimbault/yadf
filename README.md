@@ -15,11 +15,13 @@ Executable binaries for some platforms are available in the [releases](https://g
 
 ## Usage
 
-`yadf` always descends automatically into subdirectories. I thought about that quite a lot, and didn't think of a _really_ good reason not to.
+`yadf` by default always descends automatically into subdirectories. I thought about that quite a lot, and didn't think of a _really_ good reason not to.
 
 ```bash
 yadf # find duplicate files in current directory
 yadf ~/Documents ~/Pictures # find duplicate files in two directories
+yadf --depth 0 file1 file2 # compare two files
+yadf --depth 1 # find duplicates in current directory without descending
 ```
 
 ### Filtering
@@ -35,7 +37,7 @@ yadf --regex '^g' # find duplicate starting with 'g'
   <summary>Help output.</summary>
 
 ```
-yadf 0.8.1
+yadf 0.8.3
 Yet Another Dupes Finder
 
 USAGE:
@@ -50,10 +52,11 @@ FLAGS:
     -v, --verbose     Pass many times for more log output
 
 OPTIONS:
-    -a, --algorithm <algorithm>    Hashing algorithm [default: XxHash]  [possible values: Highway, SeaHash, XxHash]
+    -a, --algorithm <algorithm>    Hashing algorithm [default: XxHash]  [possible values: Highway, SeaHash, XxHash] 
     -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty,
                                    Machine]
         --max <size>               Maximum file size
+    -d, --depth <depth>            Maximum recursion depth
         --min <size>               Minimum file size
     -p, --pattern <glob>           Check files with a name matching a glob pattern, see:
                                    https://docs.rs/globset/0.4.6/globset/index.html#syntax
@@ -70,14 +73,14 @@ For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 
 ## Notes on the algorithm
 
-Most¹ dupe finders have a kind of 3 steps algorithm:
+Most¹ dupe finders follow a 3 steps algorithm:
 
 1. group files by their size
 2. group files by a hash or comparison of their first few bytes
 3. group files by a hash or comparison of their entire content
 
-`yadf` skips the first step, and only does the step 2 and 3, preferring hashing rather than byte comparison. In my [tests][3-steps] having the first step on a SSD actually slowed down the program.
-`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], not a [`HashMap`][hashmap] because hashing the hash makes no sense and the [`BTreeMap`][btreemap] uses a cache aware implementation avoiding too many cache misses.
+`yadf` skips the first step, and only does the steps 2 and 3, preferring hashing rather than byte comparison. In my [tests][3-steps] having the first step on a SSD actually slowed down the program.
+`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], not a [`HashMap`][hashmap] because hashing the hash makes no sense and the [`BTreeMap`][btreemap] uses a cache aware implementation avoiding too many cache misses. `yadf` uses `ignore`, disabling its _ignore_ features, and  `rayon` to do these 2 steps in parallel.
 
 ¹: some needs a different algorithm to support different features
 
