@@ -29,24 +29,6 @@ impl TestDir {
         file.write_all(bytes.as_ref())?;
         Ok(path)
     }
-
-    pub fn write_file_in_three_parts<P: AsRef<Path>>(
-        &self,
-        path: &P,
-        prefix: &[u8],
-        middle: &[u8],
-        suffix: &[u8],
-    ) -> io::Result<PathBuf> {
-        let path = self.0.join(path);
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(&path)?;
-        file.write(prefix)?;
-        file.write(middle)?;
-        file.write(suffix)?;
-        Ok(path)
-    }
 }
 
 impl Drop for TestDir {

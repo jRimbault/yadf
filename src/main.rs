@@ -1,4 +1,3 @@
-#[cfg(not(tarpaulin_include))]
 mod args;
 
 use byte_unit::Byte;
@@ -81,7 +80,6 @@ arg_enum! {
     }
 }
 
-#[cfg(not(tarpaulin_include))]
 fn main() {
     let timer = std::time::Instant::now();
     human_panic::setup_panic!();

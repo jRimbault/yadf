@@ -1,7 +1,6 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
 
 pub mod hash;
-#[cfg(not(tarpaulin_include))]
 pub(crate) mod wrapper;
 
 use super::TreeBag;

@@ -76,11 +76,12 @@ fn identical_small_files() -> AnyResult {
 #[test]
 fn identical_larger_files() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
-    let prefix = [0; MAX_LEN];
-    let middle = [1; MAX_LEN];
-    let suffix = [2; MAX_LEN];
-    root.write_file_in_three_parts(&"file1", &prefix, &middle, &suffix)?;
-    root.write_file_in_three_parts(&"file2", &prefix, &middle, &suffix)?;
+    let mut buffer = Vec::with_capacity(MAX_LEN * 3);
+    buffer.extend_from_slice(&[0; MAX_LEN]);
+    buffer.extend_from_slice(&[1; MAX_LEN]);
+    buffer.extend_from_slice(&[2; MAX_LEN]);
+    root.write_file(&"file1", &buffer)?;
+    root.write_file(&"file2", &buffer)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.as_tree().len(), 1);
@@ -112,10 +113,14 @@ fn files_differing_by_prefix() -> AnyResult {
 #[test]
 fn files_differing_by_suffix() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
-    let prefix = [0; MAX_LEN];
-    let middle = [1; MAX_LEN * 2];
-    root.write_file_in_three_parts(&"file1", &prefix, &middle, b"suf1")?;
-    root.write_file_in_three_parts(&"file2", &prefix, &middle, b"suf2")?;
+    let mut buffer1 = Vec::with_capacity(MAX_LEN * 3 + 4);
+    buffer1.extend_from_slice(&[0; MAX_LEN]);
+    buffer1.extend_from_slice(&[1; MAX_LEN * 2]);
+    let mut buffer2 = buffer1.clone();
+    buffer1.extend_from_slice(b"suf1");
+    buffer2.extend_from_slice(b"suf2");
+    root.write_file(&"file1", &buffer1)?;
+    root.write_file(&"file2", &buffer2)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.as_tree().len(), 2);
@@ -125,10 +130,16 @@ fn files_differing_by_suffix() -> AnyResult {
 #[test]
 fn files_differing_by_middle() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
-    let prefix = [0; MAX_LEN];
+    let mut buffer1 = Vec::with_capacity(MAX_LEN * 2 + 4);
+    buffer1.extend_from_slice(&[0; MAX_LEN]);
+    let mut buffer2 = buffer1.clone();
+    buffer1.extend_from_slice(b"mid1");
+    buffer2.extend_from_slice(b"mid2");
     let suffix = [1; MAX_LEN];
-    root.write_file_in_three_parts(&"file1", &prefix, b"mid1", &suffix)?;
-    root.write_file_in_three_parts(&"file2", &prefix, b"mid2", &suffix)?;
+    buffer1.extend_from_slice(&suffix);
+    buffer2.extend_from_slice(&suffix);
+    root.write_file(&"file1", &buffer1)?;
+    root.write_file(&"file2", &buffer2)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.as_tree().len(), 2);
