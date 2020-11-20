@@ -53,6 +53,16 @@ macro_rules! test_dir {
     }};
 }
 
+fn random_collection<T, I>(size: usize) -> I
+where
+    rand::distributions::Standard: rand::distributions::Distribution<T>,
+    I: std::iter::FromIterator<T>,
+{
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    std::iter::repeat_with(|| rng.gen()).take(size).collect()
+}
+
 /// test shortcut
 fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::DirEntry> {
     yadf::Config::builder()
@@ -76,10 +86,7 @@ fn identical_small_files() -> AnyResult {
 #[test]
 fn identical_larger_files() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
-    let mut buffer = Vec::with_capacity(MAX_LEN * 3);
-    buffer.extend_from_slice(&[0; MAX_LEN]);
-    buffer.extend_from_slice(&[1; MAX_LEN]);
-    buffer.extend_from_slice(&[2; MAX_LEN]);
+    let buffer: Vec<_> = random_collection(MAX_LEN * 3);
     root.write_file(&"file1", &buffer)?;
     root.write_file(&"file2", &buffer)?;
     let counter = find_dupes(&root);
@@ -114,8 +121,7 @@ fn files_differing_by_prefix() -> AnyResult {
 fn files_differing_by_suffix() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let mut buffer1 = Vec::with_capacity(MAX_LEN * 3 + 4);
-    buffer1.extend_from_slice(&[0; MAX_LEN]);
-    buffer1.extend_from_slice(&[1; MAX_LEN * 2]);
+    buffer1.extend_from_slice(&random_collection::<_, Vec<_>>(MAX_LEN * 3));
     let mut buffer2 = buffer1.clone();
     buffer1.extend_from_slice(b"suf1");
     buffer2.extend_from_slice(b"suf2");
@@ -131,11 +137,11 @@ fn files_differing_by_suffix() -> AnyResult {
 fn files_differing_by_middle() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let mut buffer1 = Vec::with_capacity(MAX_LEN * 2 + 4);
-    buffer1.extend_from_slice(&[0; MAX_LEN]);
+    buffer1.extend_from_slice(&random_collection::<_, Vec<_>>(MAX_LEN));
     let mut buffer2 = buffer1.clone();
     buffer1.extend_from_slice(b"mid1");
     buffer2.extend_from_slice(b"mid2");
-    let suffix = [1; MAX_LEN];
+    let suffix = random_collection::<_, Vec<_>>(MAX_LEN);
     buffer1.extend_from_slice(&suffix);
     buffer2.extend_from_slice(&suffix);
     root.write_file(&"file1", &buffer1)?;
@@ -148,18 +154,8 @@ fn files_differing_by_middle() -> AnyResult {
 
 mod integration {
     use super::test_dir::TestDir;
-    use super::{AnyResult, MAX_LEN};
+    use super::{random_collection, AnyResult, MAX_LEN};
     use predicates::{boolean::PredicateBooleanExt, str as predstr};
-
-    fn random_collection<T, I>(size: usize) -> I
-    where
-        rand::distributions::Standard: rand::distributions::Distribution<T>,
-        I: std::iter::FromIterator<T>,
-    {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        std::iter::repeat_with(|| rng.gen()).take(size).collect()
-    }
 
     #[test]
     fn trace_output() -> AnyResult {
