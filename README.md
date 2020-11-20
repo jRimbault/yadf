@@ -39,7 +39,7 @@ yadf 0.8.1
 Yet Another Dupes Finder
 
 USAGE:
-    yadf.exe [FLAGS] [OPTIONS] [paths]...
+    yadf [FLAGS] [OPTIONS] [paths]...
 
 FLAGS:
     -h, --help        Prints help information

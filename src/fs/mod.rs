@@ -29,6 +29,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     max: Option<u64>,
     regex: Option<regex::Regex>,
     glob: Option<globset::GlobMatcher>,
+    max_depth: Option<usize>,
 ) -> TreeBag<u64, DirEntry>
 where
     H: crate::Hasher,
@@ -45,6 +46,7 @@ where
     ignore::WalkBuilder::new(first)
         .add_paths(rest.iter())
         .standard_filters(false)
+        .max_depth(max_depth)
         .threads(num_cpus::get() / 2)
         .build_parallel()
         .map(|entry| {

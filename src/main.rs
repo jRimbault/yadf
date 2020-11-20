@@ -46,6 +46,9 @@ pub struct Args {
     /// Maximum file size
     #[structopt(long, value_name = "size")]
     max: Option<Byte>,
+    /// Maximum recursion depth
+    #[structopt(short = "d", long = "depth", value_name = "depth")]
+    max_depth: Option<usize>,
     /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
     #[structopt(short = "R", long)]
@@ -90,6 +93,7 @@ fn main() {
         .maximum_file_size(args.max())
         .regex(args.regex.clone())
         .glob(args.pattern.clone())
+        .max_depth(args.max_depth)
         .build();
     log::debug!("{:?}", config);
     let counter = match args.algorithm {

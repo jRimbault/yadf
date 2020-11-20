@@ -71,6 +71,8 @@ where
     minimum_file_size: Option<u64>,
     #[builder(default, setter(into, doc = "Maximum file size"))]
     maximum_file_size: Option<u64>,
+    #[builder(default, setter(into, doc = "Maximum recursion depth"))]
+    max_depth: Option<usize>,
     #[builder(default, setter(into, doc = "File name must match this regex"))]
     regex: Option<regex::Regex>,
     #[builder(default, setter(into, doc = "File name must match this glob"))]
@@ -89,6 +91,7 @@ where
             self.maximum_file_size,
             self.regex,
             self.glob.map(|g| g.compile_matcher()),
+            self.max_depth,
         );
         if log::log_enabled!(log::Level::Info) {
             log::info!(
