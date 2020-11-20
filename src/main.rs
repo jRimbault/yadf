@@ -100,15 +100,18 @@ fn main() {
         Algorithm::Highway => config.scan::<yadf::HighwayHasher>(),
     };
     match args.format {
-        Format::Json => serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap(),
+        Format::Json => {
+            serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap();
+            println!();
+        }
         Format::JsonPretty => {
-            serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap()
+            serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap();
+            println!();
         }
         Format::Csv => csv_to_writer(io::stdout(), &counter.duplicates()).unwrap(),
-        Format::Fdupes => print!("{}", counter.duplicates().display::<Fdupes>()),
-        Format::Machine => print!("{}", counter.duplicates().display::<Machine>()),
+        Format::Fdupes => println!("{}", counter.duplicates().display::<Fdupes>()),
+        Format::Machine => println!("{}", counter.duplicates().display::<Machine>()),
     };
-    println!();
     if args.report {
         let report = Report::from(&counter);
         eprintln!("{}", report);
