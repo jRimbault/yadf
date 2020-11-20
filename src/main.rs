@@ -121,21 +121,13 @@ fn csv_to_writer<W: std::io::Write>(
     writer: W,
     duplicates: &yadf::Duplicates<u64, yadf::DirEntry>,
 ) -> csv::Result<()> {
-    #[derive(serde::Serialize)]
-    struct Line<'a> {
-        count: usize,
-        files: &'a [yadf::DirEntry],
-    }
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)
         .has_headers(false)
         .from_writer(writer);
-    writer.write_record(&["count", "files"])?;
+    writer.serialize(("count", "files"))?;
     for files in duplicates.iter() {
-        writer.serialize(Line {
-            count: files.len(),
-            files,
-        })?;
+        writer.serialize((files.len(), files))?;
     }
     Ok(())
 }
