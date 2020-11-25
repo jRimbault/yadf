@@ -21,14 +21,14 @@
 
 mod bag;
 mod fs;
-mod macros;
+mod hasher;
 mod report;
 
 pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
 pub use fs::wrapper::DirEntry;
 pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
-pub use hashers::{HighwayHasher, SeaHasher, XxHasher};
+pub use hasher::{HighwayHasher, SeaHasher, XxHasher};
 pub use regex;
 pub use report::Report;
 use std::path::Path;
@@ -115,24 +115,4 @@ where
         }
         bag
     }
-}
-
-#[cfg(any(test, feature = "build-bin"))]
-mod hashers {
-    /// Hasher struct implementing Hasher, Default and Write
-    #[derive(Default)]
-    #[repr(transparent)]
-    pub struct HighwayHasher(highway::HighwayHasher);
-    /// Hasher struct implementing Hasher, Default and Write
-    #[derive(Default)]
-    #[repr(transparent)]
-    pub struct SeaHasher(seahash::SeaHasher);
-    /// Hasher struct implementing Hasher, Default and Write
-    #[derive(Default)]
-    #[repr(transparent)]
-    pub struct XxHasher(twox_hash::XxHash64);
-
-    super::newtype_impl_hasher_and_write!(HighwayHasher);
-    super::newtype_impl_hasher_and_write!(SeaHasher);
-    super::newtype_impl_hasher_and_write!(XxHasher);
 }

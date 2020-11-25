@@ -34,3 +34,19 @@ macro_rules! newtype_impl_hasher_and_write {
         $crate::newtype_impl_write!($hasher);
     };
 }
+/// Hasher struct implementing Hasher, Default and Write
+#[derive(Default)]
+#[repr(transparent)]
+pub struct HighwayHasher(highway::HighwayHasher);
+/// Hasher struct implementing Hasher, Default and Write
+#[derive(Default)]
+#[repr(transparent)]
+pub struct SeaHasher(seahash::SeaHasher);
+/// Hasher struct implementing Hasher, Default and Write
+#[derive(Default)]
+#[repr(transparent)]
+pub struct XxHasher(twox_hash::XxHash64);
+
+newtype_impl_hasher_and_write!(HighwayHasher);
+newtype_impl_hasher_and_write!(SeaHasher);
+newtype_impl_hasher_and_write!(XxHasher);
