@@ -86,11 +86,7 @@ pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, DirEntry>) -> TreeB
 }
 
 // decrease indent level of the dedupe function
-fn rehash<H: crate::Hasher>(
-    sender: &mut mpsc::Sender<(u64, DirEntry)>,
-    file: DirEntry,
-    old_hash: u64,
-) {
+fn rehash<H: crate::Hasher>(sender: &mpsc::Sender<(u64, DirEntry)>, file: DirEntry, old_hash: u64) {
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
         let hash = match hash::full::<H, _>(&file.path()) {
             Ok(hash) => hash,
