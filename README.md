@@ -15,7 +15,12 @@ Executable binaries for some platforms are available in the [releases](https://g
 
 ## Usage
 
-`yadf` by default always descends automatically into subdirectories. I thought about that quite a lot, and didn't think of a _really_ good reason not to.
+`yadf` defaults:
+
+- search current working directory `$PWD`
+- output format is the same as the "standard" `fdupes`, newline separated groups
+- descends automatically into subdirectories
+- search includes every files (including empty files)
 
 ```bash
 yadf # find duplicate files in current directory
@@ -31,6 +36,16 @@ yadf --min 100M # find duplicate files of at least 100 MB
 yadf --max 100M # find duplicate files below 100 MB
 yadf --pattern '*.jpg' # find duplicate jpg
 yadf --regex '^g' # find duplicate starting with 'g'
+```
+
+### Formatting
+
+Look up the help for a list of output formats `yadf -h`.
+
+```bash
+yadf -f json
+yadf -f fdupes
+yadf -f csv
 ```
 
 <details>
@@ -52,9 +67,8 @@ FLAGS:
     -v, --verbose     Pass many times for more log output
 
 OPTIONS:
-    -a, --algorithm <algorithm>    Hashing algorithm [default: XxHash]  [possible values: Highway, SeaHash, XxHash] 
-    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty,
-                                   Machine]
+    -a, --algorithm <algorithm>    Hashing algorithm [default: XxHash]  [possible values: Highway, SeaHash, XxHash]
+    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty, Machine]
         --max <size>               Maximum file size
     -d, --depth <depth>            Maximum recursion depth
         --min <size>               Minimum file size
@@ -76,13 +90,13 @@ For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 Most¹ dupe finders follow a 3 steps algorithm:
 
 1. group files by their size
-2. group files by a hash or comparison of their first few bytes
-3. group files by a hash or comparison of their entire content
+2. group files by their first few bytes
+3. group files by their entire content
 
 `yadf` skips the first step, and only does the steps 2 and 3, preferring hashing rather than byte comparison. In my [tests][3-steps] having the first step on a SSD actually slowed down the program.
-`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], not a [`HashMap`][hashmap] because hashing the hash makes no sense and the [`BTreeMap`][btreemap] uses a cache aware implementation avoiding too many cache misses. `yadf` uses `ignore`, disabling its _ignore_ features, and  `rayon` to do these 2 steps in parallel.
+`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], it uses a cache aware implementation avoiding too many cache misses. `yadf` uses the parallel walker provided by `ignore` (disabling its _ignore_ features) and `rayon`'s parallel iterators to do each of these 2 steps in parallel.
 
-¹: some needs a different algorithm to support different features
+¹: some need a different algorithm to support different features or different performance trade-offs
 
 [btreemap]: https://doc.rust-lang.org/std/collections/struct.BTreeMap.html
 [3-steps]: https://github.com/jRimbault/yadf/tree/3-steps
@@ -103,6 +117,8 @@ My home directory contains about 615k paths and 32 GB of data, and is probably a
 | [fddf][3]       |   1.7.0 |              5.047 |             27.718 |
 | [rmlint][4]     |   2.9.0 |             14.143 |             60.722 |
 | [dupe-krill][5] |   1.4.4 |              8.072 |            112.815 |
+
+`fdupes` is excluded from this benchmark because it's _really_ slow.
 
 The script used to benchmark can be read [here](./bench.sh).
 
