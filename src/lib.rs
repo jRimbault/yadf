@@ -14,7 +14,7 @@
 //!     .regex(None) // optional
 //!     .glob(None) // optional
 //!     .build()
-//!     .scan::<yadf::HighwayHasher>();
+//!     .scan::<highway::HighwayHasher>();
 //! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
 //! eprintln!("{}", yadf::Report::from(&counter));
 //! ```
@@ -28,7 +28,7 @@ pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
 pub use fs::wrapper::DirEntry;
 pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
-pub use hasher::{HighwayHasher, SeaHasher, XxHasher};
+pub use hasher::{SeaHasher, XxHasher};
 pub use regex;
 pub use report::Report;
 use std::path::Path;
@@ -55,7 +55,7 @@ where
 ///     .regex(None) // optional
 ///     .glob(None) // optional
 ///     .build()
-///     .scan::<yadf::HighwayHasher>();
+///     .scan::<highway::HighwayHasher>();
 /// ```
 ///
 /// see the docs for the [ConfigBuilder](struct.ConfigBuilder.html)

@@ -381,9 +381,9 @@ dependencies = [
 
 [[package]]
 name = "highway"
-version = "0.5.0"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18a65421f1d1303e0bb54b76431735822d41767e341d7e65286b88b3ec22f372"
+checksum = "21560112beadd148546f00b29c8d42838e067f5baa6be16e511b3a0b4c1aef20"
 
 [[package]]
 name = "human-panic"

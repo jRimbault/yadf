@@ -97,7 +97,7 @@ fn main() {
     let counter = match args.algorithm {
         Algorithm::SeaHash => config.scan::<yadf::SeaHasher>(),
         Algorithm::XxHash => config.scan::<yadf::XxHasher>(),
-        Algorithm::Highway => config.scan::<yadf::HighwayHasher>(),
+        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
     };
     match args.format {
         Format::Json => {
