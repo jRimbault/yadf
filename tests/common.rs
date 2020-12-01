@@ -22,16 +22,10 @@ fn sanity_test() {
         .scan::<yadf::SeaHasher>();
     for bucket in counter.duplicates().iter() {
         let (first, bucket) = bucket.split_first().unwrap();
-        let reference = std::fs::read(first.path()).unwrap();
+        let reference = std::fs::read(&first).unwrap();
         for file in bucket {
-            let contents = std::fs::read(file.path()).unwrap();
-            assert_eq!(
-                reference,
-                contents,
-                "comparing {:?} and {:?}",
-                first.path(),
-                file.path()
-            );
+            let contents = std::fs::read(&file).unwrap();
+            assert_eq!(reference, contents, "comparing {:?} and {:?}", first, file);
         }
     }
 }
@@ -64,7 +58,7 @@ where
 }
 
 /// test shortcut
-fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::DirEntry> {
+fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, std::path::PathBuf> {
     yadf::Config::builder()
         .paths(&[path])
         .build()

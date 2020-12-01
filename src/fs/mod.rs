@@ -1,14 +1,12 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
 
 pub mod hash;
-pub(crate) mod wrapper;
 
 use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs::Metadata;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
-use wrapper::DirEntry;
 
 const BLOCK_SIZE: usize = 4096;
 
@@ -29,7 +27,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     regex: Option<regex::Regex>,
     glob: Option<globset::GlobMatcher>,
     max_depth: Option<usize>,
-) -> TreeBag<u64, DirEntry>
+) -> TreeBag<u64, PathBuf>
 where
     H: crate::Hasher,
     P: AsRef<Path>,
@@ -54,7 +52,7 @@ where
                 return Err(());
             }
             match hash::partial::<H, _>(&path) {
-                Ok(hash) => Ok((hash, DirEntry(entry))),
+                Ok(hash) => Ok((hash, path.to_owned())),
                 Err(error) => {
                     log::error!("{}, couldn't hash {:?}", error, path);
                     Err(())
@@ -65,7 +63,7 @@ where
         .collect()
 }
 
-pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, DirEntry>) -> TreeBag<u64, DirEntry> {
+pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, PathBuf> {
     let (sender, receiver) = mpsc::channel();
     counter
         .0
@@ -86,16 +84,12 @@ pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, DirEntry>) -> TreeB
 }
 
 // decrease indent level of the dedupe function
-fn rehash<H: crate::Hasher>(sender: &mpsc::Sender<(u64, DirEntry)>, file: DirEntry, old_hash: u64) {
+fn rehash<H: crate::Hasher>(sender: &mpsc::Sender<(u64, PathBuf)>, file: PathBuf, old_hash: u64) {
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
-        let hash = match hash::full::<H, _>(&file.path()) {
+        let hash = match hash::full::<H, _>(&file) {
             Ok(hash) => hash,
             Err(error) => {
-                log::error!(
-                    "{}, couldn't hash {:?}, reusing partial hash",
-                    error,
-                    file.path()
-                );
+                log::error!("{}, couldn't hash {:?}, reusing partial hash", error, file);
                 old_hash
             }
         };

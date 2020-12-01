@@ -4,7 +4,7 @@ use byte_unit::Byte;
 use std::io;
 use std::path::PathBuf;
 use structopt::clap::arg_enum;
-use yadf::{Fdupes, Machine, Report};
+use yadf::{Fdupes, Machine};
 
 /// Yet Another Dupes Finder
 #[derive(structopt::StructOpt, Debug)]
@@ -24,9 +24,6 @@ pub struct Args {
         case_insensitive = true
     )]
     format: Format,
-    /// Prints human readable report to stderr
-    #[structopt(short, long)]
-    report: bool,
     /// Hashing algorithm
     #[structopt(
         short,
@@ -112,17 +109,13 @@ fn main() {
         Format::Fdupes => println!("{}", counter.duplicates().display::<Fdupes>()),
         Format::Machine => println!("{}", counter.duplicates().display::<Machine>()),
     };
-    if args.report {
-        let report = Report::from(&counter);
-        eprintln!("{}", report);
-    }
     log::debug!("{:?} elapsed", timer.elapsed());
 }
 
 /// mimic serde_json interface
 fn csv_to_writer<W: std::io::Write>(
     writer: W,
-    duplicates: &yadf::Duplicates<u64, yadf::DirEntry>,
+    duplicates: &yadf::Duplicates<u64, PathBuf>,
 ) -> csv::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)

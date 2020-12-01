@@ -4,7 +4,7 @@
 //!
 //! # Example :
 //!
-//! Find, display, and report, all the duplicate files at the given path :
+//! Find and display all the duplicate files at the given path :
 //!
 //! ```no_run
 //! let counter = yadf::Config::builder()
@@ -16,22 +16,18 @@
 //!     .build()
 //!     .scan::<highway::HighwayHasher>();
 //! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
-//! eprintln!("{}", yadf::Report::from(&counter));
 //! ```
 
 mod bag;
 mod fs;
 mod hasher;
-mod report;
 
 pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
-pub use fs::wrapper::DirEntry;
 pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
 pub use hasher::{SeaHasher, XxHasher};
 pub use regex;
-pub use report::Report;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Meta trait for the Hasher, Default and Write traits
 pub trait Hasher: core::hash::Hasher + std::io::Write + core::default::Default {}
@@ -84,7 +80,7 @@ where
     P: AsRef<Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H: Hasher>(self) -> TreeBag<u64, DirEntry> {
+    pub fn scan<H: Hasher>(self) -> TreeBag<u64, PathBuf> {
         let bag = fs::find_dupes_partial::<H, P>(
             self.paths,
             self.minimum_file_size,
