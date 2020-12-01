@@ -1,4 +1,3 @@
-#[macro_export]
 macro_rules! newtype_impl_write {
     ($hasher:ty) => {
         impl ::std::io::Write for $hasher {
@@ -13,7 +12,6 @@ macro_rules! newtype_impl_write {
     };
 }
 
-#[macro_export]
 macro_rules! newtype_impl_hasher {
     ($hasher:ty) => {
         impl ::core::hash::Hasher for $hasher {
@@ -27,22 +25,16 @@ macro_rules! newtype_impl_hasher {
     };
 }
 
-#[macro_export]
-macro_rules! newtype_impl_hasher_and_write {
-    ($hasher:ty) => {
-        $crate::newtype_impl_hasher!($hasher);
-        $crate::newtype_impl_write!($hasher);
-    };
-}
-
 /// Hasher struct implementing Hasher, Default and Write
 #[derive(Default)]
 #[repr(transparent)]
 pub struct SeaHasher(seahash::SeaHasher);
+newtype_impl_hasher!(SeaHasher);
+newtype_impl_write!(SeaHasher);
+
 /// Hasher struct implementing Hasher, Default and Write
 #[derive(Default)]
 #[repr(transparent)]
 pub struct XxHasher(twox_hash::XxHash64);
-
-newtype_impl_hasher_and_write!(SeaHasher);
-newtype_impl_hasher_and_write!(XxHasher);
+newtype_impl_hasher!(XxHasher);
+newtype_impl_write!(XxHasher);
