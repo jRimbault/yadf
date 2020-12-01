@@ -50,16 +50,16 @@ where
         .build_parallel()
         .map(|entry| {
             let path = entry.path();
-            if check_entry(path, entry.metadata().map_err(|_| ())?) {
+            let meta = entry.metadata().map_err(|error| {
+                log::error!("{}, couldn't get metadata for {:?}", error, path);
+            })?;
+            if check_entry(path, meta) {
                 return Err(());
             }
-            match hash::partial::<H, _>(&path) {
-                Ok(hash) => Ok((hash, path.to_owned())),
-                Err(error) => {
-                    log::error!("{}, couldn't hash {:?}", error, path);
-                    Err(())
-                }
-            }
+            let hash = hash::partial::<H, _>(&path).map_err(|error| {
+                log::error!("{}, couldn't hash {:?}", error, path);
+            })?;
+            Ok((hash, path.to_owned()))
         })
         .filter_map(Result::ok)
         .collect()
@@ -78,7 +78,8 @@ pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBa
                 bucket
                     .into_par_iter()
                     .for_each_with(sender.clone(), |sender, file| {
-                        rehash::<H>(sender, file, old_hash)
+                        let hash = rehash::<H>(&file).unwrap_or(old_hash);
+                        sender.send((hash, file)).unwrap();
                     });
             }
         });
@@ -86,18 +87,17 @@ pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBa
 }
 
 // decrease indent level of the dedupe function
-fn rehash<H: crate::Hasher>(sender: &mpsc::Sender<(u64, PathBuf)>, file: PathBuf, old_hash: u64) {
+fn rehash<H: crate::Hasher>(file: &Path) -> Result<u64, ()> {
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
-        let hash = match hash::full::<H, _>(&file) {
-            Ok(hash) => hash,
+        match hash::full::<H, _>(&file) {
+            Ok(hash) => Ok(hash),
             Err(error) => {
                 log::error!("{}, couldn't hash {:?}, reusing partial hash", error, file);
-                old_hash
+                Err(())
             }
-        };
-        sender.send((hash, file)).unwrap();
+        }
     } else {
-        sender.send((old_hash, file)).unwrap();
+        Err(())
     }
 }
 
