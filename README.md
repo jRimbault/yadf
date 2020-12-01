@@ -52,7 +52,7 @@ yadf -f csv
   <summary>Help output.</summary>
 
 ```
-yadf 0.8.3
+yadf 0.9.0
 Yet Another Dupes Finder
 
 USAGE:
@@ -62,12 +62,11 @@ FLAGS:
     -h, --help        Prints help information
     -n, --no-empty    Excludes empty files
     -q, --quiet       Pass many times for less log output
-    -r, --report      Prints human readable report to stderr
     -V, --version     Prints version information
     -v, --verbose     Pass many times for more log output
 
 OPTIONS:
-    -a, --algorithm <algorithm>    Hashing algorithm [default: XxHash]  [possible values: Highway, SeaHash, XxHash]
+    -a, --algorithm <algorithm>    Hashing algorithm [default: Highway]  [possible values: Highway, SeaHash, XxHash]
     -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty, Machine]
         --max <size>               Maximum file size
     -d, --depth <depth>            Maximum recursion depth
