@@ -32,7 +32,9 @@ where
     H: crate::Hasher,
     P: AsRef<Path>,
 {
-    let (first, rest) = directories.split_first().unwrap();
+    let (first, rest) = directories
+        .split_first()
+        .expect("there should be at least one path");
     let check_entry = |path: &Path, meta: Metadata| {
         !meta.is_file()
             || min.map_or(false, |m| meta.len() < m)
@@ -41,7 +43,7 @@ where
             || !is_match!(glob, path)
     };
     ignore::WalkBuilder::new(first)
-        .add_paths(rest.iter())
+        .add_paths(rest)
         .standard_filters(false)
         .max_depth(max_depth)
         .threads(num_cpus::get() / 2)
@@ -133,14 +135,14 @@ trait WalkBuilderAddPaths {
     fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
     where
         P: AsRef<Path>,
-        I: Iterator<Item = P>;
+        I: IntoIterator<Item = P>;
 }
 
 impl WalkBuilderAddPaths for ignore::WalkBuilder {
     fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
     where
         P: AsRef<Path>,
-        I: Iterator<Item = P>,
+        I: IntoIterator<Item = P>,
     {
         for path in paths {
             self.add(path);
