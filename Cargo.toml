@@ -21,6 +21,7 @@ build-bin = [
   "env_logger",
   "highway",
   "human-panic",
+  "metrohash",
   "once_cell",
   "seahash",
   "serde_json",
@@ -46,6 +47,7 @@ csv = { version = "1.1.4", optional = true }
 env_logger = { version = "0.8.1", optional = true }
 highway = { version = "0.6.2", optional = true }
 human-panic = { version = "1.0.3", optional = true }
+metrohash = { version = "1.0.6", optional = true }
 once_cell = { version = "1.5.2", optional = true }
 seahash = { version = "4.0.1", optional = true }
 serde_json = { version = "1.0.57", optional = true }

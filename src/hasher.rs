@@ -38,3 +38,10 @@ newtype_impl_write!(SeaHasher);
 pub struct XxHasher(twox_hash::XxHash64);
 newtype_impl_hasher!(XxHasher);
 newtype_impl_write!(XxHasher);
+
+/// Hasher struct implementing Hasher, Default and Write
+#[derive(Default)]
+#[repr(transparent)]
+pub struct MetroHash(metrohash::MetroHash64);
+newtype_impl_hasher!(MetroHash);
+newtype_impl_write!(MetroHash);

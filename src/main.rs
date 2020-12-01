@@ -72,6 +72,7 @@ arg_enum! {
     #[derive(Debug)]
     enum Algorithm {
         Highway,
+        MetroHash,
         SeaHash,
         XxHash,
     }
@@ -92,9 +93,10 @@ fn main() {
         .build();
     log::debug!("{:?}", config);
     let counter = match args.algorithm {
+        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
+        Algorithm::MetroHash => config.scan::<yadf::MetroHash>(),
         Algorithm::SeaHash => config.scan::<yadf::SeaHasher>(),
         Algorithm::XxHash => config.scan::<yadf::XxHasher>(),
-        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
     };
     match args.format {
         Format::Json => {

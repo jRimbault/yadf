@@ -25,7 +25,7 @@ mod hasher;
 pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
 pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
-pub use hasher::{SeaHasher, XxHasher};
+pub use hasher::{MetroHash, SeaHasher, XxHasher};
 pub use regex;
 use std::path::{Path, PathBuf};
 
