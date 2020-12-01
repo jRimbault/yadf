@@ -41,14 +41,9 @@ impl Args {
     }
 
     pub fn init_from_env() -> Self {
-        // Clap requires that every string we give it will be
-        // 'static, but we need to build the version string dynamically.
-        // We can fake the 'static lifetime with lazy_static.
-        lazy_static::lazy_static! {
-            static ref LONG_VERSION: String = env!("YADF_BUILD_VERSION").replace("|", "\n");
-        }
+        let long_version = env!("YADF_BUILD_VERSION").replace("|", "\n");
         let app = Self::clap()
-            .long_version(LONG_VERSION.as_str())
+            .long_version(long_version.as_str())
             .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
         let mut args = Self::from_clap(&app.get_matches());
         let cwd = || env::current_dir().expect("couldn't get current working directory");

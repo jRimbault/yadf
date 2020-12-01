@@ -50,9 +50,10 @@ where
 mod tests {
     use super::super::TreeBag;
     use super::*;
+    use once_cell::sync::Lazy;
 
-    lazy_static::lazy_static! {
-        static ref BAG: TreeBag<i32, &'static str> = vec![
+    static BAG: Lazy<TreeBag<i32, &'static str>> = Lazy::new(|| {
+        vec![
             (77, "hello"),
             (77, "world"),
             (1, "ignored"),
@@ -60,8 +61,8 @@ mod tests {
             (3, "bar"),
         ]
         .into_iter()
-        .collect();
-    }
+        .collect()
+    });
 
     #[test]
     fn machine() {
