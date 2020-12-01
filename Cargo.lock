@@ -996,6 +996,7 @@ dependencies = [
  "assert_cmd",
  "byte-unit",
  "clap-verbosity-flag",
+ "crossbeam-channel",
  "csv",
  "dirs",
  "env_logger",

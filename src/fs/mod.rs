@@ -6,7 +6,6 @@ use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
 
 const BLOCK_SIZE: usize = 4096;
 
@@ -66,7 +65,7 @@ where
 }
 
 pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, PathBuf> {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = crossbeam_channel::unbounded();
     counter
         .0
         .into_par_iter()
@@ -102,7 +101,7 @@ fn rehash<H: crate::Hasher>(file: &Path) -> Result<u64, ()> {
 }
 
 trait WalkParallelMap {
-    fn map<F, I>(self, fnmap: F) -> mpsc::IntoIter<I>
+    fn map<F, I>(self, fnmap: F) -> crossbeam_channel::IntoIter<I>
     where
         F: Fn(ignore::DirEntry) -> I,
         F: Send + Copy,
@@ -110,13 +109,13 @@ trait WalkParallelMap {
 }
 
 impl WalkParallelMap for ignore::WalkParallel {
-    fn map<F, I>(self, fnmap: F) -> mpsc::IntoIter<I>
+    fn map<F, I>(self, fnmap: F) -> crossbeam_channel::IntoIter<I>
     where
         F: Fn(ignore::DirEntry) -> I,
         F: Send + Copy,
         I: Send,
     {
-        let (sender, receiver) = mpsc::channel();
+        let (sender, receiver) = crossbeam_channel::unbounded();
         self.run(move || {
             let sender = sender.clone();
             Box::new(move |result| {
