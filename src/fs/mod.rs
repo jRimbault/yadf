@@ -1,6 +1,7 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
 
-pub mod hash;
+mod hash;
+mod heuristic;
 
 use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -45,7 +46,7 @@ where
         .add_paths(rest)
         .standard_filters(false)
         .max_depth(max_depth)
-        .threads(num_cpus::get() / 2)
+        .threads(heuristic::num_cpus_get(directories))
         .build_parallel()
         .map(|entry| {
             let path = entry.path();
