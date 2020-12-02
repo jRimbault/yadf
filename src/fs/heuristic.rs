@@ -10,7 +10,9 @@ use win::disk_type;
 pub fn num_cpus_get<P: AsRef<Path>>(paths: &[P]) -> usize {
     let (ssds, others): (Vec<DiskType>, Vec<DiskType>) = paths
         .iter()
-        .map(disk_type)
+        .map(|path| (path, disk_type(path)))
+        .inspect(|(path, disk_type)| log::debug!("{:?} may be on a {:?}", path.as_ref(), disk_type))
+        .map(|t| t.1)
         .partition(|&disk_type| disk_type == DiskType::SSD);
     // study a better heuristics here,
     // unfortunately I don't have any internal HDDs to test things with
@@ -59,8 +61,9 @@ mod win {
     });
 
     pub fn disk_type<P: AsRef<Path>>(path: &P) -> DiskType {
-        let path = dunce::canonicalize(path.as_ref()).unwrap();
-        find_disk(&path, &SYSTEM.mounted).unwrap_or(DiskType::Unknown(-1))
+        let abs_path = dunce::canonicalize(path.as_ref()).unwrap();
+        log::trace!("path {:?} canonicalized to : {:?}", path.as_ref(), abs_path);
+        find_disk(&abs_path, &SYSTEM.mounted).unwrap_or(DiskType::Unknown(-1))
     }
 }
 
@@ -95,9 +98,10 @@ mod unix {
     });
 
     pub fn disk_type<P: AsRef<Path>>(path: &P) -> DiskType {
-        let path = dunce::canonicalize(path.as_ref()).unwrap();
-        find_disk(&path, &SYSTEM.mounted).unwrap_or_else(|| {
-            if path.starts_with(&SYSTEM.root.path) {
+        let abs_path = dunce::canonicalize(path.as_ref()).unwrap();
+        log::trace!("path {:?} canonicalized to : {:?}", path.as_ref(), abs_path);
+        find_disk(&abs_path, &SYSTEM.mounted).unwrap_or_else(|| {
+            if abs_path.starts_with(&SYSTEM.root.path) {
                 SYSTEM.root.disk_type
             } else {
                 DiskType::Unknown(-1)
@@ -113,16 +117,28 @@ mod tests {
     #[test]
     #[ignore]
     fn exploring() {
+        env_logger::builder()
+            .is_test(true)
+            .filter_level(log::LevelFilter::Trace)
+            .init();
         let paths = &[
             dirs::home_dir().unwrap(),
             #[cfg(windows)]
             r#"\\IRIDIUM\Plex-DoubleSloth"#.into(),
             r#"../.."#.into(),
         ];
-        for path in paths {
-            let dtype = disk_type(path);
-            println!("{:?} : {:?}", path, dtype);
-        }
         println!("{}", num_cpus_get(paths));
+    }
+
+    #[test]
+    #[ignore]
+    fn what_the_disk() {
+        env_logger::builder()
+            .is_test(true)
+            .filter_level(log::LevelFilter::Trace)
+            .init();
+        let path = "../..";
+        let disk_type = disk_type(&path);
+        println!("{:?} is on a {:?}", path, disk_type);
     }
 }
