@@ -52,7 +52,7 @@ yadf -f csv
   <summary>Help output.</summary>
 
 ```
-yadf 0.9.0
+yadf 0.9.2
 Yet Another Dupes Finder
 
 USAGE:
@@ -66,7 +66,7 @@ FLAGS:
     -v, --verbose     Pass many times for more log output
 
 OPTIONS:
-    -a, --algorithm <algorithm>    Hashing algorithm [default: Highway]  [possible values: Highway, SeaHash, XxHash]
+    -a, --algorithm <algorithm>    Hashing algorithm [default: Highway]  [possible values: Highway, MetroHash, SeaHash, XxHash]
     -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty, Machine]
         --max <size>               Maximum file size
     -d, --depth <depth>            Maximum recursion depth
