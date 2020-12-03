@@ -58,7 +58,9 @@ where
 }
 
 /// test shortcut
-fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, std::path::PathBuf> {
+fn find_dupes<P: AsRef<std::path::Path>>(
+    path: &P,
+) -> yadf::TreeBag<u64, std::sync::Arc<std::path::Path>> {
     yadf::Config::builder()
         .paths(&[path])
         .build()

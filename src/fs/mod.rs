@@ -6,7 +6,8 @@ mod heuristic;
 use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs::Metadata;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::sync::Arc;
 
 const BLOCK_SIZE: usize = 4096;
 
@@ -27,7 +28,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     regex: Option<regex::Regex>,
     glob: Option<globset::GlobMatcher>,
     max_depth: Option<usize>,
-) -> TreeBag<u64, PathBuf>
+) -> TreeBag<u64, Arc<Path>>
 where
     H: crate::Hasher,
     P: AsRef<Path>,
@@ -59,13 +60,15 @@ where
             let hash = hash::partial::<H, _>(&path).map_err(|error| {
                 log::error!("{}, couldn't hash {:?}", error, path);
             })?;
-            Ok((hash, path.to_owned()))
+            Ok((hash, Arc::from(path)))
         })
         .filter_map(Result::ok)
         .collect()
 }
 
-pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, PathBuf> {
+pub(crate) fn dedupe<H: crate::Hasher>(
+    counter: TreeBag<u64, Arc<Path>>,
+) -> TreeBag<u64, Arc<Path>> {
     let (sender, receiver) = crossbeam_channel::unbounded();
     counter
         .0
@@ -104,7 +107,7 @@ fn rehash<H: crate::Hasher>(file: &Path) -> Result<u64, ()> {
 trait WalkParallelMap {
     fn map<F, I>(self, fnmap: F) -> crossbeam_channel::IntoIter<I>
     where
-        F: Fn(ignore::DirEntry) -> I,
+        F: Fn(&ignore::DirEntry) -> I,
         F: Send + Copy,
         I: Send;
 }
@@ -112,7 +115,7 @@ trait WalkParallelMap {
 impl WalkParallelMap for ignore::WalkParallel {
     fn map<F, I>(self, fnmap: F) -> crossbeam_channel::IntoIter<I>
     where
-        F: Fn(ignore::DirEntry) -> I,
+        F: Fn(&ignore::DirEntry) -> I,
         F: Send + Copy,
         I: Send,
     {
@@ -121,7 +124,7 @@ impl WalkParallelMap for ignore::WalkParallel {
             let sender = sender.clone();
             Box::new(move |result| {
                 match result {
-                    Ok(entry) => sender.send(fnmap(entry)).unwrap(),
+                    Ok(entry) => sender.send(fnmap(&entry)).unwrap(),
                     Err(error) => log::error!("{}", error),
                 }
                 ignore::WalkState::Continue

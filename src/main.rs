@@ -1,7 +1,7 @@
 mod args;
 
 use byte_unit::Byte;
-use std::io;
+// use std::io;
 use std::path::PathBuf;
 use structopt::clap::arg_enum;
 use yadf::{Fdupes, Machine};
@@ -99,33 +99,34 @@ fn main() {
         Algorithm::XxHash => config.scan::<yadf::XxHasher>(),
     };
     match args.format {
-        Format::Json => {
-            serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap();
-            println!();
-        }
-        Format::JsonPretty => {
-            serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap();
-            println!();
-        }
-        Format::Csv => csv_to_writer(io::stdout(), &counter.duplicates()).unwrap(),
+        // Format::Json => {
+        //     serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap();
+        //     println!();
+        // }
+        // Format::JsonPretty => {
+        //     serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap();
+        //     println!();
+        // }
+        // Format::Csv => csv_to_writer(io::stdout(), &counter.duplicates()).unwrap(),
         Format::Fdupes => println!("{}", counter.duplicates().display::<Fdupes>()),
         Format::Machine => println!("{}", counter.duplicates().display::<Machine>()),
+        _ => {}
     };
     log::debug!("{:?} elapsed", timer.elapsed());
 }
 
-/// mimic serde_json interface
-fn csv_to_writer<W: std::io::Write>(
-    writer: W,
-    duplicates: &yadf::Duplicates<u64, PathBuf>,
-) -> csv::Result<()> {
-    let mut writer = csv::WriterBuilder::new()
-        .flexible(true)
-        .has_headers(false)
-        .from_writer(writer);
-    writer.serialize(("count", "files"))?;
-    for files in duplicates.iter() {
-        writer.serialize((files.len(), files))?;
-    }
-    Ok(())
-}
+// /// mimic serde_json interface
+// fn csv_to_writer<W: std::io::Write>(
+//     writer: W,
+//     duplicates: &yadf::Duplicates<u64, PathBuf>,
+// ) -> csv::Result<()> {
+//     let mut writer = csv::WriterBuilder::new()
+//         .flexible(true)
+//         .has_headers(false)
+//         .from_writer(writer);
+//     writer.serialize(("count", "files"))?;
+//     for files in duplicates.iter() {
+//         writer.serialize((files.len(), files))?;
+//     }
+//     Ok(())
+// }

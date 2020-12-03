@@ -27,7 +27,7 @@ pub use globset;
 #[cfg(any(test, feature = "build-bin"))]
 pub use hasher::{MetroHash, SeaHasher, XxHasher};
 pub use regex;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Meta trait for the Hasher, Default and Write traits
 pub trait Hasher: core::hash::Hasher + std::io::Write + core::default::Default {}
@@ -80,13 +80,13 @@ where
     P: AsRef<Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H: Hasher>(self) -> TreeBag<u64, PathBuf> {
+    pub fn scan<H: Hasher>(self) -> TreeBag<u64, std::sync::Arc<Path>> {
         let bag = fs::find_dupes_partial::<H, P>(
             self.paths,
             self.minimum_file_size,
             self.maximum_file_size,
-            self.regex,
-            self.glob.map(|g| g.compile_matcher()),
+            self.regex.clone(),
+            self.glob.clone().map(|g| g.compile_matcher()),
             self.max_depth,
         );
         if log::log_enabled!(log::Level::Info) {
