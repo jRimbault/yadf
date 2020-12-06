@@ -32,18 +32,19 @@ fn sanity_test() {
 
 macro_rules! test_dir {
     () => {{
-        #[cfg(windows)]
-        const SEP: &str = "\\";
-        #[cfg(not(windows))]
-        const SEP: &str = "/";
         fn f() {}
         fn type_name_of<T>(_: T) -> &'static str {
             std::any::type_name::<T>()
         }
         let name = type_name_of(f);
         // `3` is the length of the `::f`.
-        let name = &name[..name.len() - 3].replace("::", SEP);
-        format!("target{}tests{}{}", SEP, SEP, name)
+        let name = &name[..name.len() - 3].replace("::", &::std::path::MAIN_SEPARATOR.to_string());
+        format!(
+            "target{}tests{}{}",
+            ::std::path::MAIN_SEPARATOR,
+            ::std::path::MAIN_SEPARATOR,
+            name
+        )
     }};
 }
 
@@ -69,8 +70,8 @@ fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, std::pa
 fn identical_small_files() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     println!("{:?}", root.as_ref());
-    root.write_file(&"file1", b"aaa")?;
-    root.write_file(&"file2", b"aaa")?;
+    root.write_file("file1", b"aaa")?;
+    root.write_file("file2", b"aaa")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.as_tree().len(), 1);
@@ -81,8 +82,8 @@ fn identical_small_files() -> AnyResult {
 fn identical_larger_files() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let buffer: Vec<_> = random_collection(MAX_LEN * 3);
-    root.write_file(&"file1", &buffer)?;
-    root.write_file(&"file2", &buffer)?;
+    root.write_file("file1", &buffer)?;
+    root.write_file("file2", &buffer)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 1);
     assert_eq!(counter.as_tree().len(), 1);
@@ -92,8 +93,8 @@ fn identical_larger_files() -> AnyResult {
 #[test]
 fn files_differing_by_size() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
-    root.write_file(&"file1", b"aaaa")?;
-    root.write_file(&"file2", b"aaa")?;
+    root.write_file("file1", b"aaaa")?;
+    root.write_file("file2", b"aaa")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.as_tree().len(), 2);
@@ -103,8 +104,8 @@ fn files_differing_by_size() -> AnyResult {
 #[test]
 fn files_differing_by_prefix() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
-    root.write_file(&"file1", b"aaa")?;
-    root.write_file(&"file2", b"bbb")?;
+    root.write_file("file1", b"aaa")?;
+    root.write_file("file2", b"bbb")?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.as_tree().len(), 2);
@@ -119,8 +120,8 @@ fn files_differing_by_suffix() -> AnyResult {
     let mut buffer2 = buffer1.clone();
     buffer1.extend_from_slice(b"suf1");
     buffer2.extend_from_slice(b"suf2");
-    root.write_file(&"file1", &buffer1)?;
-    root.write_file(&"file2", &buffer2)?;
+    root.write_file("file1", &buffer1)?;
+    root.write_file("file2", &buffer2)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.as_tree().len(), 2);
@@ -138,8 +139,8 @@ fn files_differing_by_middle() -> AnyResult {
     let suffix = random_collection::<_, Vec<_>>(MAX_LEN);
     buffer1.extend_from_slice(&suffix);
     buffer2.extend_from_slice(&suffix);
-    root.write_file(&"file1", &buffer1)?;
-    root.write_file(&"file2", &buffer2)?;
+    root.write_file("file1", &buffer1)?;
+    root.write_file("file2", &buffer2)?;
     let counter = find_dupes(&root);
     assert_eq!(counter.duplicates().iter().count(), 0);
     assert_eq!(counter.as_tree().len(), 2);
@@ -156,10 +157,10 @@ mod integration {
         let root = TestDir::new(test_dir!())?;
         println!("{:?}", root.as_ref());
         let bytes: Vec<_> = random_collection(MAX_LEN);
-        let file1 = root.write_file(&"file1", &bytes)?;
-        let file2 = root.write_file(&"file2", &bytes)?;
-        root.write_file(&"file3", &bytes[..4096])?;
-        root.write_file(&"file4", &bytes[..2048])?;
+        let file1 = root.write_file("file1", &bytes)?;
+        let file2 = root.write_file("file2", &bytes)?;
+        root.write_file("file3", &bytes[..4096])?;
+        root.write_file("file4", &bytes[..2048])?;
         let expected = serde_json::to_string(&[[file1.to_string_lossy(), file2.to_string_lossy()]])
             .unwrap()
             + "\n";
@@ -195,10 +196,10 @@ mod integration {
     fn regex() -> AnyResult {
         let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
-        let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
-        let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
-        root.write_file(&"not_particular_2_name", &bytes)?;
-        root.write_file(&"completely_different", &bytes)?;
+        let particular_1_name = root.write_file("particular_1_name", &bytes)?;
+        let particular_2_name = root.write_file("particular_2_name", &bytes)?;
+        root.write_file("not_particular_2_name", &bytes)?;
+        root.write_file("completely_different", &bytes)?;
         let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
@@ -219,10 +220,10 @@ mod integration {
     fn glob_pattern() -> AnyResult {
         let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
-        let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
-        let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
-        root.write_file(&"not_particular_2_name", &bytes)?;
-        root.write_file(&"completely_different", &bytes)?;
+        let particular_1_name = root.write_file("particular_1_name", &bytes)?;
+        let particular_2_name = root.write_file("particular_2_name", &bytes)?;
+        root.write_file("not_particular_2_name", &bytes)?;
+        root.write_file("completely_different", &bytes)?;
         let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
@@ -243,10 +244,10 @@ mod integration {
     fn min_file_size() -> AnyResult {
         let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
-        let particular_1_name = root.write_file(&"particular_1_name", &bytes)?;
-        let particular_2_name = root.write_file(&"particular_2_name", &bytes)?;
-        root.write_file(&"not_particular_2_name", &bytes[..2048])?;
-        root.write_file(&"completely_different", &bytes[..2048])?;
+        let particular_1_name = root.write_file("particular_1_name", &bytes)?;
+        let particular_2_name = root.write_file("particular_2_name", &bytes)?;
+        root.write_file("not_particular_2_name", &bytes[..2048])?;
+        root.write_file("completely_different", &bytes[..2048])?;
         let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
@@ -267,10 +268,10 @@ mod integration {
     fn max_file_size() -> AnyResult {
         let root = TestDir::new(test_dir!())?;
         let bytes: Vec<_> = random_collection(4096);
-        let particular_1_name = root.write_file(&"particular_1_name", &bytes[..1024])?;
-        let particular_2_name = root.write_file(&"particular_2_name", &bytes[..1024])?;
-        root.write_file(&"not_particular_2_name", &bytes)?;
-        root.write_file(&"completely_different", &bytes)?;
+        let particular_1_name = root.write_file("particular_1_name", &bytes[..1024])?;
+        let particular_2_name = root.write_file("particular_2_name", &bytes[..1024])?;
+        root.write_file("not_particular_2_name", &bytes)?;
+        root.write_file("completely_different", &bytes)?;
         let expected = [
             particular_1_name.to_string_lossy(),
             particular_2_name.to_string_lossy(),
