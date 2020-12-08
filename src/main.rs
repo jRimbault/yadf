@@ -83,7 +83,7 @@ fn main() {
     let timer = std::time::Instant::now();
     let args = Args::init_from_env();
     log::debug!("{:?}", args);
-    let config = yadf::Config::builder()
+    let config = yadf::Yadf::builder()
         .paths(&args.paths)
         .minimum_file_size(args.min())
         .maximum_file_size(args.max())

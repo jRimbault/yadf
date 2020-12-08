@@ -16,7 +16,7 @@ const MAX_LEN: usize = 256 * 1024;
 #[ignore]
 fn sanity_test() {
     let home = dirs::home_dir().unwrap();
-    let counter = yadf::Config::builder()
+    let counter = yadf::Yadf::builder()
         .paths(&[home])
         .build()
         .scan::<seahash::SeaHasher>();
@@ -60,7 +60,7 @@ where
 
 /// test shortcut
 fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, std::path::PathBuf> {
-    yadf::Config::builder()
+    yadf::Yadf::builder()
         .paths(&[path])
         .build()
         .scan::<seahash::SeaHasher>()
@@ -173,7 +173,7 @@ mod integration {
             .success()
             .stderr(
                 predstr::contains("Args {")
-                    .and(predstr::contains("Config {"))
+                    .and(predstr::contains("Yadf {"))
                     .and(predstr::contains("format: Json"))
                     .and(predstr::contains("algorithm: SeaHash"))
                     .and(predstr::contains("verbose: 4"))

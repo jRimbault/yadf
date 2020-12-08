@@ -7,7 +7,7 @@
 //! Find and display all the duplicate files at the given path :
 //!
 //! ```no_run
-//! let counter = yadf::Config::builder()
+//! let counter = yadf::Yadf::builder()
 //!     .paths(&["path/to/somewhere", "another/path"]) // required
 //!     .minimum_file_size(64) // optional
 //!     .maximum_file_size(1024 * 8) // optional
@@ -40,7 +40,7 @@ where
 /// # Example
 ///
 /// ```no_run
-/// let counter = yadf::Config::builder()
+/// let counter = yadf::Yadf::builder()
 ///     .paths(&["path/to/somewhere", "another/path"]) // required
 ///     .minimum_file_size(64) // optional
 ///     .maximum_file_size(1024 * 8) // optional
@@ -53,7 +53,7 @@ where
 /// see the docs for the [ConfigBuilder](struct.ConfigBuilder.html)
 #[derive(Debug, Default, typed_builder::TypedBuilder)]
 #[builder(doc)]
-pub struct Config<'a, P>
+pub struct Yadf<'a, P>
 where
     P: AsRef<Path>,
 {
@@ -71,7 +71,7 @@ where
     glob: Option<globset::Glob>,
 }
 
-impl<P> Config<'_, P>
+impl<P> Yadf<'_, P>
 where
     P: AsRef<Path>,
 {
