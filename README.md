@@ -103,7 +103,8 @@ Most¹ dupe finders follow a 3 steps algorithm:
 
 ## Benchmarks
 
-The performance of `yadf` is heavily tied to the hardware, specifically the NVMe SSD. I recommend `fclones` as it has specific hardware heuristics. and in general more features.
+The performance of `yadf` is heavily tied to the hardware, specifically the
+NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in general more features.
 
 My home directory contains about 615k paths and 32 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc.
 
