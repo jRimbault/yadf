@@ -19,7 +19,7 @@ fn sanity_test() {
     let counter = yadf::Config::builder()
         .paths(&[home])
         .build()
-        .scan::<yadf::SeaHasher>();
+        .scan::<seahash::SeaHasher>();
     for bucket in counter.duplicates().iter() {
         let (first, bucket) = bucket.split_first().unwrap();
         let reference = std::fs::read(&first).unwrap();
@@ -63,7 +63,7 @@ fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, std::pa
     yadf::Config::builder()
         .paths(&[path])
         .build()
-        .scan::<yadf::SeaHasher>()
+        .scan::<seahash::SeaHasher>()
 }
 
 #[test]

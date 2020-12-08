@@ -20,22 +20,18 @@
 
 mod bag;
 mod fs;
-mod hasher;
 
 pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
 pub use globset;
-#[cfg(any(test, feature = "build-bin"))]
-pub use hasher::{MetroHash, SeaHasher, XxHasher};
 pub use regex;
 use std::path::{Path, PathBuf};
 
-/// Meta trait for the Hasher, Default and Write traits
-pub trait Hasher: core::hash::Hasher + std::io::Write + core::default::Default {}
+/// Meta trait for the Hasher and Default traits
+pub trait Hasher: core::hash::Hasher + core::default::Default {}
 impl<T> Hasher for T
 where
     T: core::hash::Hasher,
     T: core::default::Default,
-    T: std::io::Write,
 {
 }
 

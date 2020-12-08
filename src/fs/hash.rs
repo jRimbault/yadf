@@ -32,9 +32,39 @@ where
     H: crate::Hasher,
     P: AsRef<Path>,
 {
-    let mut hasher = H::default();
+    let mut hasher = HashWriter(H::default());
     io::copy(&mut File::open(path)?, &mut hasher)?;
     Ok(hasher.finish())
+}
+
+#[derive(Debug)]
+#[repr(transparent)]
+struct HashWriter<H>(H)
+where
+    H: core::hash::Hasher;
+
+impl<H> io::Write for HashWriter<H>
+where
+    H: core::hash::Hasher,
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        core::hash::Hasher::write(&mut self.0, buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<H> HashWriter<H>
+where
+    H: core::hash::Hasher,
+{
+    #[inline(always)]
+    fn finish(self) -> u64 {
+        self.0.finish()
+    }
 }
 
 #[cfg(test)]
@@ -43,8 +73,8 @@ mod tests {
 
     #[test]
     fn same_hash_partial_and_full_for_small_file() {
-        let h1 = partial::<crate::SeaHasher, _>(&"./tests/static/foo").unwrap();
-        let h2 = full::<crate::SeaHasher, _>(&"./tests/static/foo").unwrap();
+        let h1 = partial::<seahash::SeaHasher, _>(&"./tests/static/foo").unwrap();
+        let h2 = full::<seahash::SeaHasher, _>(&"./tests/static/foo").unwrap();
         assert_eq!(h1, h2);
     }
 }

@@ -79,8 +79,8 @@ arg_enum! {
 }
 
 fn main() {
-    let timer = std::time::Instant::now();
     human_panic::setup_panic!();
+    let timer = std::time::Instant::now();
     let args = Args::init_from_env();
     log::debug!("{:?}", args);
     let config = yadf::Config::builder()
@@ -94,9 +94,9 @@ fn main() {
     log::debug!("{:?}", config);
     let counter = match args.algorithm {
         Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
-        Algorithm::MetroHash => config.scan::<yadf::MetroHash>(),
-        Algorithm::SeaHash => config.scan::<yadf::SeaHasher>(),
-        Algorithm::XxHash => config.scan::<yadf::XxHasher>(),
+        Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
+        Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
+        Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
     };
     match args.format {
         Format::Json => {
