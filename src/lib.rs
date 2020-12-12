@@ -50,7 +50,7 @@ where
 ///     .scan::<highway::HighwayHasher>();
 /// ```
 ///
-/// see the docs for the [ConfigBuilder](struct.ConfigBuilder.html)
+/// see the docs for the [`YadfBuilder`](YadfBuilder)
 #[derive(Debug, Default, typed_builder::TypedBuilder)]
 #[builder(doc)]
 pub struct Yadf<'a, P>

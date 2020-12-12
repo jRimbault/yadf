@@ -85,9 +85,9 @@ impl<H: Ord, T> Replicates<'_, H, T> {
             .map(AsRef::as_ref)
     }
 
-    /// Returns an object that implements [`Display`](https://doc.rust-lang.org/stable/std/fmt/trait.Display.html)
+    /// Returns an object that implements [`Display`](std::fmt::Display)
     ///
-    /// Depending on the contents of the [`TreeBag`](struct.TreeBag.html), the display object
+    /// Depending on the contents of the [`TreeBag`](TreeBag), the display object
     /// can be parameterized to get a different `Display` implemenation.
     pub fn display<D: marker::OutputFormat>(&self) -> Display<'_, H, T, D> {
         Display {
