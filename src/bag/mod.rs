@@ -25,9 +25,19 @@ use std::collections::BTreeMap;
 #[derive(Debug)]
 pub struct TreeBag<H: Ord, T>(pub(crate) BTreeMap<H, Vec<T>>);
 
-/// A view which only provides access to duplicate entries
+#[derive(Debug, Clone, Copy)]
+pub enum Factor {
+    Under(usize),
+    Equal(usize),
+    Over(usize),
+}
+
+/// A view which only provides access to n replicated entries
 #[derive(Debug)]
-pub struct Duplicates<'a, H: Ord, T>(&'a TreeBag<H, T>);
+pub struct Replicates<'a, H: Ord, T> {
+    tree: &'a TreeBag<H, T>,
+    factor: Factor,
+}
 
 /// Display marker.
 #[derive(Debug)]
@@ -39,13 +49,20 @@ pub struct Machine;
 #[derive(Debug)]
 pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
     _marker: std::marker::PhantomData<&'a U>,
-    duplicates: &'a Duplicates<'a, H, T>,
+    tree: &'a Replicates<'a, H, T>,
 }
 
 impl<H: Ord, T> TreeBag<H, T> {
     /// Provides a view only on the buckets containing more than one element.
-    pub fn duplicates(&self) -> Duplicates<'_, H, T> {
-        Duplicates(self)
+    pub fn duplicates(&self) -> Replicates<'_, H, T> {
+        Replicates {
+            tree: self,
+            factor: Factor::Over(1),
+        }
+    }
+
+    pub fn replicates(&self, factor: Factor) -> Replicates<'_, H, T> {
+        Replicates { tree: self, factor }
     }
 
     /// Borrows the backing tree map of the bag
@@ -54,13 +71,17 @@ impl<H: Ord, T> TreeBag<H, T> {
     }
 }
 
-impl<H: Ord, T> Duplicates<'_, H, T> {
+impl<H: Ord, T> Replicates<'_, H, T> {
     /// Iterator over the buckets
     pub fn iter(&self) -> impl Iterator<Item = &[T]> {
-        (self.0)
+        self.tree
             .0
             .values()
-            .filter(|b| b.len() > 1)
+            .filter(move |bucket| match self.factor {
+                Factor::Under(n) => bucket.len() < n,
+                Factor::Equal(n) => bucket.len() == n,
+                Factor::Over(n) => bucket.len() > n,
+            })
             .map(AsRef::as_ref)
     }
 
@@ -70,7 +91,7 @@ impl<H: Ord, T> Duplicates<'_, H, T> {
     /// can be parameterized to get a different `Display` implemenation.
     pub fn display<D: marker::OutputFormat>(&self) -> Display<'_, H, T, D> {
         Display {
-            duplicates: self,
+            tree: self,
             _marker: std::marker::PhantomData,
         }
     }

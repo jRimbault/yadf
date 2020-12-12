@@ -21,7 +21,7 @@
 mod bag;
 mod fs;
 
-pub use bag::{Duplicates, Fdupes, Machine, TreeBag};
+pub use bag::{Factor, Fdupes, Machine, Replicates, TreeBag};
 pub use globset;
 pub use regex;
 use std::path::{Path, PathBuf};

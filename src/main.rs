@@ -117,7 +117,7 @@ fn main() {
 /// mimic serde_json interface
 fn csv_to_writer<W: std::io::Write>(
     writer: W,
-    duplicates: &yadf::Duplicates<u64, PathBuf>,
+    duplicates: &yadf::Replicates<u64, PathBuf>,
 ) -> csv::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)

@@ -7,7 +7,7 @@ where
     T: AsRef<Path>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut duplicates = self.duplicates.iter().peekable();
+        let mut duplicates = self.tree.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let mut bucket = bucket.iter().peekable();
             let is_last_bucket = duplicates.peek().is_none();
@@ -30,7 +30,7 @@ where
     T: AsRef<Path>,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut duplicates = self.duplicates.iter().peekable();
+        let mut duplicates = self.tree.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let (last, rest) = bucket.split_last().unwrap();
             for dupe in rest {

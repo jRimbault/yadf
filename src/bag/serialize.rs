@@ -1,7 +1,7 @@
-use super::{Duplicates, TreeBag};
+use super::{Replicates, TreeBag};
 use serde::ser::{Serialize, Serializer};
 
-impl<H, T> Serialize for Duplicates<'_, H, T>
+impl<H, T> Serialize for Replicates<'_, H, T>
 where
     H: Ord,
     T: Serialize,
