@@ -55,6 +55,12 @@ pub struct Args {
     pattern: Option<globset::Glob>,
     #[structopt(flatten)]
     verbosity: clap_verbosity_flag::Verbosity,
+    /// Replication factor [under|equal|over]:n
+    ///
+    /// The default is `over:1`, to find uniques use `equal:1`,
+    /// to find files with less than 10 copies use `under:10`
+    #[structopt(long)]
+    rfactor: Option<ReplicationFactor>,
 }
 
 arg_enum! {
@@ -78,6 +84,13 @@ arg_enum! {
     }
 }
 
+#[derive(Debug)]
+enum ReplicationFactor {
+    Under(usize),
+    Equal(usize),
+    Over(usize),
+}
+
 fn main() {
     human_panic::setup_panic!();
     let timer = std::time::Instant::now();
@@ -92,24 +105,25 @@ fn main() {
         .max_depth(args.max_depth)
         .build();
     log::debug!("{:?}", config);
-    let counter = match args.algorithm {
+    let bag = match args.algorithm {
         Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
         Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
         Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
         Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
     };
+    let replicates = bag.replicates(args.rfactor.unwrap_or_default().into());
     match args.format {
         Format::Json => {
-            serde_json::to_writer(io::stdout(), &counter.duplicates()).unwrap();
+            serde_json::to_writer(io::stdout(), &replicates).unwrap();
             println!();
         }
         Format::JsonPretty => {
-            serde_json::to_writer_pretty(io::stdout(), &counter.duplicates()).unwrap();
+            serde_json::to_writer_pretty(io::stdout(), &replicates).unwrap();
             println!();
         }
-        Format::Csv => csv_to_writer(io::stdout(), &counter.duplicates()).unwrap(),
-        Format::Fdupes => println!("{}", counter.duplicates().display::<Fdupes>()),
-        Format::Machine => println!("{}", counter.duplicates().display::<Machine>()),
+        Format::Csv => csv_to_writer(io::stdout(), &replicates).unwrap(),
+        Format::Fdupes => println!("{}", replicates.display::<Fdupes>()),
+        Format::Machine => println!("{}", replicates.display::<Machine>()),
     };
     log::debug!("{:?} elapsed", timer.elapsed());
 }

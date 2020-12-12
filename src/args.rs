@@ -1,6 +1,7 @@
-use super::{Algorithm, Args, Format};
+use super::{Algorithm, Args, Format, ReplicationFactor};
 use std::collections::HashSet;
 use std::env;
+use std::fmt;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -70,5 +71,59 @@ impl Default for Algorithm {
 impl Default for Algorithm {
     fn default() -> Self {
         Self::XxHash
+    }
+}
+
+impl Default for ReplicationFactor {
+    fn default() -> Self {
+        ReplicationFactor::Over(1)
+    }
+}
+
+impl std::str::FromStr for ReplicationFactor {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        const SEPS: &[char] = &[':', '='];
+        let mut arg = s.split(SEPS).map(|w| w.to_lowercase());
+        let rf = match (arg.next().as_deref(), arg.next()) {
+            (Some("under"), Some(value)) => {
+                let factor = value.parse::<usize>().map_err(|e| e.to_string())?;
+                ReplicationFactor::Under(factor)
+            }
+            (Some("equal"), Some(value)) => {
+                let factor = value.parse::<usize>().map_err(|e| e.to_string())?;
+                ReplicationFactor::Equal(factor)
+            }
+            (Some("over"), Some(value)) => {
+                let factor = value.parse::<usize>().map_err(|e| e.to_string())?;
+                ReplicationFactor::Over(factor)
+            }
+            _ => {
+                return Err(format!(
+                    "replication factor must be of the form \
+                    `over:1` or `under:5` or `equal:2`, \
+                    got {:?}",
+                    s
+                ))
+            }
+        };
+        Ok(rf)
+    }
+}
+
+impl fmt::Display for ReplicationFactor {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
+    }
+}
+
+impl From<ReplicationFactor> for yadf::Factor {
+    fn from(f: ReplicationFactor) -> Self {
+        match f {
+            ReplicationFactor::Under(n) => yadf::Factor::Under(n),
+            ReplicationFactor::Equal(n) => yadf::Factor::Equal(n),
+            ReplicationFactor::Over(n) => yadf::Factor::Over(n),
+        }
     }
 }

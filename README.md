@@ -36,6 +36,9 @@ yadf --min 100M # find duplicate files of at least 100 MB
 yadf --max 100M # find duplicate files below 100 MB
 yadf --pattern '*.jpg' # find duplicate jpg
 yadf --regex '^g' # find duplicate starting with 'g'
+yadf --rfactor over:10 # find files with more than 10 copies
+yadf --rfactor under:10 # find files with less than 10 copies
+yadf --rfactor equal:1 # find unique files
 ```
 
 ### Formatting
@@ -75,6 +78,7 @@ OPTIONS:
                                    https://docs.rs/globset/0.4.6/globset/index.html#syntax
     -R, --regex <regex>            Check files with a name matching a Perl-style regex, see:
                                    https://docs.rs/regex/1.4.2/regex/index.html#syntax
+    --rfactor <rfactor>            Replication factor [under|equal|over]:n
 
 ARGS:
     <paths>...    Directories to search
