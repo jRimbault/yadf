@@ -112,7 +112,7 @@ jobs:
           echo >> RELEASE.md
           echo "### Checksums" >> RELEASE.md
           echo >> RELEASE.md
-          echo "|File|Checksum sha256|" >> RELEASE.md
+          echo "|File|sha256|" >> RELEASE.md
           echo "|---|---|" >> RELEASE.md
           for file in yadf-*/yadf-*; do
             sha="$(openssl dgst -sha256 -r "$file" | awk '{print $1}')"
