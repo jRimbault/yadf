@@ -84,7 +84,7 @@ arg_enum! {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum ReplicationFactor {
     Under(usize),
     Equal(usize),

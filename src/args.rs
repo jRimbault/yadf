@@ -83,28 +83,24 @@ impl Default for ReplicationFactor {
 impl std::str::FromStr for ReplicationFactor {
     type Err = String;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        use ReplicationFactor::*;
         const SEPS: &[char] = &[':', '='];
-        let mut arg = s.split(SEPS).map(|w| w.to_lowercase());
-        let rf = match (arg.next().as_deref(), arg.next()) {
-            (Some("under"), Some(value)) => {
-                let factor = value.parse::<usize>().map_err(|e| e.to_string())?;
-                ReplicationFactor::Under(factor)
-            }
-            (Some("equal"), Some(value)) => {
-                let factor = value.parse::<usize>().map_err(|e| e.to_string())?;
-                ReplicationFactor::Equal(factor)
-            }
-            (Some("over"), Some(value)) => {
-                let factor = value.parse::<usize>().map_err(|e| e.to_string())?;
-                ReplicationFactor::Over(factor)
-            }
+        let mut arg = value.split(SEPS);
+
+        let rf = match (
+            arg.next().map(str::to_lowercase).as_deref(),
+            arg.next().and_then(|v| v.parse().ok()),
+        ) {
+            (Some("under"), Some(factor)) => Under(factor),
+            (Some("equal"), Some(factor)) => Equal(factor),
+            (Some("over"), Some(factor)) => Over(factor),
             _ => {
                 return Err(format!(
                     "replication factor must be of the form \
                     `over:1` or `under:5` or `equal:2`, \
                     got {:?}",
-                    s
+                    value
                 ))
             }
         };
@@ -124,6 +120,26 @@ impl From<ReplicationFactor> for yadf::Factor {
             ReplicationFactor::Under(n) => yadf::Factor::Under(n),
             ReplicationFactor::Equal(n) => yadf::Factor::Equal(n),
             ReplicationFactor::Over(n) => yadf::Factor::Over(n),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn replication_factor_parsing() {
+        let cases = [
+            ("under=6", ReplicationFactor::Under(6)),
+            ("over:7", ReplicationFactor::Over(7)),
+            ("over:1", ReplicationFactor::Over(1)),
+            ("equal=3", ReplicationFactor::Equal(3)),
+        ];
+
+        for (value, expected) in cases.iter() {
+            let rf: ReplicationFactor = value.parse().unwrap();
+            assert_eq!(&rf, expected);
         }
     }
 }
