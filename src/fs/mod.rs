@@ -35,12 +35,12 @@ where
     let (first, rest) = directories
         .split_first()
         .expect("there should be at least one path");
-    let check_entry = |path: &Path, meta: Metadata| {
-        !meta.is_file()
-            || min.map_or(false, |m| meta.len() < m)
-            || max.map_or(false, |m| meta.len() > m)
-            || !is_match!(regex, path)
-            || !is_match!(glob, path)
+    let entry_match_criteria = move |path: &Path, meta: Metadata| {
+        meta.is_file()
+            && min.map_or(true, |m| meta.len() >= m)
+            && max.map_or(true, |m| meta.len() <= m)
+            && is_match!(regex, path)
+            && is_match!(glob, path)
     };
     ignore::WalkBuilder::new(first)
         .add_paths(rest)
@@ -53,7 +53,7 @@ where
             let meta = entry.metadata().map_err(|error| {
                 log::error!("{}, couldn't get metadata for {:?}", error, path);
             })?;
-            if check_entry(path, meta) {
+            if !entry_match_criteria(path, meta) {
                 return Err(());
             }
             let hash = hash::partial::<H, _>(&path).map_err(|error| {
