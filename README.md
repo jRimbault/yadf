@@ -105,6 +105,10 @@ Most¹ dupe finders follow a 3 steps algorithm:
 [3-steps]: https://github.com/jRimbault/yadf/tree/3-steps
 [hashmap]: https://doc.rust-lang.org/std/collections/struct.HashMap.html
 
+### Design goals
+
+I sought out to build a high performing artefact by assembling together libraries doing the actual work, nothing here is custom made, it's all "off-the-shelf" software.
+
 ## Benchmarks
 
 The performance of `yadf` is heavily tied to the hardware, specifically the
