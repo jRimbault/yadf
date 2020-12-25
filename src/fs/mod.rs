@@ -11,13 +11,6 @@ use std::path::{Path, PathBuf};
 
 const BLOCK_SIZE: usize = 4096;
 
-macro_rules! is_match {
-    ($regex:expr, $path:expr) => {{
-        group($regex.as_ref(), $path.file_name().and_then(|p| p.to_str()))
-            .map_or(true, |(regex, name)| regex.is_match(name))
-    }};
-}
-
 /// Foundation of the API.
 /// This will attemps a naive scan of every file,
 /// within the given size constraints, at the given path.
@@ -40,8 +33,8 @@ where
         meta.is_file()
             && min.map_or(true, |m| meta.len() >= m)
             && max.map_or(true, |m| meta.len() <= m)
-            && is_match!(regex, path)
-            && is_match!(glob, path)
+            && regex.is_file_name_match(path)
+            && glob.is_file_name_match(path)
     };
     ignore::WalkBuilder::new(first)
         .add_paths(rest)
@@ -158,6 +151,46 @@ impl WalkBuilderAddPaths for ignore::WalkBuilder {
     }
 }
 
-fn group<T, U>(x: Option<T>, y: Option<U>) -> Option<(T, U)> {
-    x.and_then(|r| y.map(|l| (r, l)))
+trait Matcher {
+    fn is_match(&self, text: &str) -> bool;
+
+    #[inline(always)]
+    fn is_file_name_match(&self, path: &Path) -> bool {
+        match path.file_name().and_then(|p| p.to_str()) {
+            Some(file_name) => self.is_match(file_name),
+            _ => true,
+        }
+    }
+}
+
+impl Matcher for regex::Regex {
+    #[inline(always)]
+    fn is_match(&self, text: &str) -> bool {
+        regex::Regex::is_match(self, text)
+    }
+}
+
+impl Matcher for globset::GlobMatcher {
+    #[inline(always)]
+    fn is_match(&self, text: &str) -> bool {
+        globset::GlobMatcher::is_match(self, text)
+    }
+}
+
+impl<M: Matcher> Matcher for Option<M> {
+    #[inline(always)]
+    fn is_match(&self, text: &str) -> bool {
+        match self {
+            Some(matcher) => matcher.is_match(text),
+            None => true,
+        }
+    }
+
+    #[inline(always)]
+    fn is_file_name_match(&self, path: &Path) -> bool {
+        match self {
+            Some(matcher) => matcher.is_file_name_match(path),
+            None => true,
+        }
+    }
 }
