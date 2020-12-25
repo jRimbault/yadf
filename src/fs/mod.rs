@@ -6,6 +6,7 @@ mod heuristic;
 use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::fs::Metadata;
+use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 
 const BLOCK_SIZE: usize = 4096;
@@ -29,7 +30,7 @@ pub(crate) fn find_dupes_partial<H, P>(
     max_depth: Option<usize>,
 ) -> TreeBag<u64, PathBuf>
 where
-    H: crate::Hasher,
+    H: Hasher + Default,
     P: AsRef<Path>,
 {
     let (first, rest) = directories
@@ -65,7 +66,10 @@ where
         .collect()
 }
 
-pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, PathBuf> {
+pub(crate) fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, PathBuf>
+where
+    H: Hasher + Default,
+{
     let (sender, receiver) = crossbeam_channel::unbounded();
     counter
         .0
@@ -87,7 +91,10 @@ pub(crate) fn dedupe<H: crate::Hasher>(counter: TreeBag<u64, PathBuf>) -> TreeBa
 }
 
 // decrease indent level of the dedupe function
-fn rehash<H: crate::Hasher>(file: &Path) -> Result<u64, ()> {
+fn rehash<H>(file: &Path) -> Result<u64, ()>
+where
+    H: Hasher + Default,
+{
     if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
         match hash::full::<H, _>(&file) {
             Ok(hash) => Ok(hash),

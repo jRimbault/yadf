@@ -7,7 +7,7 @@ use std::path::Path;
 /// Get a checksum of the first 4 KiB (at most) of a file.
 pub fn partial<H, P>(path: &P) -> io::Result<u64>
 where
-    H: crate::Hasher,
+    H: Hasher + Default,
     P: AsRef<Path>,
 {
     let mut file = File::open(path)?;
@@ -22,14 +22,14 @@ where
         }
     }
     let mut hasher = H::default();
-    Hasher::write(&mut hasher, &buffer[..n]);
+    hasher.write(&buffer[..n]);
     Ok(hasher.finish())
 }
 
 /// Get a complete checksum of a file.
 pub fn full<H, P>(path: &P) -> io::Result<u64>
 where
-    H: crate::Hasher,
+    H: Hasher + Default,
     P: AsRef<Path>,
 {
     let mut hasher = HashWriter(H::default());
@@ -39,16 +39,11 @@ where
 
 #[derive(Debug)]
 #[repr(transparent)]
-struct HashWriter<H>(H)
-where
-    H: core::hash::Hasher;
+struct HashWriter<H: Hasher>(H);
 
-impl<H> io::Write for HashWriter<H>
-where
-    H: core::hash::Hasher,
-{
+impl<H: Hasher> io::Write for HashWriter<H> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        core::hash::Hasher::write(&mut self.0, buf);
+        self.0.write(buf);
         Ok(buf.len())
     }
 
@@ -57,10 +52,7 @@ where
     }
 }
 
-impl<H> HashWriter<H>
-where
-    H: core::hash::Hasher,
-{
+impl<H: Hasher> HashWriter<H> {
     #[inline(always)]
     fn finish(self) -> u64 {
         self.0.finish()

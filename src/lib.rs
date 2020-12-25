@@ -24,16 +24,8 @@ mod fs;
 pub use bag::{Factor, Fdupes, Machine, Replicates, TreeBag};
 pub use globset;
 pub use regex;
+use std::hash::Hasher;
 use std::path::{Path, PathBuf};
-
-/// Meta trait for the Hasher and Default traits
-pub trait Hasher: core::hash::Hasher + core::default::Default {}
-impl<T> Hasher for T
-where
-    T: core::hash::Hasher,
-    T: core::default::Default,
-{
-}
 
 /// Search configuration
 ///
@@ -76,7 +68,10 @@ where
     P: AsRef<Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H: Hasher>(self) -> TreeBag<u64, PathBuf> {
+    pub fn scan<H>(self) -> TreeBag<u64, PathBuf>
+    where
+        H: Hasher + Default,
+    {
         let bag = fs::find_dupes_partial::<H, P>(
             self.paths,
             self.minimum_file_size,
