@@ -1027,6 +1027,7 @@ name = "yadf"
 version = "0.11.1"
 dependencies = [
  "assert_cmd",
+ "atty",
  "byte-unit",
  "clap-verbosity-flag",
  "crossbeam-channel",

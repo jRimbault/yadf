@@ -27,6 +27,8 @@ yadf # find duplicate files in current directory
 yadf ~/Documents ~/Pictures # find duplicate files in two directories
 yadf --depth 0 file1 file2 # compare two files
 yadf --depth 1 # find duplicates in current directory without descending
+fd --type d a | yadf --depth 1 # find directories with an "a" and search them for duplicates without descending
+fd --type f a | yadf # find files with an "a" and check them for duplicates
 ```
 
 ### Filtering

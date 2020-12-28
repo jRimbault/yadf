@@ -2,6 +2,7 @@ use super::{Algorithm, Args, Format, ReplicationFactor};
 use std::collections::HashSet;
 use std::env;
 use std::fmt;
+use std::io::BufRead;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -16,41 +17,59 @@ impl Args {
             .or(if self.no_empty { Some(1) } else { None })
     }
 
-    /// returns a list of the deduped paths
-    fn paths(&self, cwd: impl Fn() -> PathBuf) -> Vec<PathBuf> {
-        if self.paths.is_empty() {
-            vec![cwd()]
-        } else {
-            self.paths
-                .iter()
-                .cloned()
-                .collect::<HashSet<PathBuf>>()
-                .into_iter()
-                .collect()
-        }
-    }
-
-    fn init_logger(&self) {
-        env_logger::Builder::new()
-            .filter_level(
-                self.verbosity
-                    .log_level()
-                    .unwrap_or(log::Level::Error)
-                    .to_level_filter(),
-            )
-            .init();
-    }
-
     pub fn init_from_env() -> Self {
         let long_version = env!("YADF_BUILD_VERSION").replace("|", "\n");
         let app = Self::clap()
             .long_version(long_version.as_str())
             .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
         let mut args = Self::from_clap(&app.get_matches());
-        let cwd = || env::current_dir().expect("couldn't get current working directory");
-        args.paths = args.paths(cwd);
-        args.init_logger();
+        init_logger(&args.verbosity);
+        args.paths = build_paths(&args.paths);
         args
+    }
+}
+
+fn init_logger(verbosity: &clap_verbosity_flag::Verbosity) {
+    env_logger::Builder::new()
+        .filter_level(
+            verbosity
+                .log_level()
+                .unwrap_or(log::Level::Error)
+                .to_level_filter(),
+        )
+        .init();
+}
+
+fn build_paths(paths: &[PathBuf]) -> Vec<PathBuf> {
+    if paths.is_empty() {
+        default_paths()
+    } else {
+        paths
+            .iter()
+            .cloned()
+            .collect::<HashSet<PathBuf>>()
+            .into_iter()
+            .collect()
+    }
+}
+
+fn default_paths() -> Vec<PathBuf> {
+    if atty::is(atty::Stream::Stdin) {
+        vec![env::current_dir().expect("couldn't get current working directory")]
+    } else {
+        std::io::stdin()
+            .lock()
+            .lines()
+            .inspect(|l| {
+                if let Err(error) = l {
+                    log::error!("{}, couldn't read line from stdin", error);
+                }
+            })
+            .filter_map(Result::ok)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .map(Into::into)
+            .collect()
     }
 }
 

@@ -42,6 +42,21 @@ fn find_disk(path: &Path, disks: &[Disk]) -> Option<DiskType> {
         .map(|disk| disk.disk_type)
 }
 
+/// logging wrapper for dunce
+fn canonicalize<P: AsRef<Path>>(path: &P) -> std::io::Result<PathBuf> {
+    match dunce::canonicalize(path.as_ref()) {
+        Err(error) => {
+            log::warn!(
+                "{}, couldn't resolve path {:?} to a canonical path",
+                error,
+                path.as_ref()
+            );
+            Err(error)
+        }
+        Ok(v) => Ok(v),
+    }
+}
+
 #[allow(dead_code)]
 mod win {
     use super::*;
@@ -61,7 +76,10 @@ mod win {
     });
 
     pub fn disk_type<P: AsRef<Path>>(path: &P) -> DiskType {
-        let abs_path = dunce::canonicalize(path.as_ref()).unwrap();
+        let abs_path = match canonicalize(path) {
+            Err(_) => return DiskType::Unknown(-1),
+            Ok(v) => v,
+        };
         log::trace!("path {:?} canonicalized to : {:?}", path.as_ref(), abs_path);
         find_disk(&abs_path, &SYSTEM.mounted).unwrap_or(DiskType::Unknown(-1))
     }
@@ -98,7 +116,10 @@ mod unix {
     });
 
     pub fn disk_type<P: AsRef<Path>>(path: &P) -> DiskType {
-        let abs_path = dunce::canonicalize(path.as_ref()).unwrap();
+        let abs_path = match canonicalize(path) {
+            Err(_) => return DiskType::Unknown(-1),
+            Ok(v) => v,
+        };
         log::trace!("path {:?} canonicalized to : {:?}", path.as_ref(), abs_path);
         find_disk(&abs_path, &SYSTEM.mounted).unwrap_or_else(|| {
             if abs_path.starts_with(&SYSTEM.root.path) {
