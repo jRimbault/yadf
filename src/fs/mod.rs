@@ -33,8 +33,8 @@ where
         meta.is_file()
             && min.map_or(true, |m| meta.len() >= m)
             && max.map_or(true, |m| meta.len() <= m)
-            && regex.is_file_name_match(path)
-            && glob.is_file_name_match(path)
+            && is_match(&regex, path).unwrap_or(true)
+            && is_match(&glob, path).unwrap_or(true)
     };
     ignore::WalkBuilder::new(first)
         .add_paths(rest)
@@ -151,46 +151,26 @@ impl WalkBuilderAddPaths for ignore::WalkBuilder {
     }
 }
 
-trait Matcher {
-    fn is_match(&self, text: &str) -> bool;
+fn is_match<M: Matcher>(opt: &Option<M>, path: &Path) -> Option<bool> {
+    opt.as_ref().and_then(|m| m.is_file_name_match(path))
+}
 
-    #[inline(always)]
-    fn is_file_name_match(&self, path: &Path) -> bool {
-        match path.file_name().and_then(|p| p.to_str()) {
-            Some(file_name) => self.is_match(file_name),
-            _ => true,
-        }
-    }
+trait Matcher {
+    fn is_file_name_match(&self, path: &Path) -> Option<bool>;
 }
 
 impl Matcher for regex::Regex {
     #[inline(always)]
-    fn is_match(&self, text: &str) -> bool {
-        regex::Regex::is_match(self, text)
+    fn is_file_name_match(&self, path: &Path) -> Option<bool> {
+        path.file_name()
+            .and_then(|p| p.to_str())
+            .map(|file_name| self.is_match(file_name))
     }
 }
 
 impl Matcher for globset::GlobMatcher {
     #[inline(always)]
-    fn is_match(&self, text: &str) -> bool {
-        globset::GlobMatcher::is_match(self, text)
-    }
-}
-
-impl<M: Matcher> Matcher for Option<M> {
-    #[inline(always)]
-    fn is_match(&self, text: &str) -> bool {
-        match self {
-            Some(matcher) => matcher.is_match(text),
-            None => true,
-        }
-    }
-
-    #[inline(always)]
-    fn is_file_name_match(&self, path: &Path) -> bool {
-        match self {
-            Some(matcher) => matcher.is_file_name_match(path),
-            None => true,
-        }
+    fn is_file_name_match(&self, path: &Path) -> Option<bool> {
+        path.file_name().map(|file_name| self.is_match(file_name))
     }
 }
