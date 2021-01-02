@@ -3,7 +3,7 @@ mod test_dir;
 use test_dir::TestDir;
 
 /// quick-n-dirty any result type alias
-type AnyResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+type AnyResult<T = (), E = Box<dyn std::error::Error>> = Result<T, E>;
 
 const MAX_LEN: usize = 256 * 1024;
 
@@ -16,10 +16,7 @@ const MAX_LEN: usize = 256 * 1024;
 #[ignore]
 fn sanity_test() {
     let home = dirs::home_dir().unwrap();
-    let counter = yadf::Yadf::builder()
-        .paths(&[home])
-        .build()
-        .scan::<seahash::SeaHasher>();
+    let counter = find_dupes(&home);
     for bucket in counter.duplicates().iter() {
         let (first, bucket) = bucket.split_first().unwrap();
         let reference = std::fs::read(&first).unwrap();
@@ -32,20 +29,29 @@ fn sanity_test() {
 
 macro_rules! test_dir {
     () => {{
-        fn f() {}
+        fn fxxfxxf() {}
         fn type_name_of<T>(_: T) -> &'static str {
             std::any::type_name::<T>()
         }
-        let name = type_name_of(f);
-        // `3` is the length of the `::f`.
-        let name = &name[..name.len() - 3].replace("::", &::std::path::MAIN_SEPARATOR.to_string());
-        format!(
-            "target{}tests{}{}",
-            ::std::path::MAIN_SEPARATOR,
-            ::std::path::MAIN_SEPARATOR,
-            name
-        )
+        ["target", "tests"]
+            .iter()
+            .copied()
+            .chain(
+                type_name_of(fxxfxxf)
+                    .split("::")
+                    .take_while(|&segment| segment != "fxxfxxf"),
+            )
+            .collect::<std::path::PathBuf>()
     }};
+}
+
+#[test]
+fn test_dir_macro() {
+    let path = test_dir!();
+    #[cfg(windows)]
+    assert_eq!(path.to_str(), Some("target\\tests\\common\\test_dir_macro"));
+    #[cfg(not(windows))]
+    assert_eq!(path.to_str(), Some("target/tests/common/test_dir_macro"));
 }
 
 fn random_collection<T, I>(size: usize) -> I
