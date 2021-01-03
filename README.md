@@ -51,13 +51,14 @@ Look up the help for a list of output formats `yadf -h`.
 yadf -f json
 yadf -f fdupes
 yadf -f csv
+yadf -f ldjson
 ```
 
 <details>
   <summary>Help output.</summary>
 
 ```
-yadf 0.9.2
+yadf 0.12.1
 Yet Another Dupes Finder
 
 USAGE:
@@ -72,7 +73,7 @@ FLAGS:
 
 OPTIONS:
     -a, --algorithm <algorithm>    Hashing algorithm [default: Highway]  [possible values: Highway, MetroHash, SeaHash, XxHash]
-    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty, Machine]
+    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty, LdJson Machine]
         --max <size>               Maximum file size
     -d, --depth <depth>            Maximum recursion depth
         --min <size>               Minimum file size
