@@ -11,10 +11,10 @@ const MAX_LEN: usize = 256 * 1024;
 /// with the same contents.
 /// Takes some time to run.
 ///
-/// cargo test --package yadf --test common -- sanity_test --exact --nocapture -Z unstable-options --include-ignored
+/// cargo test --package yadf --test common -- sanity_check --exact --nocapture -Z unstable-options --include-ignored
 #[test]
 #[ignore]
-fn sanity_test() {
+fn sanity_check() {
     let home = dirs::home_dir().unwrap();
     let counter = find_dupes(&home);
     for bucket in counter.duplicates().iter() {
@@ -27,31 +27,41 @@ fn sanity_test() {
     }
 }
 
-macro_rules! test_dir {
+macro_rules! scope_name_iter {
     () => {{
         fn fxxfxxf() {}
         fn type_name_of<T>(_: T) -> &'static str {
             std::any::type_name::<T>()
         }
+        type_name_of(fxxfxxf)
+            .split("::")
+            .take_while(|&segment| segment != "fxxfxxf")
+    }};
+}
+
+#[test]
+fn function_name() {
+    let fname = scope_name_iter!().collect::<Vec<_>>().join("::");
+    assert_eq!(fname, "common::function_name");
+}
+
+macro_rules! test_dir {
+    () => {{
         ["target", "tests"]
             .iter()
             .copied()
-            .chain(
-                type_name_of(fxxfxxf)
-                    .split("::")
-                    .take_while(|&segment| segment != "fxxfxxf"),
-            )
+            .chain(scope_name_iter!())
             .collect::<std::path::PathBuf>()
     }};
 }
 
 #[test]
-fn test_dir_macro() {
+fn dir_macro() {
     let path = test_dir!();
     #[cfg(windows)]
-    assert_eq!(path.to_str(), Some("target\\tests\\common\\test_dir_macro"));
+    assert_eq!(path.to_str(), Some("target\\tests\\common\\dir_macro"));
     #[cfg(not(windows))]
-    assert_eq!(path.to_str(), Some("target/tests/common/test_dir_macro"));
+    assert_eq!(path.to_str(), Some("target/tests/common/dir_macro"));
 }
 
 fn random_collection<T, I>(size: usize) -> I

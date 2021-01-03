@@ -70,6 +70,7 @@ arg_enum! {
         Fdupes,
         Json,
         JsonPretty,
+        LdJson,
         Machine,
     }
 }
@@ -122,6 +123,7 @@ fn main() {
             println!();
         }
         Format::Csv => csv_to_writer(io::stdout(), &replicates).unwrap(),
+        Format::LdJson => ldjson_to_writer(io::stdout(), &replicates).unwrap(),
         Format::Fdupes => println!("{}", replicates.display::<Fdupes>()),
         Format::Machine => println!("{}", replicates.display::<Machine>()),
     };
@@ -131,15 +133,67 @@ fn main() {
 /// mimic serde_json interface
 fn csv_to_writer<W: std::io::Write>(
     writer: W,
-    duplicates: &yadf::Replicates<u64, PathBuf>,
+    replicates: &yadf::Replicates<u64, PathBuf>,
 ) -> csv::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)
         .has_headers(false)
         .from_writer(writer);
     writer.serialize(("count", "files"))?;
-    for files in duplicates.iter() {
+    for files in replicates.iter() {
         writer.serialize((files.len(), files))?;
     }
     Ok(())
+}
+
+/// mimic serde_json interface
+fn ldjson_to_writer<W: std::io::Write>(
+    mut writer: W,
+    replicates: &yadf::Replicates<u64, PathBuf>,
+) -> serde_json::Result<()> {
+    for files in replicates.iter() {
+        serde_json::to_writer(&mut writer, &files)?;
+        let _ = writeln!(writer); // bad
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use once_cell::sync::Lazy;
+
+    static BAG: Lazy<yadf::TreeBag<u64, PathBuf>> = Lazy::new(|| {
+        vec![
+            (77, "hello".into()),
+            (77, "world".into()),
+            (3, "foo".into()),
+            (3, "bar".into()),
+        ]
+        .into_iter()
+        .collect()
+    });
+
+    #[test]
+    fn csv() {
+        let mut buffer = Vec::new();
+        let _ = csv_to_writer(&mut buffer, &BAG.duplicates());
+        let result = String::from_utf8(buffer).unwrap();
+        let expected = r#"count,files
+2,foo,bar
+2,hello,world
+"#;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn ldjson() {
+        let mut buffer = Vec::new();
+        let _ = ldjson_to_writer(&mut buffer, &BAG.duplicates());
+        let result = String::from_utf8(buffer).unwrap();
+        let expected = r#"["foo","bar"]
+["hello","world"]
+"#;
+        assert_eq!(result, expected);
+    }
 }
