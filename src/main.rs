@@ -6,6 +6,44 @@ use std::path::PathBuf;
 use structopt::clap::arg_enum;
 use yadf::{Fdupes, Machine};
 
+fn main() {
+    human_panic::setup_panic!();
+    let timer = std::time::Instant::now();
+    let args = Args::init_from_env();
+    log::debug!("{:?}", args);
+    let config = yadf::Yadf::builder()
+        .paths(&args.paths)
+        .minimum_file_size(args.min())
+        .maximum_file_size(args.max())
+        .regex(args.regex.clone())
+        .glob(args.pattern.clone())
+        .max_depth(args.max_depth)
+        .build();
+    log::debug!("{:?}", config);
+    let bag = match args.algorithm {
+        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
+        Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
+        Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
+        Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
+    };
+    let replicates = bag.replicates(args.rfactor.unwrap_or_default().into());
+    match args.format {
+        Format::Json => {
+            serde_json::to_writer(io::stdout(), &replicates).unwrap();
+            println!();
+        }
+        Format::JsonPretty => {
+            serde_json::to_writer_pretty(io::stdout(), &replicates).unwrap();
+            println!();
+        }
+        Format::Csv => csv_to_writer(io::stdout(), &replicates).unwrap(),
+        Format::LdJson => ldjson_to_writer(io::stdout(), &replicates).unwrap(),
+        Format::Fdupes => println!("{}", replicates.display::<Fdupes>()),
+        Format::Machine => println!("{}", replicates.display::<Machine>()),
+    };
+    log::debug!("{:?} elapsed", timer.elapsed());
+}
+
 /// Yet Another Dupes Finder
 #[derive(structopt::StructOpt, Debug)]
 #[structopt(setting(structopt::clap::AppSettings::ColoredHelp))]
@@ -90,44 +128,6 @@ enum ReplicationFactor {
     Under(usize),
     Equal(usize),
     Over(usize),
-}
-
-fn main() {
-    human_panic::setup_panic!();
-    let timer = std::time::Instant::now();
-    let args = Args::init_from_env();
-    log::debug!("{:?}", args);
-    let config = yadf::Yadf::builder()
-        .paths(&args.paths)
-        .minimum_file_size(args.min())
-        .maximum_file_size(args.max())
-        .regex(args.regex.clone())
-        .glob(args.pattern.clone())
-        .max_depth(args.max_depth)
-        .build();
-    log::debug!("{:?}", config);
-    let bag = match args.algorithm {
-        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
-        Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
-        Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
-        Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
-    };
-    let replicates = bag.replicates(args.rfactor.unwrap_or_default().into());
-    match args.format {
-        Format::Json => {
-            serde_json::to_writer(io::stdout(), &replicates).unwrap();
-            println!();
-        }
-        Format::JsonPretty => {
-            serde_json::to_writer_pretty(io::stdout(), &replicates).unwrap();
-            println!();
-        }
-        Format::Csv => csv_to_writer(io::stdout(), &replicates).unwrap(),
-        Format::LdJson => ldjson_to_writer(io::stdout(), &replicates).unwrap(),
-        Format::Fdupes => println!("{}", replicates.display::<Fdupes>()),
-        Format::Machine => println!("{}", replicates.display::<Machine>()),
-    };
-    log::debug!("{:?} elapsed", timer.elapsed());
 }
 
 /// mimic serde_json interface
