@@ -1,12 +1,15 @@
 [package]
 name = "yadf"
-version = "0.12.1"
+version = "0.12.2"
 authors = ["jRimbault <jacques.rimbault@gmail.com>"]
 edition = "2018"
-description = "Yet Another Dupes Finder"
+description = "yet another dupes finder"
 license = "MIT"
 homepage = "https://github.com/jRimbault/yadf"
 repository = "https://github.com/jRimbault/yadf"
+readme = "README.md"
+categories = ["command-line-utilities", "filesystem"]
+keywords = ["dupe", "duplicate", "finder", "fdupes", "fast"]
 
 [[bin]]
 name = "yadf"
