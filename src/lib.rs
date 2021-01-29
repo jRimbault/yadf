@@ -20,12 +20,13 @@
 
 mod bag;
 mod fs;
+pub mod path;
 
 pub use bag::{Factor, Fdupes, Machine, Replicates, TreeBag};
 pub use globset;
 pub use regex;
 use std::hash::Hasher;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Search configuration
 ///
@@ -68,7 +69,7 @@ where
     P: AsRef<Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H>(self) -> TreeBag<u64, PathBuf>
+    pub fn scan<H>(self) -> TreeBag<u64, path::Path>
     where
         H: Hasher + Default,
     {

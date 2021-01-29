@@ -133,7 +133,7 @@ enum ReplicationFactor {
 /// mimic serde_json interface
 fn csv_to_writer<W: std::io::Write>(
     writer: W,
-    replicates: &yadf::Replicates<u64, PathBuf>,
+    replicates: &yadf::Replicates<u64, yadf::path::Path>,
 ) -> csv::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)
@@ -149,7 +149,7 @@ fn csv_to_writer<W: std::io::Write>(
 /// mimic serde_json interface
 fn ldjson_to_writer<W: std::io::Write>(
     mut writer: W,
-    replicates: &yadf::Replicates<u64, PathBuf>,
+    replicates: &yadf::Replicates<u64, yadf::path::Path>,
 ) -> serde_json::Result<()> {
     for files in replicates.iter() {
         serde_json::to_writer(&mut writer, &files)?;
@@ -163,7 +163,7 @@ mod tests {
     use super::*;
     use once_cell::sync::Lazy;
 
-    static BAG: Lazy<yadf::TreeBag<u64, PathBuf>> = Lazy::new(|| {
+    static BAG: Lazy<yadf::TreeBag<u64, yadf::path::Path>> = Lazy::new(|| {
         vec![
             (77, "hello".into()),
             (77, "world".into()),
