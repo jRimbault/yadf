@@ -187,10 +187,13 @@ fn non_utf8_paths() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let filename = PathBuf::from(OsString::from_vec(b"\xe7\xe7".to_vec()));
     root.write_file(&filename, b"")?;
+    root.write_file(&"aa", b"")?;
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg(root.as_ref())
         .args(&["-f", "json"])
+        .arg("-vv")
         .assert()
-        .success();
+        .success()
+        .stderr(predstr::contains("path contains invalid UTF-8 characters"));
     Ok(())
 }
