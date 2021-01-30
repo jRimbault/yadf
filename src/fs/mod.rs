@@ -59,7 +59,7 @@ where
         .collect()
 }
 
-pub(crate) fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, crate::path::Path>
+pub(crate) fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {

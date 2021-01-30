@@ -28,6 +28,9 @@ pub use regex;
 use std::hash::Hasher;
 use std::path::Path;
 
+pub type FileCounter = TreeBag<u64, path::Path>;
+pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
+
 /// Search configuration
 ///
 /// # Example
@@ -69,7 +72,7 @@ where
     P: AsRef<Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H>(self) -> TreeBag<u64, path::Path>
+    pub fn scan<H>(self) -> FileCounter
     where
         H: Hasher + Default,
     {

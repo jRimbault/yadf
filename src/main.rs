@@ -133,7 +133,7 @@ enum ReplicationFactor {
 /// mimic serde_json interface
 fn csv_to_writer<W: std::io::Write>(
     writer: W,
-    replicates: &yadf::Replicates<u64, yadf::path::Path>,
+    replicates: &yadf::FileReplicates,
 ) -> csv::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)
@@ -149,11 +149,11 @@ fn csv_to_writer<W: std::io::Write>(
 /// mimic serde_json interface
 fn ldjson_to_writer<W: std::io::Write>(
     mut writer: W,
-    replicates: &yadf::Replicates<u64, yadf::path::Path>,
-) -> serde_json::Result<()> {
+    replicates: &yadf::FileReplicates,
+) -> Result<(), Box<dyn std::error::Error>> {
     for files in replicates.iter() {
         serde_json::to_writer(&mut writer, &files)?;
-        let _ = writeln!(writer); // bad
+        writeln!(writer)?;
     }
     Ok(())
 }
