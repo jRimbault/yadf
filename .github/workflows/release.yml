@@ -102,9 +102,15 @@ jobs:
 
       - uses: actions/download-artifact@v2
 
+      - name: Install git-chglog
+        run: |
+          mkdir -p /go/src/github.com
+          cd /go/src/github.com
+          go mod init
+          go get github.com/git-chglog/git-chglog/cmd/git-chglog@0.9.1
+
       - name: Build release notes
         run: |
-          go get -u github.com/git-chglog/git-chglog/cmd/git-chglog
           git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
 
       - name: Compute checksums
