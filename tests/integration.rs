@@ -1,36 +1,12 @@
 mod common;
-mod test_dir;
 
-use common::{random_collection, AnyResult, MAX_LEN};
+use common::{random_collection, AnyResult, TestDir, MAX_LEN};
 use predicates::{boolean::PredicateBooleanExt, str as predstr};
-use test_dir::TestDir;
-
-macro_rules! scope_name_iter {
-    () => {{
-        fn fxxfxxf() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
-        }
-        type_name_of(fxxfxxf)
-            .split("::")
-            .take_while(|&segment| segment != "fxxfxxf")
-    }};
-}
 
 #[test]
 fn function_name() {
     let fname = scope_name_iter!().collect::<Vec<_>>().join("::");
     assert_eq!(fname, "integration::function_name");
-}
-
-macro_rules! test_dir {
-    () => {{
-        ["target", "tests"]
-            .iter()
-            .copied()
-            .chain(scope_name_iter!())
-            .collect::<std::path::PathBuf>()
-    }};
 }
 
 #[test]

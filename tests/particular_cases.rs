@@ -1,29 +1,25 @@
 mod common;
-mod test_dir;
 
-use common::{find_dupes, random_collection, AnyResult, MAX_LEN};
-use test_dir::TestDir;
+use common::{find_dupes, random_collection, AnyResult, TestDir, MAX_LEN};
 
-macro_rules! scope_name_iter {
-    () => {{
-        fn fxxfxxf() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
+/// Test to be sure the sorting by hash only groups together files
+/// with the same contents.
+/// Takes some time to run.
+///
+/// cargo test --package yadf --test common -- sanity_check --exact --nocapture -Z unstable-options --include-ignored
+#[test]
+#[ignore]
+fn sanity_check() {
+    let home = dirs::home_dir().unwrap();
+    let counter = find_dupes(&home);
+    for bucket in counter.duplicates().iter() {
+        let (first, bucket) = bucket.split_first().unwrap();
+        let reference = std::fs::read(&first).unwrap();
+        for file in bucket {
+            let contents = std::fs::read(&file).unwrap();
+            assert_eq!(reference, contents, "comparing {:?} and {:?}", first, file);
         }
-        type_name_of(fxxfxxf)
-            .split("::")
-            .take_while(|&segment| segment != "fxxfxxf")
-    }};
-}
-
-macro_rules! test_dir {
-    () => {{
-        ["target", "tests"]
-            .iter()
-            .copied()
-            .chain(scope_name_iter!())
-            .collect::<std::path::PathBuf>()
-    }};
+    }
 }
 
 #[test]
