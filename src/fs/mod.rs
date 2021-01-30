@@ -59,7 +59,7 @@ where
         .collect()
 }
 
-pub(crate) fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, PathBuf>
+pub(crate) fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> TreeBag<u64, crate::path::Path>
 where
     H: Hasher + Default,
 {
@@ -70,13 +70,13 @@ where
         .for_each_with(sender, |sender, (old_hash, bucket)| {
             if bucket.len() == 1 {
                 let file = bucket.into_iter().next().unwrap();
-                sender.send((old_hash, file)).unwrap();
+                sender.send((old_hash, file.into())).unwrap();
             } else {
                 bucket
                     .into_par_iter()
                     .for_each_with(sender.clone(), |sender, file| {
                         let hash = rehash::<H>(&file).unwrap_or(old_hash);
-                        sender.send((hash, file)).unwrap();
+                        sender.send((hash, file.into())).unwrap();
                     });
             }
         });
