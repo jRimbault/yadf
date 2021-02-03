@@ -1,5 +1,5 @@
 use super::{Algorithm, Args, Format, ReplicationFactor};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::env;
 use std::fmt;
 use std::io::BufRead;
@@ -47,8 +47,10 @@ fn build_paths(paths: &[PathBuf]) -> Vec<PathBuf> {
         paths
             .iter()
             .cloned()
-            .collect::<HashSet<PathBuf>>()
+            .filter_map(|path| Some((dunce::canonicalize(&path).ok()?, path)))
+            .collect::<HashMap<_, _>>()
             .into_iter()
+            .map(|t| t.1)
             .collect()
     }
 }
@@ -66,8 +68,10 @@ fn default_paths() -> Vec<PathBuf> {
                 }
             })
             .filter_map(Result::ok)
-            .collect::<HashSet<_>>()
+            .filter_map(|path| Some((dunce::canonicalize(&path).ok()?, path)))
+            .collect::<HashMap<_, _>>()
             .into_iter()
+            .map(|t| t.1)
             .map(Into::into)
             .collect()
     }
