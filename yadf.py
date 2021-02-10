@@ -81,9 +81,15 @@ def json(duplicates):
     jsondump(duplicates, fp=sys.stdout)
 
 
+def ldjson(duplicates):
+    for bucket in duplicates:
+        jsondump(bucket, fp=sys.stdout)
+
+
 DISPLAY = {
     fdupes.__name__: fdupes,
     json.__name__: json,
+    ldjson.__name__: ldjson,
 }
 
 HASHERS = {
