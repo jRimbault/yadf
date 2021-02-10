@@ -1,4 +1,4 @@
-name: Deploy
+name: Release
 on:
   push:
     tags:
@@ -69,7 +69,6 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          strip yadf.exe
           7z a ../../../${{ matrix.name }} yadf.exe
           cd -
 
@@ -77,7 +76,6 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          strip yadf
           tar czvf ../../../${{ matrix.name }} yadf
           cd -
 
@@ -102,13 +100,24 @@ jobs:
 
       - uses: actions/download-artifact@v2
 
-      - name: Compute checksums
-        run: for file in yadf-*/yadf-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
-
       - name: Build release notes
         run: |
-          go get -u github.com/git-chglog/git-chglog/cmd/git-chglog
-          git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
+          wget https://github.com/git-chglog/git-chglog/releases/download/0.9.1/git-chglog_linux_amd64 -O git-chglog
+          chmod 744 git-chglog
+          ./git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
+
+      - name: Compute checksums
+        run: |
+          echo >> RELEASE.md
+          echo "### Checksums" >> RELEASE.md
+          echo >> RELEASE.md
+          echo "|File|sha256|" >> RELEASE.md
+          echo "|---|---|" >> RELEASE.md
+          for file in yadf-*/yadf-*; do
+            sha="$(openssl dgst -sha256 -r "$file" | awk '{print $1}')"
+            file="$(basename "$file")"
+            echo "|${file}|\`${sha}\`|" >> RELEASE.md
+          done
 
       - name: Publish
         uses: softprops/action-gh-release@v1

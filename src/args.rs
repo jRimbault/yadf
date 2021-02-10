@@ -1,47 +1,79 @@
-use super::{Algorithm, Args, Format};
-use std::collections::HashSet;
+use super::{Algorithm, Args, Format, ReplicationFactor};
+use std::collections::HashMap;
 use std::env;
 use std::fmt;
+use std::io::BufRead;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
 impl Args {
-    pub fn file_constraints(&self) -> (Option<u64>, Option<u64>) {
-        (
-            self.min
-                .map(|m| m.get_bytes())
-                .or(if self.no_empty { Some(1) } else { None }),
-            self.max.map(|m| m.get_bytes()),
-        )
+    pub fn max(&self) -> Option<u64> {
+        self.max.map(|m| m.get_bytes())
     }
 
-    /// returns a list of the deduped paths
-    fn paths(&self, cwd: impl Fn() -> PathBuf) -> Vec<PathBuf> {
-        if self.paths.is_empty() {
-            vec![cwd()]
-        } else {
-            self.paths
-                .iter()
-                .cloned()
-                .collect::<HashSet<PathBuf>>()
-                .into_iter()
-                .collect()
-        }
+    pub fn min(&self) -> Option<u64> {
+        self.min
+            .map(|m| m.get_bytes())
+            .or(if self.no_empty { Some(1) } else { None })
     }
 
-    #[cfg(not(tarpaulin_include))]
-    pub fn from_env() -> Self {
-        // Clap requires that every string we give it will be
-        // 'static, but we need to build the version string dynamically.
-        // We can fake the 'static lifetime with lazy_static.
-        lazy_static::lazy_static! {
-            static ref LONG_VERSION: String = env!("YADF_BUILD_VERSION").replace("|", "\n");
-        }
-        let app = Self::clap().long_version(LONG_VERSION.as_str());
+    pub fn init_from_env() -> Self {
+        let long_version = env!("YADF_BUILD_VERSION").replace("|", "\n");
+        let app = Self::clap()
+            .long_version(long_version.as_str())
+            .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
         let mut args = Self::from_clap(&app.get_matches());
-        let cwd = || env::current_dir().expect("couldn't get current working directory");
-        args.paths = args.paths(cwd);
+        init_logger(&args.verbosity);
+        args.paths = build_paths(&args.paths);
         args
+    }
+}
+
+fn init_logger(verbosity: &clap_verbosity_flag::Verbosity) {
+    env_logger::Builder::new()
+        .filter_level(
+            verbosity
+                .log_level()
+                .unwrap_or(log::Level::Error)
+                .to_level_filter(),
+        )
+        .init();
+}
+
+fn build_paths(paths: &[PathBuf]) -> Vec<PathBuf> {
+    if paths.is_empty() {
+        default_paths()
+    } else {
+        paths
+            .iter()
+            .cloned()
+            .filter_map(|path| Some((dunce::canonicalize(&path).ok()?, path)))
+            .collect::<HashMap<_, _>>()
+            .into_iter()
+            .map(|t| t.1)
+            .collect()
+    }
+}
+
+fn default_paths() -> Vec<PathBuf> {
+    if atty::is(atty::Stream::Stdin) {
+        vec![env::current_dir().expect("couldn't get current working directory")]
+    } else {
+        std::io::stdin()
+            .lock()
+            .lines()
+            .inspect(|l| {
+                if let Err(error) = l {
+                    log::error!("{}, couldn't read line from stdin", error);
+                }
+            })
+            .filter_map(Result::ok)
+            .filter_map(|path| Some((dunce::canonicalize(&path).ok()?, path)))
+            .collect::<HashMap<_, _>>()
+            .into_iter()
+            .map(|t| t.1)
+            .map(Into::into)
+            .collect()
     }
 }
 
@@ -54,249 +86,83 @@ impl Default for Format {
 #[cfg(target_feature = "avx2")]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::highway()
+        Self::Highway
     }
 }
 
 #[cfg(not(target_feature = "avx2"))]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::xxhash()
+        Self::XxHash
     }
 }
 
-impl Format {
-    const FDUPES: &'static str = "fdupes";
-    const JSON: &'static str = "json";
-    const JSON_PRETTY: &'static str = "json_pretty";
-    const MACHINE: &'static str = "machine";
+impl Default for ReplicationFactor {
+    fn default() -> Self {
+        ReplicationFactor::Over(1)
+    }
 }
 
-impl fmt::Display for Format {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let out = match self {
-            Self::Fdupes => Self::FDUPES,
-            Self::Json => Self::JSON,
-            Self::JsonPretty => Self::JSON_PRETTY,
-            Self::Machine => Self::MACHINE,
+impl std::str::FromStr for ReplicationFactor {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        use ReplicationFactor::*;
+        const SEPS: &[char] = &[':', '='];
+        let mut arg = value.split(SEPS);
+
+        let rf = match (
+            arg.next().map(str::to_lowercase).as_deref(),
+            arg.next().and_then(|v| v.parse().ok()),
+        ) {
+            (Some("under"), Some(factor)) => Under(factor),
+            (Some("equal"), Some(factor)) => Equal(factor),
+            (Some("over"), Some(factor)) => Over(factor),
+            _ => {
+                return Err(format!(
+                    "replication factor must be of the form \
+                    `over:1` or `under:5` or `equal:2`, \
+                    got {:?}",
+                    value
+                ))
+            }
         };
-        f.write_str(out)
+        Ok(rf)
     }
 }
 
-impl std::str::FromStr for Format {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            Self::FDUPES => Ok(Self::Fdupes),
-            Self::JSON => Ok(Self::Json),
-            Self::JSON_PRETTY => Ok(Self::JsonPretty),
-            Self::MACHINE => Ok(Self::Machine),
-            _ => Err(format!(
-                "can only be json, json_pretty, machine, or fdupes, found: {:?}",
-                s
-            )),
-        }
-    }
-}
-
-impl Algorithm {
-    const HIGHWAY: &'static str = "highway";
-    const SEAHASH: &'static str = "seahash";
-    const XXHASH: &'static str = "xxhash";
-    const fn seahash() -> Self {
-        Self::SeaHash(std::marker::PhantomData)
-    }
-    const fn xxhash() -> Self {
-        Self::XxHash(std::marker::PhantomData)
-    }
-    const fn highway() -> Self {
-        Self::Highway(std::marker::PhantomData)
-    }
-}
-
-impl fmt::Display for Algorithm {
+impl fmt::Display for ReplicationFactor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Highway(_) => f.write_str(Self::HIGHWAY),
-            Self::SeaHash(_) => f.write_str(Self::SEAHASH),
-            Self::XxHash(_) => f.write_str(Self::XXHASH),
-        }
+        fmt::Debug::fmt(self, f)
     }
 }
 
-impl std::str::FromStr for Algorithm {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            Self::HIGHWAY => Ok(Self::highway()),
-            Self::SEAHASH => Ok(Self::seahash()),
-            Self::XXHASH => Ok(Self::xxhash()),
-            _ => Err(format!(
-                "can only be seahash, xxhash, or highway, found: {:?}",
-                s
-            )),
+impl From<ReplicationFactor> for yadf::Factor {
+    fn from(f: ReplicationFactor) -> Self {
+        match f {
+            ReplicationFactor::Under(n) => yadf::Factor::Under(n),
+            ReplicationFactor::Equal(n) => yadf::Factor::Equal(n),
+            ReplicationFactor::Over(n) => yadf::Factor::Over(n),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    mod constraints {
-        use super::super::*;
+    use super::*;
 
-        #[test]
-        fn default() {
-            let args = Args {
-                no_empty: false,
-                min: None,
-                max: None,
-                ..Args::default()
-            };
-            let constraints = args.file_constraints();
-            assert_eq!(constraints, (None, None));
-        }
+    #[test]
+    fn replication_factor_parsing() {
+        let cases = [
+            ("under=6", ReplicationFactor::Under(6)),
+            ("over:7", ReplicationFactor::Over(7)),
+            ("over:1", ReplicationFactor::Over(1)),
+            ("equal=3", ReplicationFactor::Equal(3)),
+        ];
 
-        #[test]
-        fn no_empty() {
-            let args = Args {
-                no_empty: true,
-                min: None,
-                max: None,
-                ..Args::default()
-            };
-            let constraints = args.file_constraints();
-            assert_eq!(constraints, (Some(1), None));
-        }
-
-        #[test]
-        fn min_one_kibibyte_and_half() {
-            let args = Args {
-                no_empty: false,
-                min: Some("1.5kib".parse().unwrap()),
-                max: None,
-                ..Args::default()
-            };
-            let constraints = args.file_constraints();
-            assert_eq!(constraints, (Some(1536), None));
-        }
-
-        #[test]
-        fn max_block_size() {
-            let args = Args {
-                no_empty: true,
-                min: None,
-                max: Some("4ki".parse().unwrap()),
-                ..Args::default()
-            };
-            let constraints = args.file_constraints();
-            assert_eq!(constraints, (Some(1), Some(4096)));
-        }
-    }
-
-    mod paths {
-        use super::super::*;
-
-        #[test]
-        fn if_empty_should_get_cwd() {
-            let args = Args::default();
-            let cwd = PathBuf::from("default");
-            let paths = args.paths(|| cwd.clone());
-            assert_eq!(paths[0], cwd);
-        }
-
-        #[test]
-        fn should_remove_duplicates() {
-            let args = Args {
-                paths: ["hello", "world", "hello", "world"]
-                    .iter()
-                    .map(PathBuf::from)
-                    .collect(),
-                ..Args::default()
-            };
-            let paths = args.paths(|| unimplemented!());
-            assert_eq!(args.paths.len(), 4);
-            assert_eq!(paths.len(), 2);
-        }
-    }
-
-    mod algorithm {
-        use super::super::*;
-
-        #[test]
-        fn parsing() {
-            let cases = [
-                ("seahash", true),
-                ("highway", true),
-                ("xxhash", true),
-                ("siphash", false),
-            ];
-            for case in cases.iter() {
-                let result = case.0.parse::<Algorithm>();
-                assert_eq!(result.is_ok(), case.1);
-            }
-        }
-
-        #[test]
-        fn parse_error_shows_erroneous_input() {
-            let error = "siphash".parse::<Algorithm>().unwrap_err();
-            assert!(error.contains("siphash"));
-        }
-
-        #[test]
-        fn display_human_readable_values_which_can_be_parsed_back() {
-            let cases = [
-                Algorithm::seahash(),
-                Algorithm::highway(),
-                Algorithm::xxhash(),
-            ];
-            for case in cases.iter() {
-                let result = case.to_string().parse::<Algorithm>();
-                assert!(result.is_ok());
-                assert_eq!(result.unwrap(), *case);
-            }
-        }
-    }
-
-    mod format {
-        use super::super::*;
-
-        #[test]
-        fn parsing() {
-            let cases = [
-                ("json", true),
-                ("json_pretty", true),
-                ("fdupes", true),
-                ("machine", true),
-                ("-?human?-", false),
-            ];
-            for case in cases.iter() {
-                let result = case.0.parse::<Format>();
-                assert_eq!(result.is_ok(), case.1);
-            }
-        }
-
-        #[test]
-        fn parse_error_shows_erroneous_input() {
-            let error = "-?human?-".parse::<Format>().unwrap_err();
-            assert!(error.contains("-?human?-"));
-        }
-
-        #[test]
-        fn display_human_readable_values_which_can_be_parsed_back() {
-            let cases = [
-                Format::Json,
-                Format::JsonPretty,
-                Format::Fdupes,
-                Format::Machine,
-            ];
-            for case in cases.iter() {
-                let result = case.to_string().parse::<Format>();
-                assert!(result.is_ok());
-                assert_eq!(result.unwrap(), *case);
-            }
+        for (value, expected) in cases.iter() {
+            let rf: ReplicationFactor = value.parse().unwrap();
+            assert_eq!(&rf, expected);
         }
     }
 }

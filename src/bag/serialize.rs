@@ -1,7 +1,7 @@
-use super::TreeBag;
+use super::{Replicates, TreeBag};
 use serde::ser::{Serialize, Serializer};
 
-impl<H, T> Serialize for TreeBag<H, T>
+impl<H, T> Serialize for Replicates<'_, H, T>
 where
     H: Ord,
     T: Serialize,
@@ -10,7 +10,20 @@ where
     where
         S: Serializer,
     {
-        serializer.collect_seq(self.duplicates())
+        serializer.collect_seq(self.iter())
+    }
+}
+
+impl<H, T> Serialize for TreeBag<H, T>
+where
+    H: Ord + Serialize,
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.collect_map(self.0.iter())
     }
 }
 
@@ -29,7 +42,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let result = serde_json::to_string(&counter).unwrap();
+        let result = serde_json::to_string(&counter.duplicates()).unwrap();
         let expected = r#"[["foo","bar"],["hello","world"]]"#;
         assert_eq!(result, expected);
     }

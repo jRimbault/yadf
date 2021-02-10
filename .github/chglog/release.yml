@@ -17,6 +17,7 @@ options:
       perf: Performance Improvements
       refactor: Code Refactoring
       ci: Continuous Integration
+      doc: Documentation
   header:
     pattern: "^(\\w*)(?:\\(([\\w\\$\\.\\-\\*\\s]*)\\))?\\:\\s(.*)$"
     pattern_maps:

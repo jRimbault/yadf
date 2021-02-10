@@ -4,17 +4,28 @@
 #
 # rmlint produces a number of files all named rmlint.{ext}
 #
-# fdupes and jdupes both don't scan recursively by default
+# fclones and jdupes both don't scan recursively by default
 #
 # dupe-krill skips file smaller than the block size, hence the -s flag,
 # and will hardlinks files together, hence the --dry-run flag
 #
 # fddf ignores zero length files
 
-hyperfine --warmup 1 \
+case "$1" in
+  "cold")
+    prepare_cmd='rm Results.txt rmlint.* || true && echo "free && sync && echo 3 > /proc/sys/vm/drop_caches && free" | sudo sh'
+    warmups=0
+    ;;
+  *)
+    prepare_cmd="rm Results.txt rmlint.* || true"
+    warmups=5
+    ;;
+esac
+
+hyperfine --warmup "$warmups" \
   --min-runs 10 \
-  --prepare "rm Results.txt rmlint.* || true" \
-  "fdupes -r ~" \
+  --prepare "$prepare_cmd" \
+  "fclones --min-size 0 -R ~" \
   "jdupes -z -r ~" \
   "rmlint --hidden ~" \
   "ddh ~" \

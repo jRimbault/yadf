@@ -1,38 +1,109 @@
+//! This a binary crate. You _can_ use it as a library, but I wouldn't recommend it.
+//!
 //! A collection of functions and structs to find duplicate files.
 //!
 //! # Example :
 //!
-//! Find, display, and report, all the duplicate files at the given path :
+//! Find and display all the duplicate files at the given path :
 //!
 //! ```no_run
-//! let hasher: std::marker::PhantomData<twox_hash::XxHash64> = Default::default();
-//! let paths = ["."];
-//! let files_counter = yadf::find_dupes(hasher, &paths, None, None);
-//! println!("{}", files_counter.display::<yadf::Fdupes>());
-//! eprintln!("{}", yadf::Report::from(&files_counter));
+//! let counter = yadf::Yadf::builder()
+//!     .paths(&["path/to/somewhere", "another/path"]) // required
+//!     .minimum_file_size(64) // optional
+//!     .maximum_file_size(1024 * 8) // optional
+//!     .regex(None) // optional
+//!     .glob(None) // optional
+//!     .build()
+//!     .scan::<highway::HighwayHasher>();
+//! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
 //! ```
 
 mod bag;
-pub mod fs;
-mod report;
+mod fs;
+pub mod path;
 
-pub use bag::{Fdupes, Machine, TreeBag};
-pub use fs::wrapper::DirEntry;
-pub use report::Report;
+pub use bag::{Factor, Fdupes, Machine, Replicates, TreeBag};
+pub use globset;
+pub use regex;
 use std::hash::Hasher;
 use std::path::Path;
 
-/// This will attemps a complete scan of every file,
-/// within the given size constraints, at the given path.
-pub fn find_dupes<H, P>(
-    _hasher: std::marker::PhantomData<H>,
-    directories: &[P],
-    min: Option<u64>,
-    max: Option<u64>,
-) -> TreeBag<u64, DirEntry>
+pub type FileCounter = TreeBag<u64, path::Path>;
+pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
+
+/// Search configuration
+///
+/// # Example
+///
+/// ```no_run
+/// let counter = yadf::Yadf::builder()
+///     .paths(&["path/to/somewhere", "another/path"]) // required
+///     .minimum_file_size(64) // optional
+///     .maximum_file_size(1024 * 8) // optional
+///     .regex(None) // optional
+///     .glob(None) // optional
+///     .build()
+///     .scan::<highway::HighwayHasher>();
+/// ```
+///
+/// see the docs for the [`YadfBuilder`](YadfBuilder)
+#[derive(Debug, Default, typed_builder::TypedBuilder)]
+#[builder(doc)]
+pub struct Yadf<'a, P>
 where
-    H: Hasher + Default,
     P: AsRef<Path>,
 {
-    fs::dedupe::<H>(fs::find_dupes_partial::<H, P>(directories, min, max))
+    #[builder(setter(doc = "Paths that will be checked for duplicate files"))]
+    paths: &'a [P],
+    #[builder(default, setter(into, doc = "Minimum file size"))]
+    minimum_file_size: Option<u64>,
+    #[builder(default, setter(into, doc = "Maximum file size"))]
+    maximum_file_size: Option<u64>,
+    #[builder(default, setter(into, doc = "Maximum recursion depth"))]
+    max_depth: Option<usize>,
+    #[builder(default, setter(into, doc = "File name must match this regex"))]
+    regex: Option<regex::Regex>,
+    #[builder(default, setter(into, doc = "File name must match this glob"))]
+    glob: Option<globset::Glob>,
+}
+
+impl<P> Yadf<'_, P>
+where
+    P: AsRef<Path>,
+{
+    /// This will attemps a complete scan according to its configuration.
+    pub fn scan<H>(self) -> FileCounter
+    where
+        H: Hasher + Default,
+    {
+        let bag = fs::find_dupes_partial::<H, P>(
+            self.paths,
+            self.minimum_file_size,
+            self.maximum_file_size,
+            self.regex,
+            self.glob.map(|g| g.compile_matcher()),
+            self.max_depth,
+        );
+        if log::log_enabled!(log::Level::Info) {
+            log::info!(
+                "scanned {} files",
+                bag.0.values().map(|b| b.len()).sum::<usize>()
+            );
+            log::info!(
+                "found {} possible duplicates after initial scan",
+                bag.duplicates().iter().map(|b| b.len()).sum::<usize>()
+            );
+            log::trace!("{:?}", bag);
+        }
+        let bag = fs::dedupe::<H>(bag);
+        if log::log_enabled!(log::Level::Info) {
+            log::info!(
+                "found {} duplicates in {} groups after checksumming",
+                bag.duplicates().iter().map(|b| b.len()).sum::<usize>(),
+                bag.duplicates().iter().count(),
+            );
+            log::trace!("{:?}", bag);
+        }
+        bag
+    }
 }
