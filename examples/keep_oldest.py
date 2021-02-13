@@ -20,6 +20,11 @@ import json
 import multiprocessing
 import os
 import pathlib
+from typing import Callable, Iterable, Sized, TypeVar
+
+Cmp = TypeVar("Cmp", bound=Sized)
+Key = Callable[[str], Cmp]
+Filter = Callable[[Iterable[str]], Iterable[str]]
 
 
 def main():
@@ -27,23 +32,23 @@ def main():
     sequential(fileinput.input(), cleaner)
 
 
-def sequential(ldjson, cleaner):
+def sequential(ldjson: Iterable[str], cleaner: "Cleaner"):
     for line in ldjson:
         cleaner(line)
 
 
-def parallel(ldjson, cleaner):
+def parallel(ldjson: Iterable[str], cleaner: "Cleaner"):
     with multiprocessing.Pool() as pool:
         pool.imap_unordered(cleaner, ldjson)
 
 
 class Cleaner:
-    def __init__(self, key=None, filter=None):
+    def __init__(self, key: Key = None, filter: Filter = lambda f: f):
         self.key = key
-        self.filter = filter if filter is not None else lambda f: f
+        self.filter = filter
 
-    def __call__(self, line):
-        files = json.loads(line)
+    def __call__(self, line: str):
+        files: list[str] = json.loads(line)
         files.sort(key=self.key)
         # uncomment to actually delete files
         for filename in self.filter(files):
@@ -51,12 +56,12 @@ class Cleaner:
             pass
 
 
-def most_recent_modification_date(filename):
+def most_recent_modification_date(filename: str) -> float:
     return pathlib.Path(filename).stat().st_mtime
 
 
-def yield_all_except_first(files):
-    return itertools.islice(files, 0, None)
+def yield_all_except_first(files: Iterable[str]) -> Iterable[str]:
+    return itertools.islice(files, 1, None)
 
 
 if __name__ == "__main__":
