@@ -6,8 +6,8 @@ mod heuristic;
 
 use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::hash::Hasher;
 use std::path::{Path, PathBuf};
+use std::{collections::HashSet, hash::Hasher};
 
 const BLOCK_SIZE: usize = 4096;
 
@@ -23,11 +23,10 @@ where
     H: Hasher + Default,
     P: AsRef<Path>,
 {
-    let (first, rest) = directories
-        .split_first()
-        .expect("there should be at least one path");
+    let mut paths = unique_paths(directories);
+    let first = paths.next().expect("there should be at least one path");
     ignore::WalkBuilder::new(first)
-        .add_paths(rest)
+        .add_paths(paths)
         .standard_filters(false)
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
@@ -139,4 +138,19 @@ impl WalkBuilderAddPaths for ignore::WalkBuilder {
         }
         self
     }
+}
+
+fn unique_paths<P, I>(paths: I) -> impl Iterator<Item = P>
+where
+    P: AsRef<Path>,
+    I: IntoIterator<Item = P>,
+{
+    let mut paths_set = HashSet::new();
+    paths.into_iter().filter_map(move |path| {
+        if paths_set.insert(dunce::canonicalize(&path).ok()?) {
+            Some(path)
+        } else {
+            None
+        }
+    })
 }

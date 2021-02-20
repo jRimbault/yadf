@@ -1,5 +1,4 @@
 use super::{Algorithm, Args, Format, ReplicationFactor};
-use std::collections::HashMap;
 use std::env;
 use std::fmt;
 use std::io::BufRead;
@@ -44,14 +43,7 @@ fn build_paths(paths: &[PathBuf]) -> Vec<PathBuf> {
     if paths.is_empty() {
         default_paths()
     } else {
-        paths
-            .iter()
-            .cloned()
-            .filter_map(|path| Some((dunce::canonicalize(&path).ok()?, path)))
-            .collect::<HashMap<_, _>>()
-            .into_iter()
-            .map(|t| t.1)
-            .collect()
+        paths.to_vec()
     }
 }
 
@@ -62,16 +54,7 @@ fn default_paths() -> Vec<PathBuf> {
         std::io::stdin()
             .lock()
             .lines()
-            .inspect(|l| {
-                if let Err(error) = l {
-                    log::error!("{}, couldn't read line from stdin", error);
-                }
-            })
             .filter_map(Result::ok)
-            .filter_map(|path| Some((dunce::canonicalize(&path).ok()?, path)))
-            .collect::<HashMap<_, _>>()
-            .into_iter()
-            .map(|t| t.1)
             .map(Into::into)
             .collect()
     }
