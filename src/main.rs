@@ -18,6 +18,7 @@ fn main() {
         .regex(args.regex.clone())
         .glob(args.pattern.clone())
         .max_depth(args.max_depth)
+        .hard_links(args.hard_links)
         .build();
     log::debug!("{:?}", config);
     let bag = match args.algorithm {
@@ -83,6 +84,9 @@ pub struct Args {
     /// Maximum recursion depth
     #[structopt(short = "d", long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
+    /// Ignore duplicate hard links
+    #[structopt(short = "H", long)]
+    hard_links: bool,
     /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
     #[structopt(short = "R", long)]

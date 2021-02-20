@@ -1,11 +1,11 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
 
+pub(crate) mod filter;
 mod hash;
 mod heuristic;
 
 use super::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::fs::Metadata;
 use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 
@@ -16,11 +16,8 @@ const BLOCK_SIZE: usize = 4096;
 /// within the given size constraints, at the given path.
 pub(crate) fn find_dupes_partial<H, P>(
     directories: &[P],
-    min: Option<u64>,
-    max: Option<u64>,
-    regex: Option<regex::Regex>,
-    glob: Option<globset::GlobMatcher>,
     max_depth: Option<usize>,
+    filter: filter::FileFilter,
 ) -> TreeBag<u64, PathBuf>
 where
     H: Hasher + Default,
@@ -29,13 +26,6 @@ where
     let (first, rest) = directories
         .split_first()
         .expect("there should be at least one path");
-    let entry_match_criteria = move |path: &Path, meta: Metadata| {
-        meta.is_file()
-            && min.map_or(true, |m| meta.len() >= m)
-            && max.map_or(true, |m| meta.len() <= m)
-            && is_match(&regex, path).unwrap_or(true)
-            && is_match(&glob, path).unwrap_or(true)
-    };
     ignore::WalkBuilder::new(first)
         .add_paths(rest)
         .standard_filters(false)
@@ -47,7 +37,7 @@ where
             let meta = entry.metadata().map_err(|error| {
                 log::error!("{}, couldn't get metadata for {:?}", error, path);
             })?;
-            if !entry_match_criteria(path, meta) {
+            if !filter.is_match(&path, meta) {
                 return Err(());
             }
             let hash = hash::partial::<H, _>(&path).map_err(|error| {
@@ -148,29 +138,5 @@ impl WalkBuilderAddPaths for ignore::WalkBuilder {
             self.add(path);
         }
         self
-    }
-}
-
-fn is_match<M: Matcher>(opt: &Option<M>, path: &Path) -> Option<bool> {
-    opt.as_ref().and_then(|m| m.is_file_name_match(path))
-}
-
-trait Matcher {
-    fn is_file_name_match(&self, path: &Path) -> Option<bool>;
-}
-
-impl Matcher for regex::Regex {
-    #[inline(always)]
-    fn is_file_name_match(&self, path: &Path) -> Option<bool> {
-        path.file_name()
-            .and_then(|p| p.to_str())
-            .map(|file_name| self.is_match(file_name))
-    }
-}
-
-impl Matcher for globset::GlobMatcher {
-    #[inline(always)]
-    fn is_file_name_match(&self, path: &Path) -> Option<bool> {
-        path.file_name().map(|file_name| self.is_match(file_name))
     }
 }
