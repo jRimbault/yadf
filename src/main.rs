@@ -84,7 +84,7 @@ pub struct Args {
     /// Maximum recursion depth
     #[structopt(short = "d", long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
-    /// Ignore duplicate hard links
+    /// Treat hard links to same file as duplicates
     #[structopt(short = "H", long)]
     hard_links: bool,
     /// Check files with a name matching a Perl-style regex,

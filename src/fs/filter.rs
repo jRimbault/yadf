@@ -37,7 +37,7 @@ impl FileFilter {
     pub fn is_match(&self, path: &Path, meta: Metadata) -> bool {
         #[cfg(unix)]
         {
-            if self.hard_links {
+            if !self.hard_links {
                 let inode = meta.ino();
                 if !self.inodes_seen.lock().unwrap().insert(inode) {
                     return false;
