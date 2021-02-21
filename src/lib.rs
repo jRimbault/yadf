@@ -65,6 +65,7 @@ where
     regex: Option<regex::Regex>,
     #[builder(default, setter(into, doc = "File name must match this glob"))]
     glob: Option<globset::Glob>,
+    #[cfg(unix)]
     #[builder(default, setter(doc = "Treat hard links as duplicates"))]
     hard_links: bool,
 }
@@ -83,6 +84,7 @@ where
             self.maximum_file_size,
             self.regex,
             self.glob.map(|g| g.compile_matcher()),
+            #[cfg(unix)]
             self.hard_links,
         );
         let bag = fs::find_dupes_partial::<H, P>(self.paths, self.max_depth, file_filter);
