@@ -14,6 +14,7 @@ fn main() {
     let config = build_config(&args);
     log::debug!("{:?}", config);
     let bag = match args.algorithm {
+        Algorithm::AHash => config.scan::<ahash::AHasher>(),
         Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
         Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
         Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
@@ -38,7 +39,7 @@ fn main() {
 }
 
 #[cfg(unix)]
-fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
     yadf::Yadf::builder()
         .paths(&args.paths)
         .minimum_file_size(args.min())
@@ -51,7 +52,7 @@ fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
 }
 
 #[cfg(not(unix))]
-fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
     yadf::Yadf::builder()
         .paths(&args.paths)
         .minimum_file_size(args.min())
@@ -138,6 +139,7 @@ arg_enum! {
 arg_enum! {
     #[derive(Debug)]
     enum Algorithm {
+        AHash,
         Highway,
         MetroHash,
         SeaHash,

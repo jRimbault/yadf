@@ -23,8 +23,14 @@ impl Args {
             .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
         let mut args = Self::from_clap(&app.get_matches());
         init_logger(&args.verbosity);
-        args.paths = build_paths(&args.paths);
+        args.build_paths();
         args
+    }
+
+    fn build_paths(&mut self) {
+        if self.paths.is_empty() {
+            self.paths = default_paths()
+        }
     }
 }
 
@@ -39,25 +45,21 @@ fn init_logger(verbosity: &clap_verbosity_flag::Verbosity) {
         .init();
 }
 
-fn build_paths(paths: &[PathBuf]) -> Vec<PathBuf> {
-    if paths.is_empty() {
-        default_paths()
-    } else {
-        paths.to_vec()
-    }
-}
-
 fn default_paths() -> Vec<PathBuf> {
-    if atty::is(atty::Stream::Stdin) {
-        vec![env::current_dir().expect("couldn't get current working directory")]
-    } else {
+    let mut paths = if atty::isnt(atty::Stream::Stdin) {
         std::io::stdin()
             .lock()
             .lines()
             .filter_map(Result::ok)
             .map(Into::into)
             .collect()
+    } else {
+        Vec::new()
+    };
+    if paths.is_empty() {
+        paths.push(env::current_dir().expect("couldn't get current working directory"));
     }
+    paths
 }
 
 impl Default for Format {
@@ -66,17 +68,9 @@ impl Default for Format {
     }
 }
 
-#[cfg(target_feature = "avx2")]
 impl Default for Algorithm {
     fn default() -> Self {
-        Self::Highway
-    }
-}
-
-#[cfg(not(target_feature = "avx2"))]
-impl Default for Algorithm {
-    fn default() -> Self {
-        Self::XxHash
+        Self::AHash
     }
 }
 

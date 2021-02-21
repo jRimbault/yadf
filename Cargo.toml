@@ -18,6 +18,7 @@ required-features = ["build-bin"]
 [features]
 default = ["build-bin"]
 build-bin = [
+  "ahash",
   "atty",
   "byte-unit",
   "clap-verbosity-flag",
@@ -48,6 +49,7 @@ serde = "1.0.114"
 sysinfo = "0.15.3"
 typed-builder = "0.8.0"
 # binary dependencies
+ahash = { version = "0.7.0", optional = true }
 atty = { version = "0.2.14", optional = true }
 byte-unit = { version = "4.0.8", default-features = false, optional = true }
 clap-verbosity-flag = { version = "0.3.1", optional = true }
