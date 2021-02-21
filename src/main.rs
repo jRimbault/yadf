@@ -11,15 +11,7 @@ fn main() {
     let timer = std::time::Instant::now();
     let args = Args::init_from_env();
     log::debug!("{:?}", args);
-    let config = yadf::Yadf::builder()
-        .paths(&args.paths)
-        .minimum_file_size(args.min())
-        .maximum_file_size(args.max())
-        .regex(args.regex.clone())
-        .glob(args.pattern.clone())
-        .max_depth(args.max_depth)
-        .hard_links(args.hard_links)
-        .build();
+    let config = build_config(&args);
     log::debug!("{:?}", config);
     let bag = match args.algorithm {
         Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
@@ -43,6 +35,31 @@ fn main() {
         Format::Machine => println!("{}", replicates.display::<Machine>()),
     };
     log::debug!("{:?} elapsed", timer.elapsed());
+}
+
+#[cfg(unix)]
+fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
+    yadf::Yadf::builder()
+        .paths(&args.paths)
+        .minimum_file_size(args.min())
+        .maximum_file_size(args.max())
+        .regex(args.regex.clone())
+        .glob(args.pattern.clone())
+        .max_depth(args.max_depth)
+        .hard_links(args.hard_links)
+        .build()
+}
+
+#[cfg(not(unix))]
+fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
+    yadf::Yadf::builder()
+        .paths(&args.paths)
+        .minimum_file_size(args.min())
+        .maximum_file_size(args.max())
+        .regex(args.regex.clone())
+        .glob(args.pattern.clone())
+        .max_depth(args.max_depth)
+        .build()
 }
 
 /// Yet Another Dupes Finder
@@ -84,6 +101,7 @@ pub struct Args {
     /// Maximum recursion depth
     #[structopt(short = "d", long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
+    #[cfg(unix)]
     /// Treat hard links to same file as duplicates
     #[structopt(short = "H", long)]
     hard_links: bool,

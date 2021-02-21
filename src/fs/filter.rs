@@ -10,9 +10,15 @@ pub(crate) struct FileFilter {
     max: Option<u64>,
     regex: Option<regex::Regex>,
     glob: Option<globset::GlobMatcher>,
-    hard_links: bool,
     #[cfg(unix)]
-    inodes_seen: Mutex<HashSet<u64>>,
+    inodes_filter: InodeFilter,
+}
+
+#[derive(Debug)]
+#[cfg(unix)]
+struct InodeFilter {
+    enabled: bool,
+    seen: Mutex<HashSet<u64>>,
 }
 
 impl FileFilter {
@@ -21,27 +27,26 @@ impl FileFilter {
         max: Option<u64>,
         regex: Option<regex::Regex>,
         glob: Option<globset::GlobMatcher>,
-        hard_links: bool,
+        #[cfg(unix)] disable_hard_links_filter: bool,
     ) -> Self {
         Self {
             min,
             max,
             regex,
             glob,
-            hard_links,
             #[cfg(unix)]
-            inodes_seen: Default::default(),
+            inodes_filter: InodeFilter {
+                enabled: !disable_hard_links_filter,
+                seen: Default::default(),
+            },
         }
     }
 
     pub fn is_match(&self, path: &Path, meta: Metadata) -> bool {
         #[cfg(unix)]
         {
-            if !self.hard_links {
-                let inode = meta.ino();
-                if !self.inodes_seen.lock().unwrap().insert(inode) {
-                    return false;
-                }
+            if !self.inodes_filter.is_unique(&meta) {
+                return false;
             }
         }
         meta.is_file()
@@ -49,6 +54,16 @@ impl FileFilter {
             && self.max.map_or(true, |m| meta.len() <= m)
             && is_match(&self.regex, path).unwrap_or(true)
             && is_match(&self.glob, path).unwrap_or(true)
+    }
+}
+
+#[cfg(unix)]
+impl InodeFilter {
+    fn is_unique(&self, meta: &Metadata) -> bool {
+        if !self.enabled {
+            return true;
+        }
+        self.seen.lock().unwrap().insert(meta.ino())
     }
 }
 
