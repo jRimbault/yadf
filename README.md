@@ -120,17 +120,17 @@ I sought out to build a high performing artefact by assembling together librarie
 The performance of `yadf` is heavily tied to the hardware, specifically the
 NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in general more features.
 
-My home directory contains about 615k paths and 32 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc.
+My home directory contains upwards of 700k paths and 39 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc. Arguably, the most important column here is the mean time when the filesystem cache is cold.
 
 | Program         | Version | Warm Mean time (s) | Cold Mean time (s) |
 | :-------------- | ------: | -----------------: | -----------------: |
-| yadf            |   0.8.1 |          **2.856** |             21.810 |
-| [fclones][0]    |   0.8.0 |              3.627 |         **15.439** |
-| [jdupes][1]     |  1.14.0 |             10.526 |            111.194 |
-| [ddh][2]        |  0.11.3 |              8.221 |             21.948 |
-| [fddf][3]       |   1.7.0 |              5.047 |             27.718 |
-| [rmlint][4]     |   2.9.0 |             14.143 |             60.722 |
-| [dupe-krill][5] |   1.4.4 |              8.072 |            112.815 |
+| yadf            |  0.13.1 |          **2.812** |             21.554 |
+| [fclones][0]    |   0.8.0 |              4.111 |         **19.452** |
+| [jdupes][1]     |  1.14.0 |             11.815 |            129.132 |
+| [ddh][2]        |  0.11.3 |             10.424 |             27.241 |
+| [fddf][3]       |   1.7.0 |              5.595 |             32.661 |
+| [rmlint][4]     |   2.9.0 |             17.516 |             67.580 |
+| [dupe-krill][5] |   1.4.4 |              8.791 |            127.860 |
 
 `fdupes` is excluded from this benchmark because it's _really_ slow.
 
