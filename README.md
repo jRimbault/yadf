@@ -58,22 +58,25 @@ yadf -f ldjson
   <summary>Help output.</summary>
 
 ```
-yadf 0.12.1
+yadf 0.13.1
 Yet Another Dupes Finder
 
 USAGE:
     yadf [FLAGS] [OPTIONS] [paths]...
 
 FLAGS:
-    -h, --help        Prints help information
-    -n, --no-empty    Excludes empty files
-    -q, --quiet       Pass many times for less log output
-    -V, --version     Prints version information
-    -v, --verbose     Pass many times for more log output
+    -H, --hard-links    Treat hard links to same file as duplicates
+    -h, --help          Prints help information
+    -n, --no-empty      Excludes empty files
+    -q, --quiet         Pass many times for less log output
+    -V, --version       Prints version information
+    -v, --verbose       Pass many times for more log output
 
 OPTIONS:
-    -a, --algorithm <algorithm>    Hashing algorithm [default: Highway]  [possible values: Highway, MetroHash, SeaHash, XxHash]
-    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes, Json, JsonPretty, LdJson, Machine]
+    -a, --algorithm <algorithm>    Hashing algorithm [default: AHash]  [possible values: AHash,
+                                   Highway, MetroHash, SeaHash, XxHash]
+    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes,
+                                   Json, JsonPretty, LdJson, Machine]
         --max <size>               Maximum file size
     -d, --depth <depth>            Maximum recursion depth
         --min <size>               Minimum file size
@@ -81,7 +84,7 @@ OPTIONS:
                                    https://docs.rs/globset/0.4.6/globset/index.html#syntax
     -R, --regex <regex>            Check files with a name matching a Perl-style regex, see:
                                    https://docs.rs/regex/1.4.2/regex/index.html#syntax
-    --rfactor <rfactor>            Replication factor [under|equal|over]:n
+        --rfactor <rfactor>        Replication factor [under|equal|over]:n
 
 ARGS:
     <paths>...    Directories to search
