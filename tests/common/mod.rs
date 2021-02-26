@@ -17,7 +17,7 @@ where
 
 /// test shortcut
 #[allow(dead_code)]
-pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::TreeBag<u64, yadf::path::Path> {
+pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter {
     yadf::Yadf::builder()
         .paths(&[path])
         .build()

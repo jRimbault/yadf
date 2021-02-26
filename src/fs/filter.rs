@@ -2,7 +2,7 @@ use std::fs::Metadata;
 use std::path::Path;
 
 #[derive(Debug)]
-pub(crate) struct FileFilter {
+pub struct FileFilter {
     min: Option<u64>,
     max: Option<u64>,
     regex: Option<regex::Regex>,
@@ -68,16 +68,14 @@ trait Matcher {
 }
 
 impl Matcher for regex::Regex {
-    #[inline(always)]
     fn is_file_name_match(&self, path: &Path) -> Option<bool> {
         path.file_name()
-            .and_then(|p| p.to_str())
+            .and_then(std::ffi::OsStr::to_str)
             .map(|file_name| self.is_match(file_name))
     }
 }
 
 impl Matcher for globset::GlobMatcher {
-    #[inline(always)]
     fn is_file_name_match(&self, path: &Path) -> Option<bool> {
         path.file_name().map(|file_name| self.is_match(file_name))
     }
@@ -103,9 +101,9 @@ mod inode {
     impl Filter {
         pub fn new(disable_hard_links_filter: bool) -> Self {
             if disable_hard_links_filter {
-                Filter::Disabled
+                Self::Disabled
             } else {
-                Filter::Enabled(Default::default())
+                Self::Enabled(Default::default())
             }
         }
 

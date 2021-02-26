@@ -1,3 +1,6 @@
+#![deny(unsafe_code)]
+#![warn(rust_2018_idioms)]
+
 mod args;
 
 use byte_unit::Byte;
@@ -39,7 +42,7 @@ fn main() {
 }
 
 #[cfg(unix)]
-fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
     yadf::Yadf::builder()
         .paths(&args.paths)
         .minimum_file_size(args.min())
@@ -52,7 +55,7 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
 }
 
 #[cfg(not(unix))]
-fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
     yadf::Yadf::builder()
         .paths(&args.paths)
         .minimum_file_size(args.min())
@@ -157,7 +160,7 @@ enum ReplicationFactor {
 /// mimic serde_json interface
 fn csv_to_writer<W: std::io::Write>(
     writer: W,
-    replicates: &yadf::FileReplicates,
+    replicates: &yadf::FileReplicates<'_>,
 ) -> csv::Result<()> {
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)
@@ -173,7 +176,7 @@ fn csv_to_writer<W: std::io::Write>(
 /// mimic serde_json interface
 fn ldjson_to_writer<W: std::io::Write>(
     mut writer: W,
-    replicates: &yadf::FileReplicates,
+    replicates: &yadf::FileReplicates<'_>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     for files in replicates.iter() {
         serde_json::to_writer(&mut writer, &files)?;

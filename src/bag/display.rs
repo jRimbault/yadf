@@ -6,7 +6,7 @@ impl<H: Ord, T> fmt::Display for Display<'_, H, T, Fdupes>
 where
     T: AsRef<Path>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let mut bucket = bucket.iter().peekable();
@@ -29,7 +29,7 @@ impl<H: Ord, T> fmt::Display for Display<'_, H, T, Machine>
 where
     T: AsRef<Path>,
 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let (last, rest) = bucket.split_last().unwrap();

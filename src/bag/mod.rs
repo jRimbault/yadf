@@ -23,7 +23,7 @@ use std::collections::BTreeMap;
 /// ```
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct TreeBag<H: Ord, T>(pub(crate) BTreeMap<H, Vec<T>>);
+pub struct TreeBag<H, T>(pub(crate) BTreeMap<H, Vec<T>>);
 
 #[derive(Debug, Clone, Copy)]
 pub enum Factor {
@@ -34,7 +34,7 @@ pub enum Factor {
 
 /// A view which only provides access to n replicated entries
 #[derive(Debug)]
-pub struct Replicates<'a, H: Ord, T> {
+pub struct Replicates<'a, H, T> {
     tree: &'a TreeBag<H, T>,
     factor: Factor,
 }
@@ -47,31 +47,31 @@ pub struct Fdupes;
 pub struct Machine;
 
 #[derive(Debug)]
-pub struct Display<'a, H: Ord, T, U: marker::OutputFormat> {
+pub struct Display<'a, H, T, U: marker::OutputFormat> {
     _marker: std::marker::PhantomData<&'a U>,
     tree: &'a Replicates<'a, H, T>,
 }
 
-impl<H: Ord, T> TreeBag<H, T> {
+impl<H, T> TreeBag<H, T> {
     /// Provides a view only on the buckets containing more than one element.
-    pub fn duplicates(&self) -> Replicates<'_, H, T> {
+    pub const fn duplicates(&self) -> Replicates<'_, H, T> {
         Replicates {
             tree: self,
             factor: Factor::Over(1),
         }
     }
 
-    pub fn replicates(&self, factor: Factor) -> Replicates<'_, H, T> {
+    pub const fn replicates(&self, factor: Factor) -> Replicates<'_, H, T> {
         Replicates { tree: self, factor }
     }
 
     /// Borrows the backing tree map of the bag
-    pub fn as_tree(&self) -> &BTreeMap<H, Vec<T>> {
+    pub const fn as_tree(&self) -> &BTreeMap<H, Vec<T>> {
         &self.0
     }
 }
 
-impl<H: Ord, T> Replicates<'_, H, T> {
+impl<H, T> Replicates<'_, H, T> {
     /// Iterator over the buckets
     pub fn iter(&self) -> impl Iterator<Item = &[T]> {
         self.tree
@@ -99,7 +99,7 @@ impl<H: Ord, T> Replicates<'_, H, T> {
 
 impl<H: Ord, T> std::iter::FromIterator<(H, T)> for TreeBag<H, T> {
     fn from_iter<I: IntoIterator<Item = (H, T)>>(iter: I) -> Self {
-        let mut map: BTreeMap<H, Vec<T>> = BTreeMap::new();
+        let mut map: BTreeMap<H, Vec<T>> = Default::default();
         for (hash, item) in iter {
             map.entry(hash).or_default().push(item);
         }
@@ -107,19 +107,19 @@ impl<H: Ord, T> std::iter::FromIterator<(H, T)> for TreeBag<H, T> {
     }
 }
 
-impl<H: Ord, T> AsRef<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
+impl<H, T> AsRef<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
     fn as_ref(&self) -> &BTreeMap<H, Vec<T>> {
         self.as_tree()
     }
 }
 
-impl<H: Ord, T> From<TreeBag<H, T>> for BTreeMap<H, Vec<T>> {
+impl<H, T> From<TreeBag<H, T>> for BTreeMap<H, Vec<T>> {
     fn from(value: TreeBag<H, T>) -> Self {
         value.0
     }
 }
 
-impl<H: Ord, T> From<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
+impl<H, T> From<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
     fn from(value: BTreeMap<H, Vec<T>>) -> Self {
         Self(value)
     }

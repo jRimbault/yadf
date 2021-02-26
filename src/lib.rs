@@ -17,6 +17,8 @@
 //!     .scan::<highway::HighwayHasher>();
 //! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
 //! ```
+#![deny(unsafe_code)]
+#![warn(rust_2018_idioms)]
 
 mod bag;
 mod fs;
@@ -49,10 +51,7 @@ pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
 /// see the docs for the [`YadfBuilder`](YadfBuilder)
 #[derive(Debug, Default, typed_builder::TypedBuilder)]
 #[builder(doc)]
-pub struct Yadf<'a, P>
-where
-    P: AsRef<Path>,
-{
+pub struct Yadf<'a, P> {
     #[builder(setter(doc = "Paths that will be checked for duplicate files"))]
     paths: &'a [P],
     #[builder(default, setter(into, doc = "Minimum file size"))]
@@ -79,19 +78,26 @@ where
     where
         H: Hasher + Default,
     {
+        #[cfg(unix)]
         let file_filter = fs::filter::FileFilter::new(
             self.minimum_file_size,
             self.maximum_file_size,
             self.regex,
             self.glob.map(|g| g.compile_matcher()),
-            #[cfg(unix)]
             self.hard_links,
+        );
+        #[cfg(not(unix))]
+        let file_filter = fs::filter::FileFilter::new(
+            self.minimum_file_size,
+            self.maximum_file_size,
+            self.regex,
+            self.glob.map(|g| g.compile_matcher()),
         );
         let bag = fs::find_dupes_partial::<H, P>(self.paths, self.max_depth, file_filter);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",
-                bag.0.values().map(|b| b.len()).sum::<usize>()
+                bag.0.values().map(Vec::len).sum::<usize>()
             );
             log::info!(
                 "found {} possible duplicates after initial scan",

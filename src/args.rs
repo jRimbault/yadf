@@ -109,7 +109,7 @@ impl std::str::FromStr for ReplicationFactor {
 }
 
 impl fmt::Display for ReplicationFactor {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
 }

@@ -36,10 +36,13 @@ impl From<(PathBuf, DiskType)> for Disk {
 }
 
 fn find_disk(path: &Path, disks: &[Disk]) -> Option<DiskType> {
-    disks
-        .iter()
-        .find(|disk| path.starts_with(&disk.path))
-        .map(|disk| disk.disk_type)
+    disks.iter().find_map(|disk| {
+        if path.starts_with(&disk.path) {
+            Some(disk.disk_type)
+        } else {
+            None
+        }
+    })
 }
 
 /// logging wrapper for dunce

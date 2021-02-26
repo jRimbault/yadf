@@ -1,6 +1,6 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
 
-pub(crate) mod filter;
+pub mod filter;
 mod hash;
 mod heuristic;
 
@@ -14,7 +14,7 @@ const BLOCK_SIZE: usize = 4096;
 /// Foundation of the API.
 /// This will attemps a naive scan of every file,
 /// within the given size constraints, at the given path.
-pub(crate) fn find_dupes_partial<H, P>(
+pub fn find_dupes_partial<H, P>(
     directories: &[P],
     max_depth: Option<usize>,
     filter: filter::FileFilter,
@@ -36,7 +36,7 @@ where
             let meta = entry.metadata().map_err(|error| {
                 log::error!("{}, couldn't get metadata for {:?}", error, path);
             })?;
-            if !filter.is_match(&path, meta) {
+            if !filter.is_match(path, meta) {
                 return Err(());
             }
             let hash = hash::partial::<H, _>(&path).map_err(|error| {
@@ -48,7 +48,7 @@ where
         .collect()
 }
 
-pub(crate) fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> crate::FileCounter
+pub fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
