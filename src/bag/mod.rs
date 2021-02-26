@@ -47,7 +47,7 @@ pub struct Fdupes;
 pub struct Machine;
 
 #[derive(Debug)]
-pub struct Display<'a, H, T, U: marker::OutputFormat> {
+pub struct Display<'a, H, T, U> {
     _marker: std::marker::PhantomData<&'a U>,
     tree: &'a Replicates<'a, H, T>,
 }
@@ -89,7 +89,7 @@ impl<H, T> Replicates<'_, H, T> {
     ///
     /// Depending on the contents of the [`TreeBag`](TreeBag), the display object
     /// can be parameterized to get a different `Display` implemenation.
-    pub fn display<D: marker::OutputFormat>(&self) -> Display<'_, H, T, D> {
+    pub fn display<D>(&self) -> Display<'_, H, T, D> {
         Display {
             tree: self,
             _marker: std::marker::PhantomData,
@@ -123,10 +123,4 @@ impl<H, T> From<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
     fn from(value: BTreeMap<H, Vec<T>>) -> Self {
         Self(value)
     }
-}
-
-pub mod marker {
-    pub trait OutputFormat {}
-    impl OutputFormat for super::Fdupes {}
-    impl OutputFormat for super::Machine {}
 }
