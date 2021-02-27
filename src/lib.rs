@@ -8,7 +8,7 @@
 //!
 //! ```no_run
 //! let counter = yadf::Yadf::builder()
-//!     .paths(&["path/to/somewhere", "another/path"]) // required
+//!     .paths(["path/to/somewhere", "another/path"].as_ref()) // required
 //!     .minimum_file_size(64) // optional
 //!     .maximum_file_size(1024 * 8) // optional
 //!     .regex(None) // optional
@@ -29,6 +29,7 @@ pub use globset;
 pub use regex;
 use std::hash::Hasher;
 use std::path::Path;
+use std::rc::Rc;
 
 pub type FileCounter = TreeBag<u64, path::Path>;
 pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
@@ -39,7 +40,7 @@ pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
 ///
 /// ```no_run
 /// let counter = yadf::Yadf::builder()
-///     .paths(&["path/to/somewhere", "another/path"]) // required
+///     .paths(["path/to/somewhere", "another/path"].as_ref()) // required
 ///     .minimum_file_size(64) // optional
 ///     .maximum_file_size(1024 * 8) // optional
 ///     .regex(None) // optional
@@ -49,11 +50,11 @@ pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
 /// ```
 ///
 /// see the docs for the [`YadfBuilder`](YadfBuilder)
-#[derive(Debug, Default, typed_builder::TypedBuilder)]
+#[derive(Debug, typed_builder::TypedBuilder)]
 #[builder(doc)]
-pub struct Yadf<'a, P> {
-    #[builder(setter(doc = "Paths that will be checked for duplicate files"))]
-    paths: &'a [P],
+pub struct Yadf<P: AsRef<Path>> {
+    #[builder(setter(into, doc = "Paths that will be checked for duplicate files"))]
+    paths: Rc<[P]>,
     #[builder(default, setter(into, doc = "Minimum file size"))]
     minimum_file_size: Option<u64>,
     #[builder(default, setter(into, doc = "Maximum file size"))]
@@ -69,7 +70,7 @@ pub struct Yadf<'a, P> {
     hard_links: bool,
 }
 
-impl<P> Yadf<'_, P>
+impl<P> Yadf<P>
 where
     P: AsRef<Path>,
 {
@@ -93,7 +94,7 @@ where
             self.regex,
             self.glob.map(|g| g.compile_matcher()),
         );
-        let bag = fs::find_dupes_partial::<H, P>(self.paths, self.max_depth, file_filter);
+        let bag = fs::find_dupes_partial::<H, _>(&self.paths, self.max_depth, file_filter);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",

@@ -42,9 +42,9 @@ fn main() {
 }
 
 #[cfg(unix)]
-fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
     yadf::Yadf::builder()
-        .paths(&args.paths)
+        .paths(args.paths.as_ref())
         .minimum_file_size(args.min())
         .maximum_file_size(args.max())
         .regex(args.regex.clone())
@@ -55,9 +55,9 @@ fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
 }
 
 #[cfg(not(unix))]
-fn build_config(args: &Args) -> yadf::Yadf<'_, PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
     yadf::Yadf::builder()
-        .paths(&args.paths)
+        .paths(args.paths.as_ref())
         .minimum_file_size(args.min())
         .maximum_file_size(args.max())
         .regex(args.regex.clone())

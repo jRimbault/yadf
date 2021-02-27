@@ -19,7 +19,7 @@ where
 #[allow(dead_code)]
 pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter {
     yadf::Yadf::builder()
-        .paths(&[path])
+        .paths([path].as_ref())
         .build()
         .scan::<seahash::SeaHasher>()
 }
