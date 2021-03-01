@@ -2,6 +2,7 @@ mod display;
 mod serialize;
 
 use std::collections::BTreeMap;
+use std::iter::FromIterator;
 
 /// Counter structure.
 ///
@@ -17,15 +18,15 @@ use std::collections::BTreeMap;
 ///     (7, "buzz"),
 ///     (6, "rust"),
 /// ].into_iter().collect();
-/// assert_eq!(bag.as_tree()[&3].len(), 2);
-/// assert_eq!(bag.as_tree()[&6].len(), 1);
-/// assert_eq!(bag.as_tree()[&3][0], "hello world");
+/// assert_eq!(bag.as_inner()[&3].len(), 2);
+/// assert_eq!(bag.as_inner()[&6].len(), 1);
+/// assert_eq!(bag.as_inner()[&3][0], "hello world");
 /// ```
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct TreeBag<H, T>(pub(crate) BTreeMap<H, Vec<T>>);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub enum Factor {
     Under(usize),
     Equal(usize),
@@ -37,6 +38,12 @@ pub enum Factor {
 pub struct Replicates<'a, H, T> {
     tree: &'a TreeBag<H, T>,
     factor: Factor,
+}
+
+#[derive(Debug)]
+pub struct ReplicatesIter<'a, H, T> {
+    iterator: std::collections::btree_map::Values<'a, H, Vec<T>>,
+    factor: &'a Factor,
 }
 
 /// Display marker.
@@ -65,24 +72,28 @@ impl<H, T> TreeBag<H, T> {
         Replicates { tree: self, factor }
     }
 
-    /// Borrows the backing tree map of the bag
-    pub const fn as_tree(&self) -> &BTreeMap<H, Vec<T>> {
+    /// Borrows the backing `BTreeMap` of the bag
+    pub const fn as_inner(&self) -> &BTreeMap<H, Vec<T>> {
         &self.0
+    }
+
+    /// Mutably borrows the backing `BTreeMap` of the bag
+    pub fn as_inner_mut(&mut self) -> &mut BTreeMap<H, Vec<T>> {
+        &mut self.0
+    }
+
+    pub fn into_inner(self) -> BTreeMap<H, Vec<T>> {
+        self.0
     }
 }
 
 impl<H, T> Replicates<'_, H, T> {
     /// Iterator over the buckets
-    pub fn iter(&self) -> impl Iterator<Item = &[T]> {
-        self.tree
-            .0
-            .values()
-            .filter(move |bucket| match self.factor {
-                Factor::Under(n) => bucket.len() < n,
-                Factor::Equal(n) => bucket.len() == n,
-                Factor::Over(n) => bucket.len() > n,
-            })
-            .map(AsRef::as_ref)
+    pub fn iter(&self) -> ReplicatesIter<'_, H, T> {
+        ReplicatesIter {
+            iterator: self.tree.0.values(),
+            factor: &self.factor,
+        }
     }
 
     /// Returns an object that implements [`Display`](std::fmt::Display)
@@ -91,13 +102,13 @@ impl<H, T> Replicates<'_, H, T> {
     /// can be parameterized to get a different `Display` implemenation.
     pub fn display<D>(&self) -> Display<'_, H, T, D> {
         Display {
-            tree: self,
             _marker: std::marker::PhantomData,
+            tree: self,
         }
     }
 }
 
-impl<H: Ord, T> std::iter::FromIterator<(H, T)> for TreeBag<H, T> {
+impl<H: Ord, T> FromIterator<(H, T)> for TreeBag<H, T> {
     fn from_iter<I: IntoIterator<Item = (H, T)>>(iter: I) -> Self {
         let mut map: BTreeMap<H, Vec<T>> = Default::default();
         for (hash, item) in iter {
@@ -109,18 +120,35 @@ impl<H: Ord, T> std::iter::FromIterator<(H, T)> for TreeBag<H, T> {
 
 impl<H, T> AsRef<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
     fn as_ref(&self) -> &BTreeMap<H, Vec<T>> {
-        self.as_tree()
-    }
-}
-
-impl<H, T> From<TreeBag<H, T>> for BTreeMap<H, Vec<T>> {
-    fn from(value: TreeBag<H, T>) -> Self {
-        value.0
+        self.as_inner()
     }
 }
 
 impl<H, T> From<BTreeMap<H, Vec<T>>> for TreeBag<H, T> {
     fn from(value: BTreeMap<H, Vec<T>>) -> Self {
         Self(value)
+    }
+}
+
+impl<'a, H, T> Iterator for ReplicatesIter<'a, H, T> {
+    type Item = &'a [T];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(bucket) = self.iterator.next() {
+            if self.factor.pass(bucket.len()) {
+                return Some(bucket.as_ref());
+            }
+        }
+        None
+    }
+}
+
+impl Factor {
+    fn pass(&self, x: usize) -> bool {
+        match *self {
+            Factor::Under(n) => x < n,
+            Factor::Equal(n) => x == n,
+            Factor::Over(n) => x > n,
+        }
     }
 }

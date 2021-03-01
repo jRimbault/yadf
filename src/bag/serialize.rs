@@ -3,7 +3,6 @@ use serde::ser::{Serialize, Serializer};
 
 impl<H, T> Serialize for Replicates<'_, H, T>
 where
-    H: Ord,
     T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -16,7 +15,7 @@ where
 
 impl<H, T> Serialize for TreeBag<H, T>
 where
-    H: Ord + Serialize,
+    H: Serialize,
     T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
