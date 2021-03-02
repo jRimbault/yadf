@@ -190,7 +190,7 @@ mod tests {
     use super::*;
     use once_cell::sync::Lazy;
 
-    static BAG: Lazy<yadf::TreeBag<u64, yadf::path::Path>> = Lazy::new(|| {
+    static BAG: Lazy<yadf::TreeBag<u64, yadf::Path>> = Lazy::new(|| {
         vec![
             (77, "hello".into()),
             (77, "world".into()),

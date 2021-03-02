@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::iter::FromIterator;
 use std::ops::Index;
 
-/// Counter structure.
+/// Ordered counter structure.
 ///
 /// # Example :
 ///
@@ -22,14 +22,15 @@ use std::ops::Index;
 ///     (7, "buzz"),
 ///     (6, "rust"),
 /// ].into_iter().collect();
-/// assert_eq!(bag[&3].len(), 2);
-/// assert_eq!(bag[&6].len(), 1);
-/// assert_eq!(bag[&3][0], "hello world");
+///
+/// assert_eq!(bag[&3], ["hello world", "foobar"]);
+/// assert_eq!(bag[&7], ["fizz", "buzz"]);
+/// assert_eq!(bag[&6], ["rust"]);
 /// ```
 #[derive(Debug)]
 pub struct TreeBag<K, V>(BTreeMap<K, Vec<V>>);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Factor {
     Under(usize),
     Equal(usize),
@@ -57,7 +58,7 @@ pub struct Display<'a, K, V, U> {
 }
 
 impl<K, V> From<BTreeMap<K, Vec<V>>> for TreeBag<K, V> {
-    /// Build a `TreeBag` from a `BTreeMap`.
+    /// Build a [`TreeBag`](TreeBag) from a [`BTreeMap`](BTreeMap).
     fn from(btree: BTreeMap<K, Vec<V>>) -> Self {
         Self(btree)
     }
@@ -72,21 +73,22 @@ impl<K, V> TreeBag<K, V> {
         }
     }
 
+    /// Provides a view only on the buckets as constrained by the replication [`Factor`](Factor).
     pub const fn replicates(&self, factor: Factor) -> Replicates<'_, K, V> {
         Replicates { tree: self, factor }
     }
 
-    /// Borrows the backing `BTreeMap` of the bag.
+    /// Borrows the backing [`BTreeMap`](BTreeMap) of the bag.
     pub const fn as_inner(&self) -> &BTreeMap<K, Vec<V>> {
         &self.0
     }
 
-    /// Mutably borrows the backing `BTreeMap` of the bag.
+    /// Mutably borrows the backing [`BTreeMap`](BTreeMap) of the bag.
     pub fn as_inner_mut(&mut self) -> &mut BTreeMap<K, Vec<V>> {
         &mut self.0
     }
 
-    /// Consumes the wrapper `TreeBag` and returns the inner `BTreeMap`.
+    /// Consumes the wrapper [`TreeBag`](TreeBag) and returns the inner [`BTreeMap`](BTreeMap).
     pub fn into_inner(self) -> BTreeMap<K, Vec<V>> {
         self.0
     }
@@ -96,6 +98,12 @@ impl<K, V> TreeBag<K, V> {
         self.0.len()
     }
 
+    /// Returns `true` if the bag contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns a reference to the bucket corresponding to the key.
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&Vec<V>>
     where
         K: Borrow<Q> + Ord,
@@ -104,6 +112,7 @@ impl<K, V> TreeBag<K, V> {
         self.0.get(key)
     }
 
+    /// Returns a mutable reference to the bucket corresponding to the key.
     pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut Vec<V>>
     where
         K: Borrow<Q> + Ord,
@@ -112,7 +121,7 @@ impl<K, V> TreeBag<K, V> {
         self.0.get_mut(key)
     }
 
-    /// Gets the given key’s corresponding entry in the map for in-place manipulation.
+    /// Gets the given key’s corresponding entry in the bag for in-place manipulation.
     pub fn entry(&mut self, key: K) -> Entry<'_, K, Vec<V>>
     where
         K: Ord,
@@ -142,7 +151,7 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if the key is not present in the `TreeBag`.
+    /// Panics if the key is not present in the [`TreeBag`](TreeBag).
     fn index(&self, key: &Q) -> &Self::Output {
         self.get(key).expect("no entry found for key")
     }

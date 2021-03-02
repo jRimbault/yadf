@@ -1,5 +1,5 @@
+/// Serialization wrapper for paths.
 #[derive(Debug)]
-#[repr(transparent)]
 pub struct Path(std::path::PathBuf);
 
 use serde::{Serialize, Serializer};

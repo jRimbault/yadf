@@ -1,10 +1,11 @@
 use super::{Display, Factor, Replicates};
 use std::collections::btree_map::Values;
 
+/// [`Iterator`](Iterator) adapater.
 #[derive(Debug)]
 pub struct Iter<'a, K, V> {
     values: Values<'a, K, Vec<V>>,
-    factor: &'a Factor,
+    factor: Factor,
 }
 
 impl<K, V> Replicates<'_, K, V> {
@@ -12,19 +13,28 @@ impl<K, V> Replicates<'_, K, V> {
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             values: self.tree.0.values(),
-            factor: &self.factor,
+            factor: self.factor.clone(),
         }
     }
 
     /// Returns an object that implements [`Display`](std::fmt::Display).
     ///
-    /// Depending on the contents of the [`TreeBag`](TreeBag), the display object
-    /// can be parameterized to get a different `Display` implemenation.
+    /// Depending on the contents of the [`TreeBag`](super::TreeBag), the display object
+    /// can be parameterized to get a different [`Display`](std::fmt::Display) implemenation.
     pub fn display<U>(&self) -> Display<'_, K, V, U> {
         Display {
             _format_marker: std::marker::PhantomData,
             tree: self,
         }
+    }
+}
+
+impl<'a, K, V> IntoIterator for &'a Replicates<'a, K, V> {
+    type Item = &'a Vec<V>;
+    type IntoIter = Iter<'a, K, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 

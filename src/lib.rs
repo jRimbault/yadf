@@ -4,55 +4,55 @@
 //!
 //! # Example :
 //!
-//! Find and display all the duplicate files at the given path :
+//! Find and display all the duplicate files at the given paths :
 //!
 //! ```no_run
+//! # fn foo(paths: &[std::path::PathBuf]) {
 //! let counter = yadf::Yadf::builder()
-//!     .paths(["path/to/somewhere", "another/path"].as_ref()) // required
-//!     .minimum_file_size(64) // optional
-//!     .maximum_file_size(1024 * 8) // optional
-//!     .regex(None) // optional
-//!     .glob(None) // optional
+//!     .paths(paths)
 //!     .build()
 //!     .scan::<highway::HighwayHasher>();
 //! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
+//! # }
 //! ```
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 
 mod bag;
 mod fs;
-pub mod path;
+mod path;
 
-pub use bag::{Factor, Fdupes, Machine, Replicates, TreeBag};
+pub use bag::{Factor, Fdupes, Machine, TreeBag};
 pub use globset;
+pub use path::Path;
 pub use regex;
 use std::hash::Hasher;
-use std::path::Path;
 use std::rc::Rc;
 
-pub type FileCounter = TreeBag<u64, path::Path>;
-pub type FileReplicates<'a> = Replicates<'a, u64, path::Path>;
+pub type FileCounter = TreeBag<u64, Path>;
+pub type FileReplicates<'a> = bag::Replicates<'a, u64, Path>;
 
-/// Search configuration
+/// Search configuration.
 ///
 /// # Example
 ///
 /// ```no_run
+/// # fn foo(paths: &[std::path::PathBuf]) {
 /// let counter = yadf::Yadf::builder()
-///     .paths(["path/to/somewhere", "another/path"].as_ref()) // required
+///     .paths(paths) // required
 ///     .minimum_file_size(64) // optional
 ///     .maximum_file_size(1024 * 8) // optional
 ///     .regex(None) // optional
 ///     .glob(None) // optional
 ///     .build()
-///     .scan::<highway::HighwayHasher>();
+///     .scan::<seahash::SeaHasher>();
+/// # }
 /// ```
 ///
 /// see the docs for the [`YadfBuilder`](YadfBuilder)
 #[derive(Debug, typed_builder::TypedBuilder)]
 #[builder(doc)]
-pub struct Yadf<P: AsRef<Path>> {
+pub struct Yadf<P: AsRef<std::path::Path>> {
     #[builder(setter(into, doc = "Paths that will be checked for duplicate files"))]
     paths: Rc<[P]>,
     #[builder(default, setter(into, doc = "Minimum file size"))]
@@ -72,7 +72,7 @@ pub struct Yadf<P: AsRef<Path>> {
 
 impl<P> Yadf<P>
 where
-    P: AsRef<Path>,
+    P: AsRef<std::path::Path>,
 {
     /// This will attemps a complete scan according to its configuration.
     pub fn scan<H>(self) -> FileCounter
