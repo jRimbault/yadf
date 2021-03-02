@@ -8,7 +8,7 @@ pub struct Iter<'a, K, V> {
 }
 
 impl<K, V> Replicates<'_, K, V> {
-    /// Iterator over the buckets
+    /// Iterator over the buckets.
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             values: self.tree.0.values(),
@@ -16,13 +16,13 @@ impl<K, V> Replicates<'_, K, V> {
         }
     }
 
-    /// Returns an object that implements [`Display`](std::fmt::Display)
+    /// Returns an object that implements [`Display`](std::fmt::Display).
     ///
     /// Depending on the contents of the [`TreeBag`](TreeBag), the display object
     /// can be parameterized to get a different `Display` implemenation.
-    pub fn display<D>(&self) -> Display<'_, K, V, D> {
+    pub fn display<U>(&self) -> Display<'_, K, V, U> {
         Display {
-            _marker: std::marker::PhantomData,
+            _format_marker: std::marker::PhantomData,
             tree: self,
         }
     }

@@ -1,9 +1,9 @@
 use super::{Replicates, TreeBag};
 use serde::ser::{Serialize, Serializer};
 
-impl<H, T> Serialize for Replicates<'_, H, T>
+impl<K, V> Serialize for Replicates<'_, K, V>
 where
-    T: Serialize,
+    V: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -13,10 +13,10 @@ where
     }
 }
 
-impl<H, T> Serialize for TreeBag<H, T>
+impl<K, V> Serialize for TreeBag<K, V>
 where
-    H: Serialize,
-    T: Serialize,
+    K: Serialize,
+    V: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

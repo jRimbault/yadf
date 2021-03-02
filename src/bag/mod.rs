@@ -36,7 +36,7 @@ pub enum Factor {
     Over(usize),
 }
 
-/// A view which only provides access to n replicated entries
+/// A view which only provides access to n replicated entries.
 #[derive(Debug)]
 pub struct Replicates<'a, K, V> {
     tree: &'a TreeBag<K, V>,
@@ -52,12 +52,12 @@ pub struct Machine;
 
 #[derive(Debug)]
 pub struct Display<'a, K, V, U> {
-    _marker: std::marker::PhantomData<&'a U>,
+    _format_marker: std::marker::PhantomData<U>,
     tree: &'a Replicates<'a, K, V>,
 }
 
 impl<K, V> From<BTreeMap<K, Vec<V>>> for TreeBag<K, V> {
-    /// Build a `TreeBag` from a `BTreeMap`
+    /// Build a `TreeBag` from a `BTreeMap`.
     fn from(btree: BTreeMap<K, Vec<V>>) -> Self {
         Self(btree)
     }
@@ -76,19 +76,24 @@ impl<K, V> TreeBag<K, V> {
         Replicates { tree: self, factor }
     }
 
-    /// Borrows the backing `BTreeMap` of the bag
+    /// Borrows the backing `BTreeMap` of the bag.
     pub const fn as_inner(&self) -> &BTreeMap<K, Vec<V>> {
         &self.0
     }
 
-    /// Mutably borrows the backing `BTreeMap` of the bag
+    /// Mutably borrows the backing `BTreeMap` of the bag.
     pub fn as_inner_mut(&mut self) -> &mut BTreeMap<K, Vec<V>> {
         &mut self.0
     }
 
-    /// Consumes the wrapper `TreeBag` and returns the inner `BTreeMap`
+    /// Consumes the wrapper `TreeBag` and returns the inner `BTreeMap`.
     pub fn into_inner(self) -> BTreeMap<K, Vec<V>> {
         self.0
+    }
+
+    /// Returns the number of buckets in the bag.
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&Vec<V>>

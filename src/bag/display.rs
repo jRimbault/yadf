@@ -2,9 +2,9 @@ use super::{Display, Fdupes, Machine};
 use std::fmt;
 use std::path::Path;
 
-impl<H: Ord, T> fmt::Display for Display<'_, H, T, Fdupes>
+impl<K, V> fmt::Display for Display<'_, K, V, Fdupes>
 where
-    T: AsRef<Path>,
+    V: AsRef<Path>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
@@ -25,9 +25,9 @@ where
     }
 }
 
-impl<H: Ord, T> fmt::Display for Display<'_, H, T, Machine>
+impl<K, V> fmt::Display for Display<'_, K, V, Machine>
 where
-    T: AsRef<Path>,
+    V: AsRef<Path>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
