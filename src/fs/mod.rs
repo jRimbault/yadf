@@ -48,13 +48,12 @@ where
         .collect()
 }
 
-pub fn dedupe<H>(counter: TreeBag<u64, PathBuf>) -> crate::FileCounter
+pub fn dedupe<H>(bag: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
     let (sender, receiver) = crossbeam_channel::unbounded();
-    counter
-        .0
+    bag.into_inner()
         .into_par_iter()
         .for_each_with(sender, |sender, (old_hash, bucket)| {
             if bucket.len() == 1 {

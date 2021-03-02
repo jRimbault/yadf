@@ -98,7 +98,7 @@ where
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",
-                bag.0.values().map(Vec::len).sum::<usize>()
+                bag.as_inner().values().map(Vec::len).sum::<usize>()
             );
             log::info!(
                 "found {} possible duplicates after initial scan",
