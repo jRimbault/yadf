@@ -23,7 +23,7 @@ impl<K, V> Replicates<'_, K, V> {
     /// can be parameterized to get a different [`Display`](std::fmt::Display) implemenation.
     pub fn display<U>(&self) -> Display<'_, K, V, U> {
         Display {
-            _format_marker: std::marker::PhantomData,
+            format_marker: std::marker::PhantomData,
             tree: self,
         }
     }

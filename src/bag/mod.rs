@@ -53,7 +53,7 @@ pub struct Machine;
 
 #[derive(Debug)]
 pub struct Display<'a, K, V, U> {
-    _format_marker: std::marker::PhantomData<U>,
+    format_marker: std::marker::PhantomData<&'a U>,
     tree: &'a Replicates<'a, K, V>,
 }
 
