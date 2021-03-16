@@ -73,10 +73,10 @@ fn display(format: &Format, replicates: yadf::FileReplicates<'_>) -> anyhow::Res
             serde_json::to_writer_pretty(&mut stdout, &replicates)?;
             stdout.write_all(b"\n")?;
         }
-        Format::Csv => csv_to_writer(&mut stdout, &replicates)?,
-        Format::LdJson => ldjson_to_writer(&mut stdout, &replicates)?,
-        Format::Fdupes => writeln!(&mut stdout, "{}", replicates.display::<Fdupes>())?,
-        Format::Machine => writeln!(&mut stdout, "{}", replicates.display::<Machine>())?,
+        Format::Csv => csv_to_writer(stdout, &replicates)?,
+        Format::LdJson => ldjson_to_writer(stdout, &replicates)?,
+        Format::Fdupes => writeln!(stdout, "{}", replicates.display::<Fdupes>())?,
+        Format::Machine => writeln!(stdout, "{}", replicates.display::<Machine>())?,
     };
     Ok(())
 }
