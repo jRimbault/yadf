@@ -4,41 +4,23 @@
 mod args;
 
 use byte_unit::Byte;
-use std::io;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use structopt::clap::arg_enum;
 use yadf::{Fdupes, Machine};
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     human_panic::setup_panic!();
     let timer = std::time::Instant::now();
     let args = Args::init_from_env();
     log::debug!("{:?}", args);
     let config = build_config(&args);
     log::debug!("{:?}", config);
-    let bag = match args.algorithm {
-        Algorithm::AHash => config.scan::<ahash::AHasher>(),
-        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
-        Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
-        Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
-        Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
-    };
-    let replicates = bag.replicates(args.rfactor.unwrap_or_default().into());
-    match args.format {
-        Format::Json => {
-            serde_json::to_writer(io::stdout(), &replicates).unwrap();
-            println!();
-        }
-        Format::JsonPretty => {
-            serde_json::to_writer_pretty(io::stdout(), &replicates).unwrap();
-            println!();
-        }
-        Format::Csv => csv_to_writer(io::stdout(), &replicates).unwrap(),
-        Format::LdJson => ldjson_to_writer(io::stdout(), &replicates).unwrap(),
-        Format::Fdupes => println!("{}", replicates.display::<Fdupes>()),
-        Format::Machine => println!("{}", replicates.display::<Machine>()),
-    };
+    let bag = select_algorithm(&args.algorithm, config);
+    let rfactor = args.rfactor.unwrap_or_default().into();
+    display(&args.format, bag.replicates(rfactor))?;
     log::debug!("{:?} elapsed", timer.elapsed());
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -64,6 +46,39 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
         .glob(args.pattern.clone())
         .max_depth(args.max_depth)
         .build()
+}
+
+fn select_algorithm<P>(algorithm: &Algorithm, config: yadf::Yadf<P>) -> yadf::FileCounter
+where
+    P: AsRef<std::path::Path>,
+{
+    match algorithm {
+        Algorithm::AHash => config.scan::<ahash::AHasher>(),
+        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
+        Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
+        Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
+        Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
+    }
+}
+
+fn display(format: &Format, replicates: yadf::FileReplicates<'_>) -> anyhow::Result<()> {
+    let stdout = io::stdout();
+    let mut stdout = io::BufWriter::with_capacity(64 * 1024, stdout.lock());
+    match format {
+        Format::Json => {
+            serde_json::to_writer(&mut stdout, &replicates)?;
+            stdout.write_all(b"\n")?;
+        }
+        Format::JsonPretty => {
+            serde_json::to_writer_pretty(&mut stdout, &replicates)?;
+            stdout.write_all(b"\n")?;
+        }
+        Format::Csv => csv_to_writer(&mut stdout, &replicates)?,
+        Format::LdJson => ldjson_to_writer(&mut stdout, &replicates)?,
+        Format::Fdupes => writeln!(&mut stdout, "{}", replicates.display::<Fdupes>())?,
+        Format::Machine => writeln!(&mut stdout, "{}", replicates.display::<Machine>())?,
+    };
+    Ok(())
 }
 
 /// Yet Another Dupes Finder
@@ -167,7 +182,7 @@ fn csv_to_writer<W: std::io::Write>(
         .has_headers(false)
         .from_writer(writer);
     writer.serialize(("count", "files"))?;
-    for files in replicates.iter() {
+    for files in replicates {
         writer.serialize((files.len(), files))?;
     }
     Ok(())
@@ -177,8 +192,8 @@ fn csv_to_writer<W: std::io::Write>(
 fn ldjson_to_writer<W: std::io::Write>(
     mut writer: W,
     replicates: &yadf::FileReplicates<'_>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    for files in replicates.iter() {
+) -> anyhow::Result<()> {
+    for files in replicates {
         serde_json::to_writer(&mut writer, &files)?;
         writeln!(writer)?;
     }
