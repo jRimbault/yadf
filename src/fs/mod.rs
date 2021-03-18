@@ -52,23 +52,27 @@ pub fn dedupe<H>(bag: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
-    let (sender, receiver) = crossbeam_channel::unbounded();
-    bag.into_inner()
-        .into_par_iter()
-        .for_each_with(sender, |sender, (old_hash, bucket)| {
-            if bucket.len() == 1 {
-                let file = bucket.into_iter().next().unwrap();
-                sender.send((old_hash, file.into())).unwrap();
-            } else {
-                bucket
-                    .into_par_iter()
-                    .for_each_with(sender.clone(), |sender, file| {
-                        let hash = rehash::<H>(&file).unwrap_or(old_hash);
-                        sender.send((hash, file.into())).unwrap();
-                    });
-            }
+    rayon::scope(move |scope| {
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        scope.spawn(move |_| {
+            bag.into_inner()
+                .into_par_iter()
+                .for_each(move |(old_hash, bucket)| {
+                    if bucket.len() == 1 {
+                        let file = bucket.into_iter().next().unwrap();
+                        sender.send((old_hash, file.into())).unwrap();
+                    } else {
+                        bucket
+                            .into_par_iter()
+                            .for_each_with(sender.clone(), |sender, file| {
+                                let hash = rehash::<H>(&file).unwrap_or(old_hash);
+                                sender.send((hash, file.into())).unwrap();
+                            });
+                    }
+                });
         });
-    receiver.into_iter().collect()
+        receiver.into_iter().collect()
+    })
 }
 
 // decrease indent level of the dedupe function
@@ -104,18 +108,22 @@ impl WalkParallelMap for ignore::WalkParallel {
         F: Send + Copy,
         I: Send,
     {
-        let (sender, receiver) = crossbeam_channel::unbounded();
-        self.run(move || {
-            let sender = sender.clone();
-            Box::new(move |result| {
-                match result {
-                    Ok(entry) => sender.send(fnmap(entry)).unwrap(),
-                    Err(error) => log::error!("{}", error),
-                }
-                ignore::WalkState::Continue
-            })
-        });
-        receiver.into_iter()
+        rayon::scope(move |scope| {
+            let (sender, receiver) = crossbeam_channel::unbounded();
+            scope.spawn(move |_| {
+                self.run(move || {
+                    let sender = sender.clone();
+                    Box::new(move |result| {
+                        match result {
+                            Ok(entry) => sender.send(fnmap(entry)).unwrap(),
+                            Err(error) => log::error!("{}", error),
+                        }
+                        ignore::WalkState::Continue
+                    })
+                })
+            });
+            receiver.into_iter()
+        })
     }
 }
 
