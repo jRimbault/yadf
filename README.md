@@ -120,17 +120,27 @@ I sought out to build a high performing artefact by assembling together librarie
 The performance of `yadf` is heavily tied to the hardware, specifically the
 NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in general more features.
 
-My home directory contains upwards of 700k paths and 39 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc. Arguably, the most important column here is the mean time when the filesystem cache is cold.
+My home directory contains upwards of 700k paths and 39 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc. Arguably, the most important measure here is the mean time when the filesystem cache is cold.
 
-| Program         | Version | Warm Mean time (s) | Cold Mean time (s) |
-| :-------------- | ------: | -----------------: | -----------------: |
-| yadf            |  0.13.1 |          **2.812** |             21.554 |
-| [fclones][0]    |   0.8.0 |              4.111 |         **19.452** |
-| [jdupes][1]     |  1.14.0 |             11.815 |            129.132 |
-| [ddh][2]        |  0.11.3 |             10.424 |             27.241 |
-| [fddf][3]       |   1.7.0 |              5.595 |             32.661 |
-| [rmlint][4]     |   2.9.0 |             17.516 |             67.580 |
-| [dupe-krill][5] |   1.4.4 |              8.791 |            127.860 |
+| Program (warm filesystem cache) | Version |          Mean [s] |   Min [s] | Max [s] |    Relative |
+| :------------------------------ | ------: | ----------------: | --------: | ------: | ----------: |
+| [`fclones`][0]                  |   0.8.0 |     4.107 ± 0.045 |     4.065 |   4.189 | 1.58 ± 0.04 |
+| [`jdupes`][1]                   |  1.14.0 |    11.982 ± 0.038 |    11.924 |  12.030 | 4.60 ± 0.11 |
+| [`ddh`][2]                      |  0.11.3 |    10.602 ± 0.062 |    10.521 |  10.678 | 4.07 ± 0.10 |
+| [`rmlint`][3]                   |   2.9.0 |    17.640 ± 0.119 |    17.426 |  17.833 | 6.77 ± 0.17 |
+| [`dupe-krill`][4]               |   1.4.4 |     9.110 ± 0.040 |     9.053 |   9.154 | 3.50 ± 0.08 |
+| [`fddf`][5]                     |   1.7.0 |     5.630 ± 0.049 |     5.562 |   5.717 | 2.16 ± 0.05 |
+| `yadf`                          |  0.14.1 | **2.605 ± 0.062** |     2.517 |   2.676 |        1.00 |
+
+| Program (cold filesystem cache) | Version |   Mean [s] |
+| :------------------------------ | ------: | ---------: |
+| [fclones][0]                    |   0.8.0 | **19.452** |
+| [jdupes][1]                     |  1.14.0 |    129.132 |
+| [ddh][2]                        |  0.11.3 |     27.241 |
+| [rmlint][3]                     |   2.9.0 |     67.580 |
+| [dupe-krill][4]                 |   1.4.4 |    127.860 |
+| [fddf][5]                       |   1.7.0 |     32.661 |
+| yadf                            |  0.13.1 |     21.554 |
 
 `fdupes` is excluded from this benchmark because it's _really_ slow.
 
@@ -139,9 +149,9 @@ The script used to benchmark can be read [here](./bench.sh).
 [0]: https://github.com/pkolaczk/fclones
 [1]: https://github.com/jbruchon/jdupes
 [2]: https://github.com/darakian/ddh
-[3]: https://github.com/birkenfeld/fddf
-[4]: https://github.com/sahib/rmlint
-[5]: https://github.com/kornelski/dupe-krill
+[3]: https://github.com/sahib/rmlint
+[4]: https://github.com/kornelski/dupe-krill
+[5]: https://github.com/birkenfeld/fddf
 
 <details>
     <summary>Hardware used.</summary>

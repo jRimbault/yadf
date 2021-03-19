@@ -24,6 +24,7 @@ esac
 
 hyperfine --warmup "$warmups" \
   --min-runs 10 \
+  --export-markdown export.md \
   --prepare "$prepare_cmd" \
   "fclones --min-size 0 -R ~" \
   "jdupes -z -r ~" \
