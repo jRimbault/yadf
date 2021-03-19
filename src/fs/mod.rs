@@ -44,7 +44,7 @@ where
         })?;
         Ok((hash, path.to_owned()))
     };
-    rayon::scope(move |scope| {
+    rayon::scope(|scope| {
         let (sender, receiver) = crossbeam_channel::bounded(32);
         scope.spawn(move |_| walker.for_each(|entry| sender.send(process(entry)).unwrap()));
         receiver.into_iter().filter_map(Result::ok).collect()
@@ -55,9 +55,9 @@ pub fn dedupe<H>(bag: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
-    rayon::scope(move |scope| {
+    rayon::scope(|scope| {
         let (sender, receiver) = crossbeam_channel::bounded(32);
-        scope.spawn(move |_| {
+        scope.spawn(|_| {
             bag.into_inner()
                 .into_par_iter()
                 .for_each(move |(old_hash, bucket)| {
