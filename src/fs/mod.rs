@@ -25,27 +25,34 @@ where
 {
     let mut paths = unique_paths(directories);
     let first = paths.next().expect("there should be at least one path");
-    ignore::WalkBuilder::new(first)
+    let walker = ignore::WalkBuilder::new(first)
         .add_paths(paths)
         .standard_filters(false)
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
-        .build_parallel()
-        .map(|entry| {
-            let path = entry.path();
-            let meta = entry.metadata().map_err(|error| {
-                log::error!("{}, couldn't get metadata for {:?}", error, path);
-            })?;
-            if !filter.is_match(path, meta) {
-                return Err(());
-            }
-            let hash = hash::partial::<H, _>(&path).map_err(|error| {
-                log::error!("{}, couldn't hash {:?}", error, path);
-            })?;
-            Ok((hash, path.to_owned()))
-        })
-        .filter_map(Result::ok)
-        .collect()
+        .build_parallel();
+    rayon::scope(move |scope| {
+        let (sender, receiver) = crossbeam_channel::bounded(32);
+        scope.spawn(move |_| {
+            walker.for_each(|entry| {
+                let process = || {
+                    let path = entry.path();
+                    let meta = entry.metadata().map_err(|error| {
+                        log::error!("{}, couldn't get metadata for {:?}", error, path);
+                    })?;
+                    if !filter.is_match(path, meta) {
+                        return Err(());
+                    }
+                    let hash = hash::partial::<H, _>(&path).map_err(|error| {
+                        log::error!("{}, couldn't hash {:?}", error, path);
+                    })?;
+                    Ok((hash, path.to_owned()))
+                };
+                sender.send(process()).unwrap();
+            });
+        });
+        receiver.into_iter().filter_map(Result::ok).collect()
+    })
 }
 
 pub fn dedupe<H>(bag: TreeBag<u64, PathBuf>) -> crate::FileCounter
@@ -53,7 +60,7 @@ where
     H: Hasher + Default,
 {
     rayon::scope(move |scope| {
-        let (sender, receiver) = crossbeam_channel::unbounded();
+        let (sender, receiver) = crossbeam_channel::bounded(32);
         scope.spawn(move |_| {
             bag.into_inner()
                 .into_par_iter()
@@ -94,35 +101,26 @@ where
 }
 
 trait WalkParallelMap {
-    fn map<F, I>(self, fnmap: F) -> crossbeam_channel::IntoIter<I>
+    fn for_each<F>(self, f: F)
     where
-        F: Fn(ignore::DirEntry) -> I,
-        F: Send + Copy,
-        I: Send;
+        F: Fn(ignore::DirEntry),
+        F: Send + Copy;
 }
 
 impl WalkParallelMap for ignore::WalkParallel {
-    fn map<F, I>(self, fnmap: F) -> crossbeam_channel::IntoIter<I>
+    fn for_each<F>(self, f: F)
     where
-        F: Fn(ignore::DirEntry) -> I,
+        F: Fn(ignore::DirEntry),
         F: Send + Copy,
-        I: Send,
     {
-        rayon::scope(move |scope| {
-            let (sender, receiver) = crossbeam_channel::unbounded();
-            scope.spawn(move |_| {
-                self.run(move || {
-                    let sender = sender.clone();
-                    Box::new(move |result| {
-                        match result {
-                            Ok(entry) => sender.send(fnmap(entry)).unwrap(),
-                            Err(error) => log::error!("{}", error),
-                        }
-                        ignore::WalkState::Continue
-                    })
-                })
-            });
-            receiver.into_iter()
+        self.run(move || {
+            Box::new(move |result| {
+                match result {
+                    Ok(entry) => f(entry),
+                    Err(error) => log::error!("{}", error),
+                }
+                ignore::WalkState::Continue
+            })
         })
     }
 }
