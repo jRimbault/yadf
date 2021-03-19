@@ -23,6 +23,7 @@ fn sanity_check() {
 }
 
 #[test]
+#[ignore]
 fn identical_small_files() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     println!("{:?}", root.as_ref());
@@ -35,6 +36,7 @@ fn identical_small_files() -> AnyResult {
 }
 
 #[test]
+#[ignore]
 fn identical_larger_files() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let buffer: Vec<_> = random_collection(MAX_LEN * 3);
@@ -47,6 +49,7 @@ fn identical_larger_files() -> AnyResult {
 }
 
 #[test]
+#[ignore]
 fn files_differing_by_size() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     root.write_file("file1", b"aaaa")?;
@@ -58,6 +61,7 @@ fn files_differing_by_size() -> AnyResult {
 }
 
 #[test]
+#[ignore]
 fn files_differing_by_prefix() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     root.write_file("file1", b"aaa")?;
@@ -69,6 +73,7 @@ fn files_differing_by_prefix() -> AnyResult {
 }
 
 #[test]
+#[ignore]
 fn files_differing_by_suffix() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let mut buffer1 = Vec::with_capacity(MAX_LEN * 3 + 4);
@@ -85,6 +90,7 @@ fn files_differing_by_suffix() -> AnyResult {
 }
 
 #[test]
+#[ignore]
 fn files_differing_by_middle() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let mut buffer1 = Vec::with_capacity(MAX_LEN * 2 + 4);
