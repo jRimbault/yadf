@@ -89,16 +89,15 @@ fn rehash_file<H>(file: &Path) -> Result<u64, ()>
 where
     H: Hasher + Default,
 {
-    if file.metadata().map(|f| f.len()).unwrap_or(0) >= BLOCK_SIZE as _ {
-        match hash::full::<H, _>(&file) {
-            Ok(hash) => Ok(hash),
-            Err(error) => {
-                log::error!("{}, couldn't hash {:?}, reusing partial hash", error, file);
-                Err(())
-            }
+    if file.metadata().map(|f| f.len()).unwrap_or(0) < BLOCK_SIZE as _ {
+        return Err(());
+    }
+    match hash::full::<H, _>(&file) {
+        Ok(hash) => Ok(hash),
+        Err(error) => {
+            log::error!("{}, couldn't hash {:?}, reusing partial hash", error, file);
+            Err(())
         }
-    } else {
-        Err(())
     }
 }
 
@@ -115,7 +114,7 @@ impl WalkParallelMap for ignore::WalkParallel {
         F: Fn(ignore::DirEntry),
         F: Send + Copy,
     {
-        self.run(move || {
+        self.run(|| {
             Box::new(move |result| {
                 match result {
                     Ok(entry) => f(entry),
