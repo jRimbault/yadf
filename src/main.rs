@@ -16,9 +16,9 @@ fn main() -> anyhow::Result<()> {
     log::debug!("{:?}", args);
     let config = build_config(&args);
     log::debug!("{:?}", config);
-    let bag = select_algorithm(&args.algorithm, config);
-    let rfactor = args.rfactor.unwrap_or_default().into();
-    display(&args.format, bag.replicates(rfactor))?;
+    let bag = args.algorithm.run(config);
+    let rfactor = args.rfactor.unwrap_or_default();
+    args.format.display(bag.replicates(rfactor.into()))?;
     log::debug!("{:?} elapsed", timer.elapsed());
     Ok(())
 }
@@ -48,37 +48,42 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
         .build()
 }
 
-fn select_algorithm<P>(algorithm: &Algorithm, config: yadf::Yadf<P>) -> yadf::FileCounter
-where
-    P: AsRef<std::path::Path>,
-{
-    match algorithm {
-        Algorithm::AHash => config.scan::<ahash::AHasher>(),
-        Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
-        Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
-        Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
-        Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
+impl Algorithm {
+    fn run<P>(&self, config: yadf::Yadf<P>) -> yadf::FileCounter
+    where
+        P: AsRef<std::path::Path>,
+    {
+        log::debug!("using {} hashing", self);
+        match self {
+            Algorithm::AHash => config.scan::<ahash::AHasher>(),
+            Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
+            Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
+            Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
+            Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
+        }
     }
 }
 
-fn display(format: &Format, replicates: yadf::FileReplicates<'_>) -> anyhow::Result<()> {
-    let stdout = io::stdout();
-    let mut stdout = io::BufWriter::with_capacity(64 * 1024, stdout.lock());
-    match format {
-        Format::Json => {
-            serde_json::to_writer(&mut stdout, &replicates)?;
-            stdout.write_all(b"\n")?;
-        }
-        Format::JsonPretty => {
-            serde_json::to_writer_pretty(&mut stdout, &replicates)?;
-            stdout.write_all(b"\n")?;
-        }
-        Format::Csv => csv_to_writer(stdout, &replicates)?,
-        Format::LdJson => ldjson_to_writer(stdout, &replicates)?,
-        Format::Fdupes => writeln!(stdout, "{}", replicates.display::<Fdupes>())?,
-        Format::Machine => writeln!(stdout, "{}", replicates.display::<Machine>())?,
-    };
-    Ok(())
+impl Format {
+    fn display(&self, replicates: yadf::FileReplicates<'_>) -> anyhow::Result<()> {
+        let stdout = io::stdout();
+        let mut stdout = io::BufWriter::with_capacity(64 * 1024, stdout.lock());
+        match self {
+            Format::Json => {
+                serde_json::to_writer(&mut stdout, &replicates)?;
+                stdout.write_all(b"\n")?;
+            }
+            Format::JsonPretty => {
+                serde_json::to_writer_pretty(&mut stdout, &replicates)?;
+                stdout.write_all(b"\n")?;
+            }
+            Format::Csv => csv_to_writer(stdout, &replicates)?,
+            Format::LdJson => ldjson_to_writer(stdout, &replicates)?,
+            Format::Fdupes => writeln!(stdout, "{}", replicates.display::<Fdupes>())?,
+            Format::Machine => writeln!(stdout, "{}", replicates.display::<Machine>())?,
+        };
+        Ok(())
+    }
 }
 
 /// Yet Another Dupes Finder
