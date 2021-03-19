@@ -60,26 +60,32 @@ where
         scope.spawn(|_| {
             tree.into_inner()
                 .into_par_iter()
-                .for_each(move |(old_hash, bucket)| {
-                    if bucket.len() == 1 {
-                        let file = bucket.into_iter().next().unwrap();
-                        sender.send((old_hash, file.into())).unwrap();
-                    } else {
-                        bucket
-                            .into_par_iter()
-                            .for_each_with(sender.clone(), |sender, file| {
-                                let hash = rehash::<H>(&file).unwrap_or(old_hash);
-                                sender.send((hash, file.into())).unwrap();
-                            });
-                    }
-                });
+                .for_each_with(sender, process_bucket::<H>)
         });
         receiver.into_iter().collect()
     })
 }
 
-// decrease indent level of the dedupe function
-fn rehash<H>(file: &Path) -> Result<u64, ()>
+fn process_bucket<H>(
+    sender: &mut crossbeam_channel::Sender<(u64, crate::Path)>,
+    (old_hash, bucket): (u64, Vec<PathBuf>),
+) where
+    H: Hasher + Default,
+{
+    if bucket.len() == 1 {
+        let file = bucket.into_iter().next().unwrap();
+        sender.send((old_hash, file.into())).unwrap();
+    } else {
+        bucket
+            .into_par_iter()
+            .for_each_with(sender.clone(), |sender, file| {
+                let hash = rehash_file::<H>(&file).unwrap_or(old_hash);
+                sender.send((hash, file.into())).unwrap();
+            });
+    }
+}
+
+fn rehash_file<H>(file: &Path) -> Result<u64, ()>
 where
     H: Hasher + Default,
 {
