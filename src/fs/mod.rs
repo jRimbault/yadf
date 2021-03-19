@@ -31,26 +31,22 @@ where
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
         .build_parallel();
+    let process = |entry: ignore::DirEntry| {
+        let path = entry.path();
+        let meta = entry.metadata().map_err(|error| {
+            log::error!("{}, couldn't get metadata for {:?}", error, path);
+        })?;
+        if !filter.is_match(path, meta) {
+            return Err(());
+        }
+        let hash = hash::partial::<H, _>(&path).map_err(|error| {
+            log::error!("{}, couldn't hash {:?}", error, path);
+        })?;
+        Ok((hash, path.to_owned()))
+    };
     rayon::scope(move |scope| {
         let (sender, receiver) = crossbeam_channel::bounded(32);
-        scope.spawn(move |_| {
-            walker.for_each(|entry| {
-                let process = || {
-                    let path = entry.path();
-                    let meta = entry.metadata().map_err(|error| {
-                        log::error!("{}, couldn't get metadata for {:?}", error, path);
-                    })?;
-                    if !filter.is_match(path, meta) {
-                        return Err(());
-                    }
-                    let hash = hash::partial::<H, _>(&path).map_err(|error| {
-                        log::error!("{}, couldn't hash {:?}", error, path);
-                    })?;
-                    Ok((hash, path.to_owned()))
-                };
-                sender.send(process()).unwrap();
-            });
-        });
+        scope.spawn(move |_| walker.for_each(|entry| sender.send(process(entry)).unwrap()));
         receiver.into_iter().filter_map(Result::ok).collect()
     })
 }
