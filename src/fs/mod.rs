@@ -56,7 +56,7 @@ where
     H: Hasher + Default,
 {
     rayon::scope(|scope| {
-        let (sender, receiver) = crossbeam_channel::bounded(32);
+        let (sender, receiver) = crossbeam_channel::bounded(1024);
         scope.spawn(|_| {
             tree.into_inner()
                 .into_par_iter()
