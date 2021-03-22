@@ -46,8 +46,14 @@ where
     };
     rayon::scope(|scope| {
         let (sender, receiver) = crossbeam_channel::bounded(32);
-        scope.spawn(move |_| walker.for_each(|entry| sender.send(process(entry)).unwrap()));
-        receiver.into_iter().filter_map(Result::ok).collect()
+        scope.spawn(move |_| {
+            walker.for_each(|entry| {
+                if let Ok(key_value) = process(entry) {
+                    sender.send(key_value).unwrap()
+                }
+            })
+        });
+        receiver.into_iter().collect()
     })
 }
 
