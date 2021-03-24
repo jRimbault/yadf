@@ -57,25 +57,17 @@ where
 pub trait WalkParallelForEach {
     fn for_each<F>(self, f: F)
     where
-        F: Fn(ignore::DirEntry),
+        F: Fn(Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState,
         F: Send + Copy;
 }
 
 impl WalkParallelForEach for ignore::WalkParallel {
     fn for_each<F>(self, f: F)
     where
-        F: Fn(ignore::DirEntry),
+        F: Fn(Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState,
         F: Send + Copy,
     {
-        self.run(|| {
-            Box::new(move |result| {
-                match result {
-                    Ok(entry) => f(entry),
-                    Err(error) => log::error!("{}", error),
-                }
-                ignore::WalkState::Continue
-            })
-        })
+        self.run(|| Box::new(move |result| f(result)))
     }
 }
 

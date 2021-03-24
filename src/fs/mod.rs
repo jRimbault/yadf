@@ -51,9 +51,14 @@ where
         let (sender, receiver) = crossbeam_channel::bounded(32);
         scope.spawn(move |_| {
             walker.for_each(|entry| {
-                if let Ok(key_value) = process(entry) {
-                    sender.send(key_value).unwrap()
+                if let Err(error) = entry {
+                    log::error!("{}", error);
+                    return ignore::WalkState::Continue;
                 }
+                if let Ok(key_value) = process(entry.unwrap()) {
+                    sender.send(key_value).unwrap();
+                }
+                ignore::WalkState::Continue
             })
         });
         receiver.into_iter().collect()
