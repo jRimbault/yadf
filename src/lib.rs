@@ -19,6 +19,7 @@
 #![warn(rust_2018_idioms)]
 
 mod bag;
+mod ext;
 mod fs;
 mod path;
 

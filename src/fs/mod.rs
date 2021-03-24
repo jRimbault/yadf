@@ -4,10 +4,11 @@ pub mod filter;
 mod hash;
 mod heuristic;
 
-use super::TreeBag;
+use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
+use crate::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::hash::Hasher;
 use std::path::{Path, PathBuf};
-use std::{collections::HashSet, hash::Hasher};
 
 const BLOCK_SIZE: usize = 4096;
 
@@ -23,7 +24,9 @@ where
     H: Hasher + Default,
     P: AsRef<Path>,
 {
-    let mut paths = unique_paths(directories);
+    let mut paths = directories
+        .iter()
+        .unique_by(|path| dunce::canonicalize(path).ok());
     let first = paths.next().expect("there should be at least one path");
     let walker = ignore::WalkBuilder::new(first)
         .add_paths(paths)
@@ -105,64 +108,4 @@ where
             Err(())
         }
     }
-}
-
-trait WalkParallelMap {
-    fn for_each<F>(self, f: F)
-    where
-        F: Fn(ignore::DirEntry),
-        F: Send + Copy;
-}
-
-impl WalkParallelMap for ignore::WalkParallel {
-    fn for_each<F>(self, f: F)
-    where
-        F: Fn(ignore::DirEntry),
-        F: Send + Copy,
-    {
-        self.run(|| {
-            Box::new(move |result| {
-                match result {
-                    Ok(entry) => f(entry),
-                    Err(error) => log::error!("{}", error),
-                }
-                ignore::WalkState::Continue
-            })
-        })
-    }
-}
-
-trait WalkBuilderAddPaths {
-    fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
-    where
-        P: AsRef<Path>,
-        I: IntoIterator<Item = P>;
-}
-
-impl WalkBuilderAddPaths for ignore::WalkBuilder {
-    fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
-    where
-        P: AsRef<Path>,
-        I: IntoIterator<Item = P>,
-    {
-        for path in paths {
-            self.add(path);
-        }
-        self
-    }
-}
-
-fn unique_paths<P, I>(paths: I) -> impl Iterator<Item = P>
-where
-    P: AsRef<Path>,
-    I: IntoIterator<Item = P>,
-{
-    let mut paths_set = HashSet::new();
-    paths.into_iter().filter_map(move |path| {
-        if paths_set.insert(dunce::canonicalize(&path).ok()?) {
-            Some(path)
-        } else {
-            None
-        }
-    })
 }
