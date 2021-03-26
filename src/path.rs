@@ -9,12 +9,7 @@ impl Serialize for Path {
     where
         S: Serializer,
     {
-        if let Some(path) = self.0.to_str() {
-            serializer.serialize_str(path)
-        } else {
-            log::warn!("path contains invalid UTF-8 characters : {:?}", self.0);
-            serializer.serialize_str(&grep_cli::escape_os(self.0.as_ref()))
-        }
+        serializer.collect_str(&self.0.display())
     }
 }
 

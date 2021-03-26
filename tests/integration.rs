@@ -169,7 +169,6 @@ fn non_utf8_paths() -> AnyResult {
         .args(&["-f", "json"])
         .arg("-vv")
         .assert()
-        .success()
-        .stderr(predstr::contains("path contains invalid UTF-8 characters"));
+        .success();
     Ok(())
 }
