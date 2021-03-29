@@ -88,7 +88,7 @@ impl Format {
 
 /// Yet Another Dupes Finder
 #[derive(structopt::StructOpt, Debug)]
-#[structopt(setting(structopt::clap::AppSettings::ColoredHelp))]
+// #[structopt(setting(structopt::clap::AppSettings::ColoredHelp))]
 pub struct Args {
     /// Directories to search
     ///
@@ -125,9 +125,9 @@ pub struct Args {
     /// Maximum recursion depth
     #[structopt(short = "d", long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
-    #[cfg(unix)]
     /// Treat hard links to same file as duplicates
-    #[structopt(short = "H", long)]
+    #[cfg(unix)]
+    #[cfg_attr(unix, structopt(short = "H", long))]
     hard_links: bool,
     /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
