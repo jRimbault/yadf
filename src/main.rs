@@ -3,7 +3,9 @@
 
 mod args;
 
+use anyhow::Context;
 use byte_unit::Byte;
+use std::fs::File;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use structopt::clap::arg_enum;
@@ -18,7 +20,16 @@ fn main() -> anyhow::Result<()> {
     log::debug!("{:?}", config);
     let bag = args.algorithm.run(config);
     let rfactor = args.rfactor.unwrap_or_default();
-    args.format.display(bag.replicates(rfactor.into()))?;
+    let replicates = bag.replicates(rfactor.into());
+    match args.output {
+        Some(path) => {
+            let context = || format!("writing output to the file: {:?}", path.display());
+            let file = File::create(&path).with_context(context)?;
+            args.format.display(file, replicates)
+        }
+        None => args.format.display(io::stdout().lock(), replicates),
+    }
+    .context("writing output")?;
     log::debug!("{:?} elapsed", timer.elapsed());
     Ok(())
 }
@@ -65,22 +76,24 @@ impl Algorithm {
 }
 
 impl Format {
-    fn display(&self, replicates: yadf::FileReplicates<'_>) -> anyhow::Result<()> {
-        let stdout = io::stdout();
-        let mut stdout = io::BufWriter::with_capacity(64 * 1024, stdout.lock());
+    fn display<W>(&self, writer: W, replicates: yadf::FileReplicates<'_>) -> anyhow::Result<()>
+    where
+        W: Write,
+    {
+        let mut writer = io::BufWriter::with_capacity(64 * 1024, writer);
         match self {
             Format::Json => {
-                serde_json::to_writer(&mut stdout, &replicates)?;
-                stdout.write_all(b"\n")?;
+                serde_json::to_writer(&mut writer, &replicates)?;
+                writer.write_all(b"\n")?;
             }
             Format::JsonPretty => {
-                serde_json::to_writer_pretty(&mut stdout, &replicates)?;
-                stdout.write_all(b"\n")?;
+                serde_json::to_writer_pretty(&mut writer, &replicates)?;
+                writer.write_all(b"\n")?;
             }
-            Format::Csv => csv_to_writer(stdout, &replicates)?,
-            Format::LdJson => ldjson_to_writer(stdout, &replicates)?,
-            Format::Fdupes => writeln!(stdout, "{}", replicates.display::<Fdupes>())?,
-            Format::Machine => writeln!(stdout, "{}", replicates.display::<Machine>())?,
+            Format::Csv => csv_to_writer(writer, &replicates)?,
+            Format::LdJson => ldjson_to_writer(writer, &replicates)?,
+            Format::Fdupes => writeln!(writer, "{}", replicates.display::<Fdupes>())?,
+            Format::Machine => writeln!(writer, "{}", replicates.display::<Machine>())?,
         };
         Ok(())
     }
@@ -145,6 +158,9 @@ pub struct Args {
     /// to find files with less than 10 copies use `under:10`
     #[structopt(long)]
     rfactor: Option<ReplicationFactor>,
+    /// Optional output file
+    #[structopt(short, long, parse(from_os_str))]
+    output: Option<PathBuf>,
 }
 
 arg_enum! {
@@ -178,10 +194,10 @@ enum ReplicationFactor {
 }
 
 /// mimic serde_json interface
-fn csv_to_writer<W: std::io::Write>(
-    writer: W,
-    replicates: &yadf::FileReplicates<'_>,
-) -> csv::Result<()> {
+fn csv_to_writer<W>(writer: W, replicates: &yadf::FileReplicates<'_>) -> csv::Result<()>
+where
+    W: Write,
+{
     let mut writer = csv::WriterBuilder::new()
         .flexible(true)
         .has_headers(false)
@@ -194,10 +210,10 @@ fn csv_to_writer<W: std::io::Write>(
 }
 
 /// mimic serde_json interface
-fn ldjson_to_writer<W: std::io::Write>(
-    mut writer: W,
-    replicates: &yadf::FileReplicates<'_>,
-) -> anyhow::Result<()> {
+fn ldjson_to_writer<W>(mut writer: W, replicates: &yadf::FileReplicates<'_>) -> anyhow::Result<()>
+where
+    W: Write,
+{
     for files in replicates {
         serde_json::to_writer(&mut writer, &files)?;
         writeln!(writer)?;
