@@ -118,7 +118,7 @@ I sought out to build a high performing artefact by assembling together librarie
 ## Benchmarks
 
 The performance of `yadf` is heavily tied to the hardware, specifically the
-NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in general more features.
+NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in general more features. `yadf` on HDDs is _terrible_.
 
 My home directory contains upwards of 700k paths and 39 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc. Arguably, the most important measure here is the mean time when the filesystem cache is cold.
 
