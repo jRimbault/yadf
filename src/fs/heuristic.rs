@@ -71,9 +71,9 @@ mod win {
 
     static SYSTEM: Lazy<System> = Lazy::new(|| System {
         mounted: sysinfo::System::new_all()
-            .get_disks()
+            .disks()
             .iter()
-            .map(|disk| (disk.get_mount_point().to_owned(), disk.get_type()))
+            .map(|disk| (disk.mount_point().to_owned(), disk.type_()))
             .map(Into::into)
             .collect(),
     });
@@ -105,15 +105,15 @@ mod unix {
             root: ("".into(), DiskType::Unknown(-1)).into(),
             mounted: Vec::new(),
         };
-        for disk in infos.get_disks() {
-            let mut components = disk.get_mount_point().components();
+        for disk in infos.disks() {
+            let mut components = disk.mount_point().components();
             if let (Some(Component::RootDir), None) = (components.next(), components.next()) {
-                system.root = (disk.get_mount_point().to_owned(), disk.get_type()).into();
+                system.root = (disk.mount_point().to_owned(), disk.type_()).into();
                 continue;
             }
             system
                 .mounted
-                .push((disk.get_mount_point().to_owned(), disk.get_type()).into());
+                .push((disk.mount_point().to_owned(), disk.type_()).into());
         }
         system
     });
