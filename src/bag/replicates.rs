@@ -42,7 +42,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = &'a Vec<V>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(bucket) = self.values.next() {
+        for bucket in &mut self.values {
             if self.factor.pass(bucket.len()) {
                 return Some(bucket);
             }

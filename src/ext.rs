@@ -45,7 +45,7 @@ where
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.iter.next() {
+        for item in &mut self.iter {
             if self.set.insert((self.f)(&item)) {
                 return Some(item);
             }
