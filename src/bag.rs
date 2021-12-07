@@ -133,10 +133,16 @@ impl<K, V> TreeBag<K, V> {
 impl<K: Ord, V> FromIterator<(K, V)> for TreeBag<K, V> {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(key_value_iter: I) -> Self {
         let mut bag = TreeBag(BTreeMap::default());
-        for (key, value) in key_value_iter {
-            bag.entry(key).or_default().push(value);
-        }
+        bag.extend(key_value_iter);
         bag
+    }
+}
+
+impl<K: Ord, V> std::iter::Extend<(K, V)> for TreeBag<K, V> {
+    fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, key_value_iter: I) {
+        for (key, value) in key_value_iter {
+            self.entry(key).or_default().push(value);
+        }
     }
 }
 
