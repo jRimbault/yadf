@@ -67,7 +67,7 @@ impl WalkParallelForEach for ignore::WalkParallel {
         F: Fn(Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState,
         F: Send + Copy,
     {
-        self.run(|| Box::new(move |result| f(result)))
+        self.run(|| Box::new(f))
     }
 }
 
