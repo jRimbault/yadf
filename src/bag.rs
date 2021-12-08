@@ -134,7 +134,7 @@ impl<K: Ord, V> FromIterator<(K, V)> for TreeBag<K, V> {
     where
         I: IntoIterator<Item = (K, V)>,
     {
-        let mut bag = TreeBag(BTreeMap::default());
+        let mut bag = TreeBag::default();
         bag.extend(key_value_iter);
         bag
     }
@@ -148,6 +148,12 @@ impl<K: Ord, V> Extend<(K, V)> for TreeBag<K, V> {
         for (key, value) in key_value_iter {
             self.entry(key).or_default().push(value);
         }
+    }
+}
+
+impl<K, V> Default for TreeBag<K, V> {
+    fn default() -> Self {
+        Self(Default::default())
     }
 }
 
