@@ -5,7 +5,6 @@ mod serialize;
 use std::borrow::Borrow;
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
-use std::iter::FromIterator;
 use std::ops::Index;
 
 /// Ordered counter structure.
@@ -131,15 +130,21 @@ impl<K, V> TreeBag<K, V> {
 }
 
 impl<K: Ord, V> FromIterator<(K, V)> for TreeBag<K, V> {
-    fn from_iter<I: IntoIterator<Item = (K, V)>>(key_value_iter: I) -> Self {
+    fn from_iter<I>(key_value_iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
         let mut bag = TreeBag(BTreeMap::default());
         bag.extend(key_value_iter);
         bag
     }
 }
 
-impl<K: Ord, V> std::iter::Extend<(K, V)> for TreeBag<K, V> {
-    fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, key_value_iter: I) {
+impl<K: Ord, V> Extend<(K, V)> for TreeBag<K, V> {
+    fn extend<I>(&mut self, key_value_iter: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
         for (key, value) in key_value_iter {
             self.entry(key).or_default().push(value);
         }
