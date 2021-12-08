@@ -32,31 +32,24 @@ where
     H: Hasher + Default,
     P: AsRef<Path>,
 {
+    /// Compile time [`Write`](std::io::Write) wrapper for a [`Hasher`](core::hash::Hasher).
+    /// This should get erased at compile time.
+    #[repr(transparent)]
+    struct HashWriter<H>(H);
+
+    impl<H: Hasher> io::Write for HashWriter<H> {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.write(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
     let mut hasher = HashWriter(H::default());
     io::copy(&mut File::open(path)?, &mut hasher)?;
-    Ok(hasher.finish())
-}
-
-#[derive(Debug)]
-#[repr(transparent)]
-struct HashWriter<H: Hasher>(H);
-
-impl<H: Hasher> io::Write for HashWriter<H> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<H: Hasher> HashWriter<H> {
-    #[inline(always)]
-    fn finish(self) -> u64 {
-        self.0.finish()
-    }
+    Ok(hasher.0.finish())
 }
 
 #[cfg(test)]
