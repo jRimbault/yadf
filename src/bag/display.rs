@@ -32,7 +32,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
         while let Some(bucket) = duplicates.next() {
-            let (last, rest) = bucket.split_last().unwrap();
+            let (last, rest) = bucket.split_last().ok_or(fmt::Error)?;
             for dupe in rest {
                 fmt::Debug::fmt(dupe.as_ref(), f)?;
                 f.write_str(" ")?;

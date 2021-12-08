@@ -36,16 +36,21 @@ where
         .build_parallel();
     let process = |entry: ignore::DirEntry| {
         let path = entry.path();
-        let meta = entry.metadata().map_err(|error| {
-            log::error!("{}, couldn't get metadata for {:?}", error, path);
-        })?;
+        let meta = entry
+            .metadata()
+            .map_err(|error| {
+                log::error!("{}, couldn't get metadata for {:?}", error, path);
+            })
+            .ok()?;
         if !filter.is_match(path, meta) {
-            return Err(());
+            return None;
         }
-        let hash = hash::partial::<H, _>(&path).map_err(|error| {
-            log::error!("{}, couldn't hash {:?}", error, path);
-        })?;
-        Ok((hash, path.to_owned()))
+        let hash = hash::partial::<H, _>(&path)
+            .map_err(|error| {
+                log::error!("{}, couldn't hash {:?}", error, path);
+            })
+            .ok()?;
+        Some((hash, path.to_owned()))
     };
     rayon::scope(|scope| {
         let (sender, receiver) = crossbeam_channel::bounded(32);
@@ -55,8 +60,10 @@ where
                     log::error!("{}", error);
                     return ignore::WalkState::Continue;
                 }
-                if let Ok(key_value) = process(entry.unwrap()) {
-                    sender.send(key_value).unwrap();
+                if let Some(key_value) = process(entry.unwrap()) {
+                    if let Err(error) = sender.send(key_value) {
+                        log::error!("{}, couldn't send value across channel", error);
+                    }
                 }
                 ignore::WalkState::Continue
             })
@@ -88,13 +95,17 @@ fn process_bucket<H>(
 {
     if bucket.len() == 1 {
         let file = bucket.into_iter().next().unwrap();
-        sender.send((old_hash, file.into())).unwrap();
+        if let Err(error) = sender.send((old_hash, file.into())) {
+            log::error!("{}, couldn't send value across channel", error);
+        }
     } else {
         bucket
             .into_par_iter()
             .for_each_with(sender.clone(), |sender, file| {
                 let hash = rehash_file::<H>(&file).unwrap_or(old_hash);
-                sender.send((hash, file.into())).unwrap();
+                if let Err(error) = sender.send((hash, file.into())) {
+                    log::error!("{}, couldn't send value across channel", error);
+                }
             });
     }
 }
