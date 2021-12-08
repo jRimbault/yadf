@@ -1,4 +1,4 @@
-//! This a binary crate. You _can_ use it as a library, but I wouldn't recommend it.
+//! This is a binary crate. You _can_ use it as a library, but I wouldn't recommend it.
 //! If you do, remember to disable the default features which are used to build
 //! the binary.
 //!
