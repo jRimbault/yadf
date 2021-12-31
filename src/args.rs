@@ -1,27 +1,29 @@
 use super::{Algorithm, Args, Format, ReplicationFactor};
+use clap::{FromArgMatches, IntoApp};
 use std::env;
 use std::fmt;
 use std::io::BufRead;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 impl Args {
     pub fn max(&self) -> Option<u64> {
-        self.max.map(|m| m.get_bytes())
+        self.max.as_ref().map(|m| m.0.get_bytes())
     }
 
     pub fn min(&self) -> Option<u64> {
         self.min
-            .map(|m| m.get_bytes())
+            .as_ref()
+            .map(|m| m.0.get_bytes())
             .or(if self.no_empty { Some(1) } else { None })
     }
 
     pub fn init_from_env() -> Self {
         let long_version = env!("YADF_BUILD_VERSION").replace("|", "\n");
-        let app = Self::clap()
+        let app = Self::into_app()
+            .version(long_version.lines().next().unwrap())
             .long_version(long_version.as_str())
             .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
-        let mut args = Self::from_clap(&app.get_matches());
+        let mut args = Self::from_arg_matches(&app.get_matches()).unwrap();
         init_logger(&args.verbosity);
         args.build_paths();
         args

@@ -4,11 +4,11 @@
 mod args;
 
 use anyhow::Context;
-use byte_unit::Byte;
+use clap::{ArgEnum, Parser};
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use structopt::clap::arg_enum;
+use std::str::FromStr;
 use yadf::{Fdupes, Machine};
 
 fn main() -> anyhow::Result<()> {
@@ -64,7 +64,7 @@ impl Algorithm {
     where
         P: AsRef<std::path::Path>,
     {
-        log::debug!("using {} hashing", self);
+        log::debug!("using {:?} hashing", self);
         match self {
             Algorithm::AHash => config.scan::<ahash::AHasher>(),
             Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
@@ -100,89 +100,84 @@ impl Format {
 }
 
 /// Yet Another Dupes Finder
-#[derive(structopt::StructOpt, Debug)]
-#[structopt(setting(structopt::clap::AppSettings::ColoredHelp))]
+#[derive(Parser, Debug)]
 pub struct Args {
     /// Directories to search
     ///
     /// default is to search inside the current working directory
-    #[structopt(parse(from_os_str))]
+    #[clap(parse(from_os_str))]
     paths: Vec<PathBuf>,
     /// Output format
-    #[structopt(
-        short,
-        long,
-        default_value,
-        possible_values = &Format::variants(),
-        case_insensitive = true
-    )]
+    #[clap(short, long, arg_enum, default_value_t, ignore_case = true)]
     format: Format,
     /// Hashing algorithm
-    #[structopt(
-        short,
-        long,
-        default_value,
-        possible_values = &Algorithm::variants(),
-        case_insensitive = true
-    )]
+    #[clap(short, long, arg_enum, default_value_t, ignore_case = true)]
     algorithm: Algorithm,
     /// Excludes empty files
-    #[structopt(short, long)]
+    #[clap(short, long)]
     no_empty: bool,
     /// Minimum file size
-    #[structopt(long, value_name = "size")]
+    #[clap(long, value_name = "size")]
     min: Option<Byte>,
     /// Maximum file size
-    #[structopt(long, value_name = "size")]
+    #[clap(long, value_name = "size")]
     max: Option<Byte>,
     /// Maximum recursion depth
-    #[structopt(short = "d", long = "depth", value_name = "depth")]
+    #[clap(short = 'd', long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
     /// Treat hard links to same file as duplicates
-    #[cfg(unix)]
-    #[cfg_attr(unix, structopt(short = "H", long))]
-    hard_links: bool,
+    //#[cfg(unix)]
+    //#[cfg_attr(unix, clap(short = "H", long))]
+    //hard_links: bool,
     /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
-    #[structopt(short = "R", long)]
+    #[clap(short = 'R', long)]
     regex: Option<regex::Regex>,
     /// Check files with a name matching a glob pattern,
     /// see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
-    #[structopt(short, long, value_name = "glob")]
+    #[clap(short, long, value_name = "glob")]
     pattern: Option<globset::Glob>,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     verbosity: clap_verbosity_flag::Verbosity,
     /// Replication factor [under|equal|over]:n
     ///
     /// The default is `over:1`, to find uniques use `equal:1`,
     /// to find files with less than 10 copies use `under:10`
-    #[structopt(long)]
+    #[clap(long)]
     rfactor: Option<ReplicationFactor>,
     /// Optional output file
-    #[structopt(short, long, parse(from_os_str))]
+    #[clap(short, long, parse(from_os_str))]
     output: Option<PathBuf>,
 }
 
-arg_enum! {
-    #[derive(Debug)]
-    enum Format {
-        Csv,
-        Fdupes,
-        Json,
-        JsonPretty,
-        LdJson,
-        Machine,
-    }
+#[derive(ArgEnum, Debug, Clone)]
+enum Format {
+    Csv,
+    Fdupes,
+    Json,
+    JsonPretty,
+    LdJson,
+    Machine,
 }
 
-arg_enum! {
-    #[derive(Debug)]
-    enum Algorithm {
-        AHash,
-        Highway,
-        MetroHash,
-        SeaHash,
-        XxHash,
+#[derive(ArgEnum, Debug, Clone)]
+enum Algorithm {
+    AHash,
+    Highway,
+    MetroHash,
+    SeaHash,
+    XxHash,
+}
+
+#[derive(Debug)]
+struct Byte(byte_unit::Byte);
+
+impl FromStr for Byte {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        byte_unit::Byte::from_str(s)
+            .map(Byte)
+            .map_err(|e| e.to_string())
     }
 }
 

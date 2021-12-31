@@ -129,7 +129,7 @@ impl<K, V> TreeBag<K, V> {
     }
 }
 
-impl<K: Ord, V> FromIterator<(K, V)> for TreeBag<K, V> {
+impl<K: Ord, V> std::iter::FromIterator<(K, V)> for TreeBag<K, V> {
     fn from_iter<I>(key_value_iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
