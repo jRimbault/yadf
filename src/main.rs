@@ -126,9 +126,9 @@ pub struct Args {
     #[clap(short = 'd', long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
     /// Treat hard links to same file as duplicates
-    //#[cfg(unix)]
-    //#[cfg_attr(unix, clap(short = "H", long))]
-    //hard_links: bool,
+    #[cfg_attr(unix, clap(short = 'H', long))]
+    #[cfg(unix)]
+    hard_links: bool,
     /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
     #[clap(short = 'R', long)]
