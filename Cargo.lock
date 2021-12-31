@@ -368,12 +368,6 @@ dependencies = [
 
 [[package]]
 name = "highway"
-version = "0.6.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3461b968f695ca312b968503261f5a345de0f02a39dbaa3021f20d53b426395d"
-
-[[package]]
-name = "highway"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a310093553e2397bd2936564960446b23233864bbffee554ec5847572e2dfd93"
@@ -1019,8 +1013,7 @@ dependencies = [
  "dunce",
  "env_logger",
  "globset",
- "highway 0.6.4",
- "highway 0.7.0",
+ "highway",
  "human-panic",
  "ignore",
  "log",
