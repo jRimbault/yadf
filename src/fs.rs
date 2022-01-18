@@ -34,24 +34,6 @@ where
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
         .build_parallel();
-    let process = |entry: ignore::DirEntry| {
-        let path = entry.path();
-        let meta = entry
-            .metadata()
-            .map_err(|error| {
-                log::error!("{}, couldn't get metadata for {:?}", error, path);
-            })
-            .ok()?;
-        if !filter.is_match(path, meta) {
-            return None;
-        }
-        let hash = hash::partial::<H, _>(&path)
-            .map_err(|error| {
-                log::error!("{}, couldn't hash {:?}", error, path);
-            })
-            .ok()?;
-        Some((hash, path.to_owned()))
-    };
     rayon::scope(|scope| {
         let (sender, receiver) = crossbeam_channel::bounded(32);
         scope.spawn(move |_| {
@@ -60,7 +42,7 @@ where
                     log::error!("{}", error);
                     return ignore::WalkState::Continue;
                 }
-                if let Some(key_value) = process(entry.unwrap()) {
+                if let Some(key_value) = hash_entry::<H>(&filter, entry.unwrap()) {
                     if let Err(error) = sender.send(key_value) {
                         log::error!("{}, couldn't send value across channel", error);
                     }
@@ -70,6 +52,28 @@ where
         });
         receiver.into_iter().collect()
     })
+}
+
+fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)>
+where
+    H: Hasher + Default,
+{
+    let path = entry.path();
+    let meta = entry
+        .metadata()
+        .map_err(|error| {
+            log::error!("{}, couldn't get metadata for {:?}", error, path);
+        })
+        .ok()?;
+    if !filter.is_match(path, meta) {
+        return None;
+    }
+    let hash = hash::partial::<H, _>(&path)
+        .map_err(|error| {
+            log::error!("{}, couldn't hash {:?}", error, path);
+        })
+        .ok()?;
+    Some((hash, path.to_owned()))
 }
 
 pub fn dedupe<H>(tree: TreeBag<u64, PathBuf>) -> crate::FileCounter
