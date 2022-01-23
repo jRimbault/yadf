@@ -161,6 +161,7 @@ enum Format {
 }
 
 #[derive(ArgEnum, Debug, Clone)]
+#[clap(rename_all = "lower")]
 enum Algorithm {
     AHash,
     Highway,

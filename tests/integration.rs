@@ -33,7 +33,7 @@ fn trace_output() -> AnyResult {
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg("-vvvv") // test stderr contains enough debug output
         .args(&["--format", "json"])
-        .args(&["--algorithm", "sea-hash"])
+        .args(&["--algorithm", "seahash"])
         .arg(root.as_ref())
         .assert()
         .success()
