@@ -73,7 +73,7 @@ where
             log::error!("{}, couldn't hash {:?}", error, path);
         })
         .ok()?;
-    Some((hash, path.to_owned()))
+    Some((hash, entry.into_path()))
 }
 
 pub fn dedupe<H>(tree: TreeBag<u64, PathBuf>) -> crate::FileCounter
