@@ -998,27 +998,53 @@ dependencies = [
  "byte-unit",
  "clap",
  "clap-verbosity-flag",
- "crossbeam-channel",
  "csv",
  "dirs",
- "dunce",
  "env_logger",
  "globset",
  "highway",
  "human-panic",
- "ignore",
  "log",
  "metrohash",
- "num_cpus",
  "once_cell",
  "predicates",
  "rand",
+ "regex",
+ "seahash",
+ "serde_json",
+ "twox-hash",
+ "yadf-lib",
+ "yadf-lib-bag",
+]
+
+[[package]]
+name = "yadf-lib"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "dirs",
+ "dunce",
+ "env_logger",
+ "globset",
+ "ignore",
+ "log",
+ "num_cpus",
+ "once_cell",
  "rayon",
  "regex",
  "seahash",
  "serde",
  "serde_json",
  "sysinfo",
- "twox-hash",
  "typed-builder",
+ "yadf-lib-bag",
+]
+
+[[package]]
+name = "yadf-lib-bag"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "serde",
+ "serde_json",
 ]

@@ -1,5 +1,6 @@
 mod display;
 mod replicates;
+#[cfg(feature = "serde")]
 mod serialize;
 
 use std::borrow::Borrow;
@@ -12,7 +13,7 @@ use std::ops::Index;
 /// # Example :
 ///
 /// ```
-/// use yadf::TreeBag;
+/// use yadf_lib_bag::TreeBag;
 ///
 /// let bag: TreeBag<i32, &str> = vec![
 ///     (3, "hello world"),

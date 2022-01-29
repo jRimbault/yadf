@@ -4,6 +4,7 @@ use std::env;
 use std::fmt;
 use std::io::BufRead;
 use std::path::PathBuf;
+use yadf_lib as yadf;
 
 impl Args {
     pub fn max(&self) -> Option<u64> {

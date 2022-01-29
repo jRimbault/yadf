@@ -15,7 +15,7 @@
 //!
 //! ```no_run
 //! # fn foo(paths: &[std::path::PathBuf]) {
-//! let counter = yadf::Yadf::builder()
+//! let counter = yadf_lib::Yadf::builder()
 //!     .paths(paths)
 //!     .build()
 //!     .scan::<highway::HighwayHasher>();
@@ -25,7 +25,7 @@
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 
-mod bag;
+extern crate yadf_lib_bag as bag;
 mod ext;
 mod fs;
 mod path;
@@ -46,7 +46,7 @@ pub type FileReplicates<'a> = bag::Replicates<'a, u64, Path>;
 ///
 /// ```no_run
 /// # fn foo(paths: &[std::path::PathBuf]) {
-/// let counter = yadf::Yadf::builder()
+/// let counter = yadf_lib::Yadf::builder()
 ///     .paths(paths) // required
 ///     .minimum_file_size(64) // optional
 ///     .maximum_file_size(1024 * 8) // optional

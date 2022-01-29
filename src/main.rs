@@ -1,6 +1,8 @@
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 
+extern crate yadf_lib as yadf;
+
 mod args;
 
 use anyhow::Context;
