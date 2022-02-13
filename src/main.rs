@@ -66,11 +66,11 @@ impl Algorithm {
     {
         log::debug!("using {:?} hashing", self);
         match self {
-            Algorithm::AHash => config.scan::<ahash::AHasher>(),
-            Algorithm::Highway => config.scan::<highway::HighwayHasher>(),
-            Algorithm::MetroHash => config.scan::<metrohash::MetroHash>(),
-            Algorithm::SeaHash => config.scan::<seahash::SeaHasher>(),
-            Algorithm::XxHash => config.scan::<twox_hash::XxHash64>(),
+            Algorithm::AHash => config.scan::<ahash::AHasher, highway::HighwayHasher>(),
+            Algorithm::Highway => config.scan::<highway::HighwayHasher, metrohash::MetroHash>(),
+            Algorithm::MetroHash => config.scan::<metrohash::MetroHash, seahash::SeaHasher>(),
+            Algorithm::SeaHash => config.scan::<seahash::SeaHasher, twox_hash::XxHash64>(),
+            Algorithm::XxHash => config.scan::<twox_hash::XxHash64, ahash::AHasher>(),
         }
     }
 }
@@ -222,12 +222,12 @@ mod tests {
     use super::*;
     use once_cell::sync::Lazy;
 
-    static BAG: Lazy<yadf::TreeBag<u64, yadf::Path>> = Lazy::new(|| {
+    static BAG: Lazy<yadf::TreeBag<(u64, u64), yadf::Path>> = Lazy::new(|| {
         vec![
-            (77, "hello".into()),
-            (77, "world".into()),
-            (3, "foo".into()),
-            (3, "bar".into()),
+            ((77, 0), "hello".into()),
+            ((77, 0), "world".into()),
+            ((3, 0), "foo".into()),
+            ((3, 0), "bar".into()),
         ]
         .into_iter()
         .collect()

@@ -37,8 +37,8 @@ pub use regex;
 use std::hash::Hasher;
 use std::rc::Rc;
 
-pub type FileCounter = TreeBag<u64, Path>;
-pub type FileReplicates<'a> = bag::Replicates<'a, u64, Path>;
+pub type FileCounter = TreeBag<(u64, u64), Path>;
+pub type FileReplicates<'a> = bag::Replicates<'a, (u64, u64), Path>;
 
 /// Search configuration.
 ///
@@ -83,9 +83,10 @@ where
     P: AsRef<std::path::Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H>(self) -> FileCounter
+    pub fn scan<H1, H2>(self) -> FileCounter
     where
-        H: Hasher + Default,
+        H1: Hasher + Default,
+        H2: Hasher + Default,
     {
         #[cfg(unix)]
         let file_filter = fs::filter::FileFilter::new(
@@ -102,7 +103,7 @@ where
             self.regex,
             self.glob.map(|g| g.compile_matcher()),
         );
-        let bag = fs::find_dupes_partial::<H, _>(&self.paths, self.max_depth, file_filter);
+        let bag = fs::find_dupes_partial::<H1, H2, _>(&self.paths, self.max_depth, file_filter);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",
@@ -114,7 +115,7 @@ where
             );
             log::trace!("{:?}", bag);
         }
-        let bag = fs::dedupe::<H>(bag);
+        let bag = fs::dedupe::<H1, H2>(bag);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "found {} duplicates in {} groups after checksumming",

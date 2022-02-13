@@ -21,7 +21,7 @@ pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter {
     yadf::Yadf::builder()
         .paths([path].as_ref())
         .build()
-        .scan::<std::collections::hash_map::DefaultHasher>()
+        .scan::<std::collections::hash_map::DefaultHasher, seahash::SeaHasher>()
 }
 
 #[macro_export]
