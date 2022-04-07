@@ -6,6 +6,7 @@ mod heuristic;
 
 use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
 use crate::TreeBag;
+use core::num;
 use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
@@ -35,25 +36,34 @@ where
         .add_paths(paths)
         .standard_filters(false)
         .max_depth(max_depth)
-        .threads(heuristic::num_cpus_get(directories))
-        .build_parallel();
+        .build();
+    let num_cpus = num_cpus::get();
     rayon::scope(|scope| {
-        let (sender, receiver) = crossbeam_channel::bounded(32);
+        let (send_hashed_entry, hashed_entries) = crossbeam_channel::bounded(32);
+        let (to_hash, entries_to_hash) = crossbeam_channel::bounded(32);
+        let filter = &filter;
         scope.spawn(move |_| {
-            walker.for_each(|entry| {
-                if let Err(error) = entry {
-                    log::error!("{}", error);
-                    return ignore::WalkState::Continue;
+            for entry in walker {
+                match entry {
+                    Err(error) => log::error!("{}", error),
+                    Ok(entry) => to_hash.send(entry).unwrap(),
                 }
-                if let Some(key_value) = hash_entry::<H>(&filter, entry.unwrap()) {
-                    if let Err(error) = sender.send(key_value) {
-                        log::error!("{}, couldn't send value across channel", error);
+            }
+        });
+        for _ in 0..num_cpus {
+            let entries_to_hash = entries_to_hash.clone();
+            let send_hashed_entry = send_hashed_entry.clone();
+            scope.spawn(move |_| {
+                for entry in entries_to_hash {
+                    if let Some(key_value) = hash_entry::<H>(filter, entry) {
+                        if let Err(error) = send_hashed_entry.send(key_value) {
+                            log::error!("{}, couldn't send value across channel", error);
+                        }
                     }
                 }
-                ignore::WalkState::Continue
-            })
-        });
-        receiver.into_iter().collect()
+            });
+        }
+        hashed_entries.into_iter().collect()
     })
 }
 
