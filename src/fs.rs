@@ -61,6 +61,7 @@ where
                 }
             });
         }
+        drop(send_hashed_entry);
         hashed_entries.into_iter().collect()
     })
 }
