@@ -4,17 +4,15 @@ pub mod filter;
 mod hash;
 mod heuristic;
 
-use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
+use crate::ext::{IteratorExt, WalkBuilderAddPaths};
 use crate::TreeBag;
-use core::num;
-use once_cell::sync::Lazy;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::{
     hash::Hasher,
     path::{Path, PathBuf},
 };
 
-static PAGE_SIZE: Lazy<usize> = Lazy::new(page_size::get);
+const BLOCK_SIZE: usize = 4096;
 
 /// Foundation of the API.
 /// This will attemps a naive scan of every file,
@@ -131,7 +129,7 @@ fn rehash_file<H>(file: &Path) -> Result<u64, ()>
 where
     H: Hasher + Default,
 {
-    if file.metadata().map(|f| f.len()).unwrap_or(0) < *PAGE_SIZE as _ {
+    if file.metadata().map(|f| f.len()).unwrap_or(0) < BLOCK_SIZE as _ {
         return Err(());
     }
     match hash::full::<H, _>(&file) {

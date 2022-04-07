@@ -1,4 +1,4 @@
-use super::PAGE_SIZE;
+use super::BLOCK_SIZE;
 use std::fs::File;
 use std::hash::Hasher;
 use std::io::{self, Read};
@@ -11,7 +11,7 @@ where
     P: AsRef<Path>,
 {
     let mut file = File::open(path)?;
-    let mut buffer = vec![0; *PAGE_SIZE];
+    let mut buffer = [0; BLOCK_SIZE];
     let mut n = 0;
     loop {
         match file.read(&mut buffer[n..]) {
