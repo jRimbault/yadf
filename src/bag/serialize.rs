@@ -42,7 +42,7 @@ mod tests {
         .into_iter()
         .collect();
         let result = serde_json::to_string(&counter.duplicates()).unwrap();
-        let expected = r#"[["foo","bar"],["hello","world"]]"#;
+        let expected = r#"[["hello","world"],["foo","bar"]]"#;
         assert_eq!(result, expected);
     }
 }

@@ -2,9 +2,7 @@ mod display;
 mod replicates;
 mod serialize;
 
-use std::borrow::Borrow;
-use std::collections::btree_map::Entry;
-use std::collections::BTreeMap;
+use indexmap::map::Entry;
 use std::ops::Index;
 
 /// Ordered counter structure.
@@ -27,7 +25,7 @@ use std::ops::Index;
 /// assert_eq!(bag[&6], ["rust"]);
 /// ```
 #[derive(Debug)]
-pub struct TreeBag<K, V>(BTreeMap<K, Vec<V>>);
+pub struct TreeBag<K, V>(indexmap::IndexMap<K, Vec<V>>);
 
 #[derive(Debug, Clone)]
 pub enum Factor {
@@ -56,9 +54,9 @@ pub struct Display<'a, K, V, U> {
     tree: &'a Replicates<'a, K, V>,
 }
 
-impl<K, V> From<BTreeMap<K, Vec<V>>> for TreeBag<K, V> {
-    /// Build a [`TreeBag`](TreeBag) from a [`BTreeMap`](BTreeMap).
-    fn from(btree: BTreeMap<K, Vec<V>>) -> Self {
+impl<K, V> From<indexmap::IndexMap<K, Vec<V>>> for TreeBag<K, V> {
+    /// Build a [`TreeBag`](TreeBag) from a [`IndexMap`](indexmap::IndexMap).
+    fn from(btree: indexmap::IndexMap<K, Vec<V>>) -> Self {
         Self(btree)
     }
 }
@@ -78,17 +76,17 @@ impl<K, V> TreeBag<K, V> {
     }
 
     /// Borrows the backing [`BTreeMap`](BTreeMap) of the bag.
-    pub const fn as_inner(&self) -> &BTreeMap<K, Vec<V>> {
+    pub const fn as_inner(&self) -> &indexmap::IndexMap<K, Vec<V>> {
         &self.0
     }
 
     /// Mutably borrows the backing [`BTreeMap`](BTreeMap) of the bag.
-    pub fn as_inner_mut(&mut self) -> &mut BTreeMap<K, Vec<V>> {
+    pub fn as_inner_mut(&mut self) -> &mut indexmap::IndexMap<K, Vec<V>> {
         &mut self.0
     }
 
     /// Consumes the wrapper [`TreeBag`](TreeBag) and returns the inner [`BTreeMap`](BTreeMap).
-    pub fn into_inner(self) -> BTreeMap<K, Vec<V>> {
+    pub fn into_inner(self) -> indexmap::IndexMap<K, Vec<V>> {
         self.0
     }
 
@@ -103,19 +101,19 @@ impl<K, V> TreeBag<K, V> {
     }
 
     /// Returns a reference to the bucket corresponding to the key.
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&Vec<V>>
+    pub fn get<Q>(&self, key: &Q) -> Option<&Vec<V>>
     where
-        K: Borrow<Q> + Ord,
-        Q: Ord,
+        K: std::hash::Hash + Eq,
+        Q: ?Sized + std::hash::Hash + indexmap::Equivalent<K>,
     {
         self.0.get(key)
     }
 
     /// Returns a mutable reference to the bucket corresponding to the key.
-    pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut Vec<V>>
+    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut Vec<V>>
     where
-        K: Borrow<Q> + Ord,
-        Q: Ord,
+        K: std::hash::Hash + Eq,
+        Q: ?Sized + std::hash::Hash + indexmap::Equivalent<K>,
     {
         self.0.get_mut(key)
     }
@@ -123,13 +121,16 @@ impl<K, V> TreeBag<K, V> {
     /// Gets the given key’s corresponding entry in the bag for in-place manipulation.
     pub fn entry(&mut self, key: K) -> Entry<'_, K, Vec<V>>
     where
-        K: Ord,
+        K: std::hash::Hash + Eq,
     {
         self.0.entry(key)
     }
 }
 
-impl<K: Ord, V> std::iter::FromIterator<(K, V)> for TreeBag<K, V> {
+impl<K, V> std::iter::FromIterator<(K, V)> for TreeBag<K, V>
+where
+    K: std::hash::Hash + Eq,
+{
     fn from_iter<I>(key_value_iter: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
@@ -140,7 +141,10 @@ impl<K: Ord, V> std::iter::FromIterator<(K, V)> for TreeBag<K, V> {
     }
 }
 
-impl<K: Ord, V> Extend<(K, V)> for TreeBag<K, V> {
+impl<K, V> Extend<(K, V)> for TreeBag<K, V>
+where
+    K: std::hash::Hash + Eq,
+{
     fn extend<I>(&mut self, key_value_iter: I)
     where
         I: IntoIterator<Item = (K, V)>,
@@ -157,10 +161,10 @@ impl<K, V> Default for TreeBag<K, V> {
     }
 }
 
-impl<K, Q: ?Sized, V> Index<&Q> for TreeBag<K, V>
+impl<K, Q, V> Index<&Q> for TreeBag<K, V>
 where
-    K: Borrow<Q> + Ord,
-    Q: Ord,
+    K: std::hash::Hash + Eq,
+    Q: ?Sized + std::hash::Hash + indexmap::Equivalent<K>,
 {
     type Output = Vec<V>;
 
