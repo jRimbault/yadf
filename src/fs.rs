@@ -49,9 +49,10 @@ where
                     }
                 }
                 ignore::WalkState::Continue
-            })
+            });
         },
-    ).0
+    )
+    .0
 }
 
 fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)>
@@ -82,9 +83,10 @@ where
         || {
             tree.into_inner()
                 .into_par_iter()
-                .for_each_with(sender, process_bucket::<H>)
+                .for_each_with(sender, process_bucket::<H>);
         },
-    ).0
+    )
+    .0
 }
 
 fn process_bucket<H>(

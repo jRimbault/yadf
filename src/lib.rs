@@ -110,7 +110,7 @@ where
             );
             log::info!(
                 "found {} possible duplicates after initial scan",
-                bag.duplicates().iter().map(|b| b.len()).sum::<usize>()
+                bag.duplicates().iter().map(Vec::len).sum::<usize>()
             );
             log::trace!("{:?}", bag);
         }
@@ -118,7 +118,7 @@ where
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "found {} duplicates in {} groups after checksumming",
-                bag.duplicates().iter().map(|b| b.len()).sum::<usize>(),
+                bag.duplicates().iter().map(Vec::len).sum::<usize>(),
                 bag.duplicates().iter().count(),
             );
             log::trace!("{:?}", bag);
