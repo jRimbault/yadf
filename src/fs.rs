@@ -62,17 +62,13 @@ where
     let path = entry.path();
     let meta = entry
         .metadata()
-        .map_err(|error| {
-            log::error!("{}, couldn't get metadata for {:?}", error, path);
-        })
+        .map_err(|error| log::error!("{}, couldn't get metadata for {:?}", error, path))
         .ok()?;
     if !filter.is_match(path, meta) {
         return None;
     }
     let hash = hash::partial::<H, _>(&path)
-        .map_err(|error| {
-            log::error!("{}, couldn't hash {:?}", error, path);
-        })
+        .map_err(|error| log::error!("{}, couldn't hash {:?}", error, path))
         .ok()?;
     Some((hash, entry.into_path()))
 }
