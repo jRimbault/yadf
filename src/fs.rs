@@ -35,7 +35,7 @@ where
         .threads(heuristic::num_cpus_get(directories))
         .build_parallel();
     let (sender, receiver) = crossbeam_channel::bounded(32);
-    let (bag, _) = rayon::join(
+    rayon::join(
         || receiver.into_iter().collect(),
         || {
             walker.for_each(|entry| {
@@ -51,8 +51,7 @@ where
                 ignore::WalkState::Continue
             })
         },
-    );
-    bag
+    ).0
 }
 
 fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)>
@@ -78,15 +77,14 @@ where
     H: Hasher + Default,
 {
     let (sender, receiver) = crossbeam_channel::bounded(1024);
-    let (bag, _) = rayon::join(
+    rayon::join(
         || receiver.into_iter().collect(),
         || {
             tree.into_inner()
                 .into_par_iter()
                 .for_each_with(sender, process_bucket::<H>)
         },
-    );
-    bag
+    ).0
 }
 
 fn process_bucket<H>(
