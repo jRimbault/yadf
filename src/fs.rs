@@ -34,10 +34,9 @@ where
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
         .build_parallel();
-    let (sender, receiver) = crossbeam_channel::bounded(32);
-    rayon::join(
-        || receiver.into_iter().collect(),
-        || {
+    rayon::scope(|scope| {
+        let (sender, receiver) = crossbeam_channel::bounded(32);
+        scope.spawn(move |_| {
             walker.for_each(|entry| {
                 if let Err(error) = entry {
                     log::error!("{}", error);
@@ -50,9 +49,9 @@ where
                 }
                 ignore::WalkState::Continue
             });
-        },
-    )
-    .0
+        });
+        receiver.into_iter().collect()
+    })
 }
 
 fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)>
@@ -77,16 +76,15 @@ pub fn dedupe<H>(tree: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
-    let (sender, receiver) = crossbeam_channel::bounded(1024);
-    rayon::join(
-        || receiver.into_iter().collect(),
-        || {
+    rayon::scope(|scope| {
+        let (sender, receiver) = crossbeam_channel::bounded(1024);
+        scope.spawn(move |_| {
             tree.into_inner()
                 .into_par_iter()
                 .for_each_with(sender, process_bucket::<H>);
-        },
-    )
-    .0
+        });
+        receiver.into_iter().collect()
+    })
 }
 
 fn process_bucket<H>(
