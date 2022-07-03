@@ -18,7 +18,7 @@ impl Args {
     }
 
     pub fn init_from_env() -> Self {
-        let long_version = env!("YADF_BUILD_VERSION").replace("|", "\n");
+        let long_version = env!("YADF_BUILD_VERSION").replace('|', "\n");
         let app = Self::into_app()
             .version(long_version.lines().next().unwrap())
             .long_version(long_version.as_str())
