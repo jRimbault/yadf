@@ -34,10 +34,9 @@ where
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
         .build_parallel();
-    let (sender, receiver) = crossbeam_channel::bounded(32);
-    rayon::join(
-        move || receiver.into_iter().collect(),
-        move || {
+    rayon::scope(|scope| {
+        let (sender, receiver) = crossbeam_channel::bounded(32);
+        scope.spawn(move |_| {
             walker.for_each(|entry| {
                 if let Err(error) = entry {
                     log::error!("{}", error);
@@ -49,10 +48,10 @@ where
                     }
                 }
                 ignore::WalkState::Continue
-            });
-        },
-    )
-    .0
+            })
+        });
+        receiver.into_iter().collect()
+    })
 }
 
 fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)>
@@ -62,13 +61,17 @@ where
     let path = entry.path();
     let meta = entry
         .metadata()
-        .map_err(|error| log::error!("{}, couldn't get metadata for {:?}", error, path))
+        .map_err(|error| {
+            log::error!("{}, couldn't get metadata for {:?}", error, path);
+        })
         .ok()?;
     if !filter.is_match(path, meta) {
         return None;
     }
     let hash = hash::partial::<H, _>(&path)
-        .map_err(|error| log::error!("{}, couldn't hash {:?}", error, path))
+        .map_err(|error| {
+            log::error!("{}, couldn't hash {:?}", error, path);
+        })
         .ok()?;
     Some((hash, entry.into_path()))
 }
@@ -77,16 +80,15 @@ pub fn dedupe<H>(tree: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
-    let (sender, receiver) = crossbeam_channel::bounded(1024);
-    rayon::join(
-        move || receiver.into_iter().collect(),
-        move || {
+    rayon::scope(|scope| {
+        let (sender, receiver) = crossbeam_channel::bounded(1024);
+        scope.spawn(|_| {
             tree.into_inner()
                 .into_par_iter()
-                .for_each_with(sender, process_bucket::<H>);
-        },
-    )
-    .0
+                .for_each_with(sender, process_bucket::<H>)
+        });
+        receiver.into_iter().collect()
+    })
 }
 
 fn process_bucket<H>(

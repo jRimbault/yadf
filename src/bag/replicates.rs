@@ -1,9 +1,10 @@
 use super::{Display, Factor, Replicates};
+use std::collections::btree_map::Values;
 
 /// [`Iterator`](Iterator) adapater.
 #[derive(Debug)]
 pub struct Iter<'a, K, V> {
-    values: indexmap::map::Values<'a, K, Vec<V>>,
+    values: Values<'a, K, Vec<V>>,
     factor: Factor,
 }
 

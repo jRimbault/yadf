@@ -68,8 +68,8 @@ mod tests {
     fn machine() {
         let result = BAG.duplicates().display::<Machine>().to_string();
         let expected = "\
-            \"hello\" \"world\"\n\
-            \"foo\" \"bar\"\
+            \"foo\" \"bar\"\n\
+            \"hello\" \"world\"\
         ";
         assert_eq!(result, expected);
     }
@@ -78,11 +78,11 @@ mod tests {
     fn fdupes() {
         let result = BAG.duplicates().display::<Fdupes>().to_string();
         let expected = "\
-            hello\n\
-            world\n\
-            \n\
             foo\n\
-            bar\
+            bar\n\
+            \n\
+            hello\n\
+            world\
         ";
         assert_eq!(result, expected);
     }

@@ -239,8 +239,8 @@ mod tests {
         let _ = csv_to_writer(&mut buffer, &BAG.duplicates());
         let result = String::from_utf8(buffer).unwrap();
         let expected = r#"count,files
-2,hello,world
 2,foo,bar
+2,hello,world
 "#;
         assert_eq!(result, expected);
     }
@@ -250,8 +250,8 @@ mod tests {
         let mut buffer = Vec::new();
         let _ = ldjson_to_writer(&mut buffer, &BAG.duplicates());
         let result = String::from_utf8(buffer).unwrap();
-        let expected = r#"["hello","world"]
-["foo","bar"]
+        let expected = r#"["foo","bar"]
+["hello","world"]
 "#;
         assert_eq!(result, expected);
     }
