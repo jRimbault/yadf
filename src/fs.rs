@@ -10,7 +10,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 
-const BLOCK_SIZE: usize = 4096;
+const CHANNEL_SIZE: usize = 8 * 1024;
+const BLOCK_SIZE: usize = 4 * 1024;
 
 /// Foundation of the API.
 /// This will attemps a naive scan of every file,
@@ -34,7 +35,7 @@ where
         .max_depth(max_depth)
         .threads(heuristic::num_cpus_get(directories))
         .build_parallel();
-    let (sender, receiver) = crossbeam_channel::bounded(32);
+    let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
     rayon::join(
         move || receiver.into_iter().collect(),
         move || {
@@ -77,7 +78,7 @@ pub fn dedupe<H>(tree: TreeBag<u64, PathBuf>) -> crate::FileCounter
 where
     H: Hasher + Default,
 {
-    let (sender, receiver) = crossbeam_channel::bounded(1024);
+    let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
     rayon::join(
         move || receiver.into_iter().collect(),
         move || {
