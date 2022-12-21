@@ -2,6 +2,12 @@
 
 > _It's [fast](#benchmarks) on my machine._
 
+___
+
+You should probably use [`fclones`][0].
+
+___
+
 ## Installation
 
 ### Prebuilt Packages
