@@ -22,6 +22,7 @@ where
         }
     }
     let mut hasher = H::default();
+    hasher.write(&file.metadata()?.len().to_le_bytes());
     hasher.write(&buffer[..n]);
     Ok(hasher.finish())
 }
