@@ -38,6 +38,7 @@ impl<'a, K, V> IntoIterator for &'a Replicates<'a, K, V> {
     }
 }
 
+#[allow(clippy::manual_find)]
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
     type Item = &'a Vec<V>;
 

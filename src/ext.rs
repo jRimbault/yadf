@@ -36,6 +36,7 @@ where
     }
 }
 
+#[allow(clippy::manual_find)]
 impl<I, F, K> Iterator for UniqueBy<I, F, K>
 where
     I: Iterator,

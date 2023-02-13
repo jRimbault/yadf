@@ -10,7 +10,7 @@ fn main() {
 
 fn git_revision_hash() -> Option<String> {
     let result = std::process::Command::new("git")
-        .args(&["rev-parse", "--short=10", "HEAD"])
+        .args(["rev-parse", "--short=10", "HEAD"])
         .output();
     result.ok().and_then(|output| {
         let v = String::from_utf8_lossy(&output.stdout).trim().to_string();
