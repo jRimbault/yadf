@@ -58,9 +58,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn same_hash_partial_and_full_for_small_file() {
+    fn different_hash_partial_and_full_for_small_file_despite_same_first_block() {
         let h1 = partial::<seahash::SeaHasher, _>(&"./tests/static/foo").unwrap();
         let h2 = full::<seahash::SeaHasher, _>(&"./tests/static/foo").unwrap();
-        assert_eq!(h1, h2);
+        assert_ne!(h1, h2);
     }
 }

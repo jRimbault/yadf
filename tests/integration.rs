@@ -44,7 +44,7 @@ fn trace_output() -> AnyResult {
                 .and(predstr::contains("algorithm: SeaHash"))
                 .and(predstr::contains("verbose: 4"))
                 .and(predstr::contains(
-                    "found 3 possible duplicates after initial scan",
+                    "found 2 possible duplicates after initial scan",
                 ))
                 .and(predstr::contains(
                     "found 2 duplicates in 1 groups after checksumming",
