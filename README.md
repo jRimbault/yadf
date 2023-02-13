@@ -129,26 +129,21 @@ NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in gener
 My home directory contains upwards of 700k paths and 39 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc. Arguably, the most important measure here is the mean time when the filesystem cache is cold.
 
 | Program (warm filesystem cache) | Version |          Mean [s] |   Min [s] | Max [s] |    Relative |
-| :------------------------------ | ------: | ----------------: | --------: | ------: | ----------: |
-| [`fclones`][0]                  |   0.8.0 |     4.107 ± 0.045 |     4.065 |   4.189 | 1.58 ± 0.04 |
-| [`jdupes`][1]                   |  1.14.0 |    11.982 ± 0.038 |    11.924 |  12.030 | 4.60 ± 0.11 |
-| [`ddh`][2]                      |  0.11.3 |    10.602 ± 0.062 |    10.521 |  10.678 | 4.07 ± 0.10 |
-| [`rmlint`][3]                   |   2.9.0 |    17.640 ± 0.119 |    17.426 |  17.833 | 6.77 ± 0.17 |
-| [`dupe-krill`][4]               |   1.4.4 |     9.110 ± 0.040 |     9.053 |   9.154 | 3.50 ± 0.08 |
-| [`fddf`][5]                     |   1.7.0 |     5.630 ± 0.049 |     5.562 |   5.717 | 2.16 ± 0.05 |
-| `yadf`                          |  0.14.1 | **2.605 ± 0.062** |     2.517 |   2.676 |        1.00 |
+| :------------------------------ | ------: | ----------------: | --------: | ------: | ---: |
+| [`fclones`][0]                  |  0.29.3 | 7.435 ± 1.609 | 4.622 | 9.317 | 2.35 ± 0.70 |
+| [`jdupes`][1]                   |  1.14.0 | 16.787 ± 0.208 | 16.484 | 17.178 | 5.32 ± 1.08 |
+| [`ddh`][2]                      |    0.13 | 12.703 ± 1.547 | 10.814 | 14.793 | 4.02 ± 0.95 |
+| [`dupe-krill`][4]               |   1.4.7 | 15.555 ± 1.633 | 12.486 | 16.959 | 4.93 ± 1.12 |
+| [`fddf`][5]                     |   1.7.0 | 18.441 ± 1.947 | 15.097 | 22.389 | 5.84 ± 1.33 |
+| `yadf`                          |   1.1.0 | **3.157 ± 0.638** | 2.362 | 4.175 | 1.00 |
 
-| Program (cold filesystem cache) | Version |   Mean [s] |
-| :------------------------------ | ------: | ---------: |
-| [fclones][0]                    |   0.8.0 | **19.452** |
-| [jdupes][1]                     |  1.14.0 |    129.132 |
-| [ddh][2]                        |  0.11.3 |     27.241 |
-| [rmlint][3]                     |   2.9.0 |     67.580 |
-| [dupe-krill][4]                 |   1.4.4 |    127.860 |
-| [fddf][5]                       |   1.7.0 |     32.661 |
-| yadf                            |  0.13.1 |     21.554 |
+| Program (cold filesystem cache) | Version |          Mean [s] |   Min [s] | Max [s] |    Relative |
+| :------------------------------ | ------: | ----------------: | --------: | ------: | ---: |
+| [`fclones`][0]                  |  0.29.3 | 68.950 ± 3.694 | 63.165 | 73.534 | 2.30 ± 0.36 |
+| [`jdupes`][1]                   |  1.14.0 | 303.907 ± 11.578 | 277.618 | 314.226 | 10.16 ± 1.53 |
+| `yadf`                          |   1.1.0 | 52.481 ± 1.125 | 50.412 | 54.265 | 1.75 ± 0.26 |
 
-`fdupes` is excluded from this benchmark because it's _really_ slow.
+_I test less programs here because it takes several hours to run._
 
 The script used to benchmark can be read [here](./bench.sh).
 

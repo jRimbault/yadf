@@ -26,10 +26,9 @@ hyperfine --warmup "$warmups" \
   --min-runs 10 \
   --export-markdown export.md \
   --prepare "$prepare_cmd" \
-  "fclones --min-size 0 -R ~" \
+  "fclones group --min 0 ~" \
   "jdupes -z -r ~" \
-  "rmlint --hidden ~" \
-  "ddh ~" \
+  "ddh --directories ~" \
   "dupe-krill -s -d ~" \
   "fddf -m 0 ~" \
   "yadf ~"
