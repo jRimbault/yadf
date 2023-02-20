@@ -2,7 +2,6 @@
 
 pub mod filter;
 mod hash;
-mod heuristic;
 
 use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
 use crate::TreeBag;
@@ -33,7 +32,7 @@ where
         .add_paths(paths)
         .standard_filters(false)
         .max_depth(max_depth)
-        .threads(heuristic::num_cpus_get(directories))
+        .threads(num_cpus::get())
         .build_parallel();
     let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
     rayon::join(
