@@ -5,10 +5,9 @@ use std::io::{self, Read};
 use std::path::Path;
 
 /// Get a checksum of the first 4 KiB (at most) of a file.
-pub fn partial<H, P>(path: &P) -> io::Result<u64>
+pub fn partial<H>(path: &Path) -> io::Result<u64>
 where
     H: Hasher + Default,
-    P: AsRef<Path>,
 {
     let mut file = File::open(path)?;
     let mut buffer = [0u8; BLOCK_SIZE];
@@ -28,10 +27,9 @@ where
 }
 
 /// Get a complete checksum of a file.
-pub fn full<H, P>(path: &P) -> io::Result<u64>
+pub fn full<H>(path: &Path) -> io::Result<u64>
 where
     H: Hasher + Default,
-    P: AsRef<Path>,
 {
     /// Compile time [`Write`](std::io::Write) wrapper for a [`Hasher`](core::hash::Hasher).
     /// This should get erased at compile time.
@@ -48,6 +46,7 @@ where
             Ok(())
         }
     }
+
     let mut hasher = HashWriter(H::default());
     io::copy(&mut File::open(path)?, &mut hasher)?;
     Ok(hasher.0.finish())
@@ -58,9 +57,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn different_hash_partial_and_full_for_small_file_despite_same_first_block() {
-        let h1 = partial::<seahash::SeaHasher, _>(&"./tests/static/foo").unwrap();
-        let h2 = full::<seahash::SeaHasher, _>(&"./tests/static/foo").unwrap();
+    fn different_hash_partial_and_full_for_small_file_because_of_size() {
+        let h1 = partial::<seahash::SeaHasher>("./tests/static/foo".as_ref()).unwrap();
+        let h2 = full::<seahash::SeaHasher>("./tests/static/foo".as_ref()).unwrap();
         assert_ne!(h1, h2);
     }
 }

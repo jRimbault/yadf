@@ -67,7 +67,7 @@ where
     if !filter.is_match(path, meta) {
         return None;
     }
-    let hash = hash::partial::<H, _>(&path)
+    let hash = hash::partial::<H>(path)
         .map_err(|error| log::error!("{}, couldn't hash {:?}", error, path))
         .ok()?;
     Some((hash, entry.into_path()))
@@ -119,7 +119,7 @@ where
     if file.metadata().map(|f| f.len()).unwrap_or(0) < BLOCK_SIZE as _ {
         return Err(());
     }
-    match hash::full::<H, _>(&file) {
+    match hash::full::<H>(file) {
         Ok(hash) => Ok(hash),
         Err(error) => {
             log::error!("{}, couldn't hash {:?}, reusing partial hash", error, file);
