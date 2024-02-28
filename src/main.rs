@@ -4,7 +4,8 @@
 mod args;
 
 use anyhow::Context;
-use clap::{ArgEnum, Parser};
+use clap::{Parser, ValueEnum};
+use clap_verbosity_flag::ErrorLevel;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::PathBuf;
@@ -105,13 +106,13 @@ pub struct Args {
     /// Directories to search
     ///
     /// default is to search inside the current working directory
-    #[clap(parse(from_os_str))]
+    #[clap(value_parser)]
     paths: Vec<PathBuf>,
     /// Output format
-    #[clap(short, long, arg_enum, default_value_t, ignore_case = true)]
+    #[clap(short, long, value_enum, default_value_t, ignore_case = true)]
     format: Format,
     /// Hashing algorithm
-    #[clap(short, long, arg_enum, default_value_t, ignore_case = true)]
+    #[clap(short, long, value_enum, default_value_t, ignore_case = true)]
     algorithm: Algorithm,
     /// Excludes empty files
     #[clap(short, long)]
@@ -138,7 +139,7 @@ pub struct Args {
     #[clap(short, long, value_name = "glob")]
     pattern: Option<globset::Glob>,
     #[clap(flatten)]
-    verbosity: clap_verbosity_flag::Verbosity,
+    verbosity: clap_verbosity_flag::Verbosity<ErrorLevel>,
     /// Replication factor [under|equal|over]:n
     ///
     /// The default is `over:1`, to find uniques use `equal:1`,
@@ -146,13 +147,14 @@ pub struct Args {
     #[clap(long)]
     rfactor: Option<ReplicationFactor>,
     /// Optional output file
-    #[clap(short, long, parse(from_os_str))]
+    #[clap(short, long)]
     output: Option<PathBuf>,
 }
 
-#[derive(ArgEnum, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone, Default)]
 enum Format {
     Csv,
+    #[default]
     Fdupes,
     Json,
     JsonPretty,
@@ -160,9 +162,10 @@ enum Format {
     Machine,
 }
 
-#[derive(ArgEnum, Debug, Clone)]
+#[derive(ValueEnum, Debug, Clone, Default)]
 #[clap(rename_all = "lower")]
 enum Algorithm {
+    #[default]
     AHash,
     Highway,
     MetroHash,
@@ -170,7 +173,7 @@ enum Algorithm {
     XxHash,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Byte(byte_unit::Byte);
 
 impl FromStr for Byte {
@@ -182,7 +185,7 @@ impl FromStr for Byte {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum ReplicationFactor {
     Under(usize),
     Equal(usize),

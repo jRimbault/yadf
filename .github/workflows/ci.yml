@@ -9,6 +9,10 @@ on:
   pull_request:
     paths-ignore:
       - "**.md"
+  schedule:
+    # At 13:23 on day-of-month 23.
+    - cron: '23 13 23 * *'
+
 
 jobs:
   check:

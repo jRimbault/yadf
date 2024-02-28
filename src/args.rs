@@ -1,5 +1,5 @@
-use super::{Algorithm, Args, Format, ReplicationFactor};
-use clap::{FromArgMatches, IntoApp};
+use super::{Args, ReplicationFactor};
+use clap::{CommandFactory, FromArgMatches};
 use std::env;
 use std::fmt;
 use std::io::BufRead;
@@ -19,9 +19,10 @@ impl Args {
 
     pub fn init_from_env() -> Self {
         let long_version = env!("YADF_BUILD_VERSION").replace('|', "\n");
-        let app = Self::into_app()
-            .version(long_version.lines().next().unwrap())
-            .long_version(long_version.as_str())
+        let short_version = long_version.lines().next().unwrap().to_string();
+        let app = Self::command()
+            .version(short_version)
+            .long_version(long_version)
             .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
         let mut args = Self::from_arg_matches(&app.get_matches()).unwrap();
         init_logger(&args.verbosity);
@@ -52,7 +53,7 @@ fn default_paths() -> Vec<PathBuf> {
         std::io::stdin()
             .lock()
             .lines()
-            .filter_map(Result::ok)
+            .map_while(Result::ok)
             .map(Into::into)
             .collect()
     } else {
@@ -62,18 +63,6 @@ fn default_paths() -> Vec<PathBuf> {
         paths.push(env::current_dir().expect("couldn't get current working directory"));
     }
     paths
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Self::Fdupes
-    }
-}
-
-impl Default for Algorithm {
-    fn default() -> Self {
-        Self::AHash
-    }
 }
 
 impl Default for ReplicationFactor {
