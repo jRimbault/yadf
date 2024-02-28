@@ -45,17 +45,17 @@ num_cpus = "1.13.0"
 rayon = "1.3.1"
 regex = "1.4.2"
 serde = "1.0.114"
-typed-builder = "0.10.0"
+typed-builder = "0.18.1"
 # binary dependencies
-ahash = { version = "0.7.0", optional = true }
+ahash = { version = "0.8.10", optional = true }
 anyhow = { version = "1.0.38", optional = true }
 atty = { version = "0.2.14", optional = true }
-byte-unit = { version = "4.0.8", default-features = false, optional = true }
-clap = { version = "4.4.14", features = ["derive", "string"], optional = true }
+byte-unit = { version = "5.1.4", features = ["byte"], optional = true }
+clap = { version = "4.4.14", features = ["cargo", "derive", "string"], optional = true }
 clap-verbosity-flag = { version = "2.1.1", optional = true }
 csv = { version = "1.1.4", optional = true }
-env_logger = { version = "0.9", optional = true }
-highway = { version = "0.8", optional = true }
+env_logger = { version = "0.11.2", optional = true }
+highway = { version = "1.1.0", optional = true }
 human-panic = { version = "1.0.3", optional = true }
 metrohash = { version = "1.0.6", optional = true }
 seahash = { version = "4.0.1", optional = true }
@@ -64,12 +64,12 @@ twox-hash = { version = "1.5.0", optional = true }
 
 [dev-dependencies]
 assert_cmd = "2"
-dirs = "4"
-env_logger = "0.9"
-highway = "0.8"
+dirs = "5.0.1"
+env_logger = "0.11.2"
+highway = "1.1.0"
 once_cell = "1.5.2"
 serde_json = "1.0.57"
 seahash = "4.0.1"
 twox-hash = "1.5.0"
-predicates = "2"
+predicates = "3.1.0"
 rand = "0.8"

@@ -64,36 +64,29 @@ yadf -f ldjson
   <summary>Help output.</summary>
 
 ```
-yadf 0.13.1
 Yet Another Dupes Finder
 
-USAGE:
-    yadf [FLAGS] [OPTIONS] [paths]...
+Usage: yadf [OPTIONS] [PATHS]...
 
-FLAGS:
-    -H, --hard-links    Treat hard links to same file as duplicates
-    -h, --help          Prints help information
-    -n, --no-empty      Excludes empty files
-    -q, --quiet         Pass many times for less log output
-    -V, --version       Prints version information
-    -v, --verbose       Pass many times for more log output
+Arguments:
+  [PATHS]...  Directories to search
 
-OPTIONS:
-    -a, --algorithm <algorithm>    Hashing algorithm [default: AHash]  [possible values: AHash,
-                                   Highway, MetroHash, SeaHash, XxHash]
-    -f, --format <format>          Output format [default: Fdupes]  [possible values: Csv, Fdupes,
-                                   Json, JsonPretty, LdJson, Machine]
-        --max <size>               Maximum file size
-    -d, --depth <depth>            Maximum recursion depth
-        --min <size>               Minimum file size
-    -p, --pattern <glob>           Check files with a name matching a glob pattern, see:
-                                   https://docs.rs/globset/0.4.6/globset/index.html#syntax
-    -R, --regex <regex>            Check files with a name matching a Perl-style regex, see:
-                                   https://docs.rs/regex/1.4.2/regex/index.html#syntax
-        --rfactor <rfactor>        Replication factor [under|equal|over]:n
-
-ARGS:
-    <paths>...    Directories to search
+Options:
+  -f, --format <FORMAT>        Output format [default: fdupes] [possible values: csv, fdupes, json, json-pretty, ld-json, machine]
+  -a, --algorithm <ALGORITHM>  Hashing algorithm [default: ahash] [possible values: ahash, highway, metrohash, seahash, xxhash]
+  -n, --no-empty               Excludes empty files
+      --min <size>             Minimum file size
+      --max <size>             Maximum file size
+  -d, --depth <depth>          Maximum recursion depth
+  -H, --hard-links             Treat hard links to same file as duplicates
+  -R, --regex <REGEX>          Check files with a name matching a Perl-style regex, see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
+  -p, --pattern <glob>         Check files with a name matching a glob pattern, see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
+  -v, --verbose...             Increase logging verbosity
+  -q, --quiet...               Decrease logging verbosity
+      --rfactor <RFACTOR>      Replication factor [under|equal|over]:n
+  -o, --output <OUTPUT>        Optional output file
+  -h, --help                   Print help (see more with '--help')
+  -V, --version                Print version
 
 For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 ```

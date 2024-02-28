@@ -7,13 +7,17 @@ use std::path::PathBuf;
 
 impl Args {
     pub fn max(&self) -> Option<u64> {
-        self.max.as_ref().map(|m| m.0.get_bytes())
+        self.max
+            .as_ref()
+            .map(|m| m.0.get_adjusted_unit(byte_unit::Unit::B))
+            .map(|u| u.get_value() as _)
     }
 
     pub fn min(&self) -> Option<u64> {
         self.min
             .as_ref()
-            .map(|m| m.0.get_bytes())
+            .map(|m| m.0.get_adjusted_unit(byte_unit::Unit::B))
+            .map(|u| u.get_value() as _)
             .or(if self.no_empty { Some(1) } else { None })
     }
 
