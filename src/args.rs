@@ -53,15 +53,16 @@ fn init_logger(verbosity: &clap_verbosity_flag::Verbosity) {
 }
 
 fn default_paths() -> Vec<PathBuf> {
-    let mut paths = if atty::isnt(atty::Stream::Stdin) {
-        std::io::stdin()
+    let stdin = std::io::stdin();
+    let mut paths = if std::io::IsTerminal::is_terminal(&stdin) {
+        Vec::new()
+    } else {
+        stdin
             .lock()
             .lines()
             .map_while(Result::ok)
             .map(Into::into)
             .collect()
-    } else {
-        Vec::new()
     };
     if paths.is_empty() {
         paths.push(env::current_dir().expect("couldn't get current working directory"));

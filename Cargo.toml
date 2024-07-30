@@ -25,7 +25,6 @@ default = ["build-bin"]
 build-bin = [
   "ahash",
   "anyhow",
-  "atty",
   "byte-unit",
   "clap",
   "clap-verbosity-flag",
@@ -54,7 +53,6 @@ typed-builder = "0.19.1"
 # binary dependencies
 ahash = { version = "0.8.10", optional = true }
 anyhow = { version = "1.0.38", optional = true }
-atty = { version = "0.2.14", optional = true }
 byte-unit = { version = "5.1.4", features = ["byte"], optional = true }
 clap = { version = "4.4.14", features = ["cargo", "derive", "string"], optional = true }
 clap-verbosity-flag = { version = "2.1.1", optional = true }
