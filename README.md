@@ -162,3 +162,4 @@ Extract from `neofetch` and `hwinfo --disk`:
   - driver: "nvme"
 
 </details>
+
