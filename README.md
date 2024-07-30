@@ -17,7 +17,7 @@ Executable binaries for some platforms are available in the [releases](https://g
 ### Building from source
 
 1. [Install Rust Toolchain](https://www.rust-lang.org/tools/install)
-2. Run `cargo install yadf`
+2. Run `cargo install --locked yadf`
 
 ## Usage
 
