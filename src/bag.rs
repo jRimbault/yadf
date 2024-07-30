@@ -103,19 +103,19 @@ impl<K, V> TreeBag<K, V> {
     }
 
     /// Returns a reference to the bucket corresponding to the key.
-    pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&Vec<V>>
+    pub fn get<Q>(&self, key: &Q) -> Option<&Vec<V>>
     where
         K: Borrow<Q> + Ord,
-        Q: Ord,
+        Q: ?Sized + Ord,
     {
         self.0.get(key)
     }
 
     /// Returns a mutable reference to the bucket corresponding to the key.
-    pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut Vec<V>>
+    pub fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut Vec<V>>
     where
         K: Borrow<Q> + Ord,
-        Q: Ord,
+        Q: ?Sized + Ord,
     {
         self.0.get_mut(key)
     }
