@@ -171,8 +171,6 @@ fn non_utf8_paths() -> AnyResult {
 #[test]
 fn hard_links_flag() -> AnyResult {
     let predicate = predstr::contains("--hard-links");
-    #[cfg(not(unix))]
-    let predicate = predicate.not();
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg("-h")
         .assert()

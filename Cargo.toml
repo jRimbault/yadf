@@ -40,6 +40,7 @@ build-bin = [
 
 [dependencies]
 # library dependencies
+bon = "2.0.0"
 crossbeam-channel = "0.5.0"
 dunce = "1.0.1"
 globset = "0.4.6"
@@ -49,12 +50,15 @@ num_cpus = "1.13.0"
 rayon = "1.3.1"
 regex = "1.4.2"
 serde = "1.0.114"
-typed-builder = "0.19.1"
 # binary dependencies
 ahash = { version = "0.8.10", optional = true }
 anyhow = { version = "1.0.38", optional = true }
 byte-unit = { version = "5.1.4", features = ["byte"], optional = true }
-clap = { version = "4.4.14", features = ["cargo", "derive", "string"], optional = true }
+clap = { version = "4.4.14", features = [
+  "cargo",
+  "derive",
+  "string",
+], optional = true }
 clap-verbosity-flag = { version = "2.1.1", optional = true }
 csv = { version = "1.1.4", optional = true }
 env_logger = { version = "0.11.2", optional = true }

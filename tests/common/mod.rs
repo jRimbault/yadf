@@ -19,7 +19,7 @@ where
 #[allow(dead_code)]
 pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter {
     yadf::Yadf::builder()
-        .paths([path].as_ref())
+        .paths(vec![path.as_ref().to_owned()])
         .build()
         .scan::<std::collections::hash_map::DefaultHasher>()
 }

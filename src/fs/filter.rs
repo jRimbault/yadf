@@ -7,27 +7,10 @@ pub struct FileFilter {
     max: Option<u64>,
     regex: Option<regex::Regex>,
     glob: Option<globset::GlobMatcher>,
-    #[cfg(unix)]
     inodes_filter: inode::Filter,
 }
 
 impl FileFilter {
-    #[cfg(not(unix))]
-    pub fn new(
-        min: Option<u64>,
-        max: Option<u64>,
-        regex: Option<regex::Regex>,
-        glob: Option<globset::GlobMatcher>,
-    ) -> Self {
-        Self {
-            min,
-            max,
-            regex,
-            glob,
-        }
-    }
-
-    #[cfg(unix)]
     pub fn new(
         min: Option<u64>,
         max: Option<u64>,
@@ -81,11 +64,9 @@ impl Matcher for globset::GlobMatcher {
     }
 }
 
-#[cfg(unix)]
 mod inode {
     use std::collections::HashSet;
     use std::fs::Metadata;
-    use std::os::unix::fs::MetadataExt;
     use std::sync::Mutex;
 
     /// Filter out unique inodes
@@ -100,6 +81,10 @@ mod inode {
 
     impl Filter {
         pub fn new(disable_hard_links_filter: bool) -> Self {
+            #[cfg(not(unix))]
+            {
+                return Self::Disabled;
+            }
             if disable_hard_links_filter {
                 Self::Disabled
             } else {
@@ -116,8 +101,14 @@ mod inode {
     }
 
     impl InodeSet {
+        #[cfg(unix)]
         fn is_unique(&self, meta: &Metadata) -> bool {
+            use std::os::unix::fs::MetadataExt;
             self.0.lock().unwrap().insert(meta.ino())
+        }
+        #[cfg(not(unix))]
+        fn is_unique(&self, meta: &Metadata) -> bool {
+            true
         }
     }
 }

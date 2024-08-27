@@ -35,36 +35,20 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(unix)]
-fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
+fn build_config(args: &Args) -> yadf::Yadf {
     yadf::Yadf::builder()
-        .paths(args.paths.as_ref())
-        .minimum_file_size(args.min())
-        .maximum_file_size(args.max())
-        .regex(args.regex.clone())
-        .glob(args.pattern.clone())
-        .max_depth(args.max_depth)
+        .paths(args.paths.clone())
+        .maybe_minimum_file_size(args.min())
+        .maybe_maximum_file_size(args.max())
+        .maybe_regex(args.regex.clone())
+        .maybe_glob(args.pattern.clone())
+        .maybe_max_depth(args.max_depth)
         .hard_links(args.hard_links)
         .build()
 }
 
-#[cfg(not(unix))]
-fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
-    yadf::Yadf::builder()
-        .paths(args.paths.as_ref())
-        .minimum_file_size(args.min())
-        .maximum_file_size(args.max())
-        .regex(args.regex.clone())
-        .glob(args.pattern.clone())
-        .max_depth(args.max_depth)
-        .build()
-}
-
 impl Algorithm {
-    fn run<P>(&self, config: yadf::Yadf<P>) -> yadf::FileCounter
-    where
-        P: AsRef<std::path::Path>,
-    {
+    fn run(&self, config: yadf::Yadf) -> yadf::FileCounter {
         log::debug!("using {:?} hashing", self);
         match self {
             Algorithm::AHash => config.scan::<ahash::AHasher>(),
@@ -126,9 +110,8 @@ pub struct Args {
     /// Maximum recursion depth
     #[clap(short = 'd', long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
-    /// Treat hard links to same file as duplicates
-    #[cfg_attr(unix, clap(short = 'H', long))]
-    #[cfg(unix)]
+    /// Treat hard links to same file as duplicates (unix only)
+    #[clap(short = 'H', long)]
     hard_links: bool,
     /// Check files with a name matching a Perl-style regex,
     /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
