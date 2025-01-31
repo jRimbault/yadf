@@ -7,12 +7,12 @@ pub const MAX_LEN: usize = 256 * 1024;
 
 pub fn random_collection<T, I>(size: usize) -> I
 where
-    rand::distributions::Standard: rand::distributions::Distribution<T>,
+    rand::distr::StandardUniform: rand::distr::Distribution<T>,
     I: std::iter::FromIterator<T>,
 {
     use rand::Rng;
-    let mut rng = rand::thread_rng();
-    std::iter::repeat_with(|| rng.gen()).take(size).collect()
+    let mut rng = rand::rng();
+    std::iter::repeat_with(|| rng.random()).take(size).collect()
 }
 
 /// test shortcut
