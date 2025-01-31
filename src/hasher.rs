@@ -67,3 +67,14 @@ impl Hasher for twox_hash::xxhash3_128::Hasher {
         self.finish_128()
     }
 }
+
+#[cfg(feature = "build-bin")]
+impl Hasher for blake3::Hasher {
+    type Hash = [u8; 32];
+    fn write(&mut self, buf: &[u8]) {
+        self.update(buf);
+    }
+    fn finish(self) -> Self::Hash {
+        self.finalize().into()
+    }
+}

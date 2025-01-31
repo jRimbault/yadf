@@ -77,6 +77,9 @@ impl Algorithm {
             Algorithm::AHash => {
                 write_output::<ahash::AHasher>(args, config.scan::<ahash::AHasher>())?
             }
+            Algorithm::Blake3 => {
+                write_output::<blake3::Hasher>(args, config.scan::<blake3::Hasher>())?
+            }
             Algorithm::Highway => write_output::<highway::HighwayHasher>(
                 args,
                 config.scan::<highway::HighwayHasher>(),
@@ -192,6 +195,7 @@ enum Format {
 #[clap(rename_all = "lower")]
 enum Algorithm {
     AHash,
+    Blake3,
     #[default]
     Highway,
     MetroHash,
