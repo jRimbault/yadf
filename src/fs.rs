@@ -6,7 +6,6 @@ mod hash;
 use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
 use crate::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::hash::Hasher;
 use std::path::{Path, PathBuf};
 
 const CHANNEL_SIZE: usize = 8 * 1024;
@@ -19,9 +18,9 @@ pub fn find_dupes_partial<H, P>(
     directories: &[P],
     max_depth: Option<usize>,
     filter: filter::FileFilter,
-) -> TreeBag<u64, PathBuf>
+) -> TreeBag<H::Hash, PathBuf>
 where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
     P: AsRef<Path>,
 {
     let mut paths = directories
@@ -55,9 +54,9 @@ where
     .0
 }
 
-fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)>
+fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(H::Hash, PathBuf)>
 where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
 {
     let path = entry.path();
     let meta = entry
@@ -73,9 +72,9 @@ where
     Some((hash, entry.into_path()))
 }
 
-pub fn dedupe<H>(tree: TreeBag<u64, PathBuf>) -> crate::FileCounter
+pub fn dedupe<H>(tree: TreeBag<H::Hash, PathBuf>) -> crate::FileCounter<H::Hash>
 where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
 {
     let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
     rayon::join(
@@ -90,10 +89,10 @@ where
 }
 
 fn process_bucket<H>(
-    sender: &mut crossbeam_channel::Sender<(u64, crate::Path)>,
-    (old_hash, bucket): (u64, Vec<PathBuf>),
+    sender: &mut crossbeam_channel::Sender<(H::Hash, crate::Path)>,
+    (old_hash, bucket): (H::Hash, Vec<PathBuf>),
 ) where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
 {
     if bucket.len() == 1 {
         let file = bucket.into_iter().next().unwrap();
@@ -112,9 +111,9 @@ fn process_bucket<H>(
     }
 }
 
-fn rehash_file<H>(file: &Path) -> Result<u64, ()>
+fn rehash_file<H>(file: &Path) -> Result<H::Hash, ()>
 where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
 {
     if file.metadata().map(|f| f.len()).unwrap_or(0) < BLOCK_SIZE as _ {
         return Err(());

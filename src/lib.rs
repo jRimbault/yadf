@@ -28,17 +28,18 @@
 mod bag;
 mod ext;
 mod fs;
+mod hasher;
 mod path;
 
 pub use bag::{Factor, Fdupes, Machine, TreeBag};
 pub use globset;
+pub use hasher::Hasher;
 pub use path::Path;
 pub use regex;
-use std::hash::Hasher;
 use std::rc::Rc;
 
-pub type FileCounter = TreeBag<u64, Path>;
-pub type FileReplicates<'a> = bag::Replicates<'a, u64, Path>;
+pub type FileCounter<H> = TreeBag<H, Path>;
+pub type FileReplicates<'a, H> = bag::Replicates<'a, H, Path>;
 
 /// Search configuration.
 ///
@@ -83,9 +84,10 @@ where
     P: AsRef<std::path::Path>,
 {
     /// This will attemps a complete scan according to its configuration.
-    pub fn scan<H>(self) -> FileCounter
+    pub fn scan<H>(self) -> FileCounter<H::Hash>
     where
-        H: Hasher + Default,
+        H: hasher::Hasher,
+        H::Hash: std::fmt::Debug,
     {
         #[cfg(unix)]
         let file_filter = fs::filter::FileFilter::new(

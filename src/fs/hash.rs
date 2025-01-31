@@ -1,13 +1,12 @@
 use super::BLOCK_SIZE;
 use std::fs::File;
-use std::hash::Hasher;
 use std::io::{self, Read};
 use std::path::Path;
 
 /// Get a checksum of the first 4 KiB (at most) of a file.
-pub fn partial<H>(path: &Path) -> io::Result<u64>
+pub fn partial<H>(path: &Path) -> io::Result<H::Hash>
 where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
 {
     let mut file = File::open(path)?;
     let mut buffer = [0u8; BLOCK_SIZE];
@@ -27,18 +26,18 @@ where
 }
 
 /// Get a complete checksum of a file.
-pub fn full<H>(path: &Path) -> io::Result<u64>
+pub fn full<H>(path: &Path) -> io::Result<H::Hash>
 where
-    H: Hasher + Default,
+    H: crate::hasher::Hasher,
 {
     /// Compile time [`Write`](std::io::Write) wrapper for a [`Hasher`](core::hash::Hasher).
     /// This should get erased at compile time.
     #[repr(transparent)]
     struct HashWriter<H>(H);
 
-    impl<H: Hasher> io::Write for HashWriter<H> {
+    impl<H: crate::hasher::Hasher> io::Write for HashWriter<H> {
         fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            self.0.write(buf);
+            crate::hasher::Hasher::write(&mut self.0, buf);
             Ok(buf.len())
         }
 

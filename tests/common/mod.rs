@@ -17,11 +17,11 @@ where
 
 /// test shortcut
 #[allow(dead_code)]
-pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter {
+pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter<u64> {
     yadf::Yadf::builder()
         .paths([path].as_ref())
         .build()
-        .scan::<std::collections::hash_map::DefaultHasher>()
+        .scan::<seahash::SeaHasher>()
 }
 
 #[macro_export]
