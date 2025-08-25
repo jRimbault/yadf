@@ -32,8 +32,8 @@ fn trace_output() -> AnyResult {
         + "\n";
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg("-vvvv") // test stderr contains enough debug output
-        .args(&["--format", "json"])
-        .args(&["--algorithm", "seahash"])
+        .args(["--format", "json"])
+        .args(["--algorithm", "seahash"])
         .arg(root.as_ref())
         .assert()
         .success()
@@ -72,7 +72,7 @@ fn regex() -> AnyResult {
     .join("\n")
         + "\n";
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
-        .args(&["--regex", "^particular_\\d_name$"])
+        .args(["--regex", "^particular_\\d_name$"])
         .arg(root.as_ref())
         .assert()
         .success()
@@ -95,7 +95,7 @@ fn glob_pattern() -> AnyResult {
     .join("\n")
         + "\n";
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
-        .args(&["--pattern", "particular*name"])
+        .args(["--pattern", "particular*name"])
         .arg(root.as_ref())
         .assert()
         .success()
@@ -118,7 +118,7 @@ fn min_file_size() -> AnyResult {
     .join("\n")
         + "\n";
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
-        .args(&["--min", "4K"])
+        .args(["--min", "4K"])
         .arg(root.as_ref())
         .assert()
         .success()
@@ -141,7 +141,7 @@ fn max_file_size() -> AnyResult {
     .join("\n")
         + "\n";
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
-        .args(&["--max", "2K"])
+        .args(["--max", "2K"])
         .arg(root.as_ref())
         .assert()
         .success()
@@ -158,10 +158,10 @@ fn non_utf8_paths() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     let filename = PathBuf::from(OsString::from_vec(b"\xe7\xe7".to_vec()));
     root.write_file(&filename, b"")?;
-    root.write_file(&"aa", b"")?;
+    root.write_file("aa", b"")?;
     assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
         .arg(root.as_ref())
-        .args(&["-f", "json"])
+        .args(["-f", "json"])
         .arg("-vv")
         .assert()
         .success();

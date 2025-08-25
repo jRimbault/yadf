@@ -95,8 +95,7 @@ impl std::str::FromStr for ReplicationFactor {
                 return Err(format!(
                     "replication factor must be of the form \
                     `over:1` or `under:5` or `equal:2`, \
-                    got {:?}",
-                    value
+                    got {value:?}"
                 ))
             }
         };

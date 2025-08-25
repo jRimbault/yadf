@@ -14,10 +14,10 @@ fn sanity_check() {
     let counter = find_dupes(&home);
     for bucket in counter.duplicates().iter() {
         let (first, bucket) = bucket.split_first().unwrap();
-        let reference = std::fs::read(&first).unwrap();
+        let reference = std::fs::read(first).unwrap();
         for file in bucket {
-            let contents = std::fs::read(&file).unwrap();
-            assert_eq!(reference, contents, "comparing {:?} and {:?}", first, file);
+            let contents = std::fs::read(file).unwrap();
+            assert_eq!(reference, contents, "comparing {first:?} and {file:?}");
         }
     }
 }

@@ -85,7 +85,7 @@ mod test_dir {
     impl Drop for TestDir {
         fn drop(&mut self) {
             fs::remove_dir_all(&self.0)
-                .expect(&format!("couldn't remove test directory {:?}", self.0));
+                .unwrap_or_else(|_| panic!("couldn't remove test directory {:?}", self.0));
         }
     }
 

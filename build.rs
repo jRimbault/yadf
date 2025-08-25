@@ -2,10 +2,10 @@ fn main() {
     // Make the current git hash available to the build.
     let maybe_rev = git_revision_hash();
     if let Some(rev) = maybe_rev.as_deref() {
-        println!("cargo:rustc-env=YADF_BUILD_GIT_HASH={}", rev);
+        println!("cargo:rustc-env=YADF_BUILD_GIT_HASH={rev}");
     }
     let long_version = long_version(maybe_rev);
-    println!("cargo:rustc-env=YADF_BUILD_VERSION={}", long_version);
+    println!("cargo:rustc-env=YADF_BUILD_VERSION={long_version}");
 }
 
 fn git_revision_hash() -> Option<String> {
@@ -27,7 +27,7 @@ fn long_version(rev: Option<String>) -> String {
     // (Yes, if ripgrep was built on a machine with `git` installed.)
     let hash = match rev {
         None => String::new(),
-        Some(githash) => format!(" (rev {})", githash),
+        Some(githash) => format!(" (rev {githash})"),
     };
     let runtime = runtime_cpu_features();
     if runtime.is_empty() {
