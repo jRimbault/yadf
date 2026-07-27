@@ -1,26 +1,35 @@
+use super::advise::{self, Advice};
 use super::BLOCK_SIZE;
 use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
+/// Buffer size for the full-file hashing pass. Large enough that a big
+/// file is read in a handful of syscalls rather than hundreds.
+const FULL_READ_BUFFER_SIZE: usize = 256 * 1024;
+
 /// Get a checksum of the first 4 KiB (at most) of a file.
-pub fn partial<H>(path: &Path) -> io::Result<H::Hash>
+///
+/// `len` is the already-known file size (from the caller's earlier
+/// `stat`), so this never issues its own `fstat`.
+pub fn partial<H>(path: &Path, len: u64) -> io::Result<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
     let mut file = File::open(path)?;
+    advise::advise(&file, Advice::Random);
     let mut buffer = [0u8; BLOCK_SIZE];
     let mut n = 0;
-    loop {
+    while n < BLOCK_SIZE {
         match file.read(&mut buffer[n..]) {
             Ok(0) => break,
-            Ok(len) => n += len,
+            Ok(read) => n += read,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
             Err(e) => return Err(e),
         }
     }
     let mut hasher = H::default();
-    hasher.write(&file.metadata()?.len().to_le_bytes());
+    hasher.write(&len.to_le_bytes());
     hasher.write(&buffer[..n]);
     Ok(hasher.finish())
 }
@@ -30,25 +39,19 @@ pub fn full<H>(path: &Path) -> io::Result<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    /// Compile time [`Write`](std::io::Write) wrapper for a [`Hasher`](core::hash::Hasher).
-    /// This should get erased at compile time.
-    #[repr(transparent)]
-    struct HashWriter<H>(H);
-
-    impl<H: crate::hasher::Hasher> io::Write for HashWriter<H> {
-        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-            crate::hasher::Hasher::write(&mut self.0, buf);
-            Ok(buf.len())
-        }
-
-        fn flush(&mut self) -> io::Result<()> {
-            Ok(())
+    let mut file = File::open(path)?;
+    advise::advise(&file, Advice::Sequential);
+    let mut hasher = H::default();
+    let mut buffer = vec![0u8; FULL_READ_BUFFER_SIZE];
+    loop {
+        match file.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => hasher.write(&buffer[..n]),
+            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+            Err(e) => return Err(e),
         }
     }
-
-    let mut hasher = HashWriter(H::default());
-    io::copy(&mut File::open(path)?, &mut hasher)?;
-    Ok(hasher.0.finish())
+    Ok(hasher.finish())
 }
 
 #[cfg(test)]
@@ -57,8 +60,10 @@ mod tests {
 
     #[test]
     fn different_hash_partial_and_full_for_small_file_because_of_size() {
-        let h1 = partial::<seahash::SeaHasher>("./tests/static/foo".as_ref()).unwrap();
-        let h2 = full::<seahash::SeaHasher>("./tests/static/foo".as_ref()).unwrap();
+        let path: &Path = "./tests/static/foo".as_ref();
+        let len = std::fs::metadata(path).unwrap().len();
+        let h1 = partial::<seahash::SeaHasher>(path, len).unwrap();
+        let h2 = full::<seahash::SeaHasher>(path).unwrap();
         assert_ne!(h1, h2);
     }
 }

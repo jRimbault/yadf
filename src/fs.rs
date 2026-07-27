@@ -1,5 +1,6 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
 
+mod advise;
 pub mod filter;
 mod hash;
 
@@ -63,10 +64,11 @@ where
         .metadata()
         .map_err(|error| log::error!("{}, couldn't get metadata for {:?}", error, path))
         .ok()?;
+    let len = meta.len();
     if !filter.is_match(path, meta) {
         return None;
     }
-    let hash = hash::partial::<H>(path)
+    let hash = hash::partial::<H>(path, len)
         .map_err(|error| log::error!("{}, couldn't hash {:?}", error, path))
         .ok()?;
     Some((hash, entry.into_path()))
