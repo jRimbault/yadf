@@ -83,6 +83,8 @@ where
 }
 
 fn with_io_pool<T: Send>(io_threads: usize, work: impl FnOnce() -> T + Send) -> T {
+    static RAISE_NOFILE_LIMIT: std::sync::Once = std::sync::Once::new();
+    RAISE_NOFILE_LIMIT.call_once(advise::raise_nofile_limit);
     let io_pool = rayon::ThreadPoolBuilder::new()
         .num_threads(io_threads)
         .build()

@@ -8,6 +8,13 @@ use std::path::Path;
 /// file is read in a handful of syscalls rather than hundreds.
 const FULL_READ_BUFFER_SIZE: usize = 256 * 1024;
 
+thread_local! {
+    // Reused across calls on the same I/O-pool thread so hashing many
+    // large files in a row doesn't repeatedly allocate/free 256 KiB.
+    static FULL_READ_BUFFER: std::cell::RefCell<Vec<u8>> =
+        std::cell::RefCell::new(vec![0u8; FULL_READ_BUFFER_SIZE]);
+}
+
 /// Get a checksum for a file known (from a prior size-grouping pass) to be
 /// the only file of its size, and therefore guaranteed unique. Never opens
 /// the file.
@@ -28,7 +35,7 @@ pub fn partial<H>(path: &Path, len: u64) -> io::Result<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    let mut file = File::open(path)?;
+    let mut file = advise::open_noatime(path)?;
     advise::advise(&file, Advice::Random);
     let mut buffer = [0u8; BLOCK_SIZE];
     let mut n = 0;
@@ -54,7 +61,7 @@ pub fn suffix<H>(path: &Path, len: u64) -> io::Result<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    let file = File::open(path)?;
+    let file = advise::open_noatime(path)?;
     advise::advise(&file, Advice::Random);
     let read_len = (len as usize).min(BLOCK_SIZE);
     let offset = len - read_len as u64;
@@ -84,18 +91,20 @@ pub fn full<H>(path: &Path) -> io::Result<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    let mut file = File::open(path)?;
+    let mut file = advise::open_noatime(path)?;
     advise::advise(&file, Advice::Sequential);
     let mut hasher = H::default();
-    let mut buffer = vec![0u8; FULL_READ_BUFFER_SIZE];
-    loop {
-        match file.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(n) => hasher.write(&buffer[..n]),
-            Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
-            Err(e) => return Err(e),
+    FULL_READ_BUFFER.with_borrow_mut(|buffer| -> io::Result<()> {
+        loop {
+            match file.read(buffer) {
+                Ok(0) => break,
+                Ok(n) => hasher.write(&buffer[..n]),
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(e),
+            }
         }
-    }
+        Ok(())
+    })?;
     Ok(hasher.finish())
 }
 
