@@ -1,0 +1,58 @@
+name: Cargo cache
+description: >-
+  Caches the cargo registry and the target directory, keyed by the runner's
+  CPU as well as by the lockfile.
+
+inputs:
+  prefix:
+    description: >-
+      Distinguishes the caches of jobs that build different things, so that a
+      `cargo check` target directory is never handed to the test job.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # `.cargo/config.toml` builds everything with `-C target-cpu=native`, so
+    # compiled artifacts are only valid on a CPU with the same instruction
+    # set. GitHub's runner fleet is not homogeneous: a cache filled on, say,
+    # an AVX-512 machine and restored onto one without it produces binaries
+    # that die with SIGILL / STATUS_ILLEGAL_INSTRUCTION at the first wide
+    # instruction. Keying on the CPU means such a cache is simply missed
+    # rather than poisoning the build.
+    - name: Identify the runner CPU
+      id: cpu
+      shell: bash
+      run: |
+        case "$RUNNER_OS" in
+          Linux)
+            # The flag list is the instruction set, which is what actually
+            # has to match; the model name is there to make a miss legible.
+            fingerprint=$(sed -n 's/^model name[[:space:]]*: //p;s/^flags[[:space:]]*: //p' /proc/cpuinfo | sort -u)
+            ;;
+          macOS)
+            fingerprint="$(uname -m) \
+              $(sysctl -n machdep.cpu.brand_string 2>/dev/null || true) \
+              $(sysctl -n machdep.cpu.features 2>/dev/null || true) \
+              $(sysctl -n machdep.cpu.leaf7_features 2>/dev/null || true)"
+            ;;
+          Windows)
+            # e.g. "Intel64 Family 6 Model 106 Stepping 6, GenuineIntel";
+            # coarser than a flag list, but it does separate CPU generations.
+            fingerprint="${PROCESSOR_IDENTIFIER:-unknown}"
+            ;;
+          *)
+            fingerprint="$RUNNER_OS"
+            ;;
+        esac
+        digest=$(printf '%s' "$fingerprint" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -c1-12)
+        echo "runner CPU fingerprint: $digest"
+        echo "id=$digest" >>"$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ inputs.prefix }}-${{ runner.os }}-cpu${{ steps.cpu.outputs.id }}-cargo-${{ hashFiles('**/Cargo.lock') }}

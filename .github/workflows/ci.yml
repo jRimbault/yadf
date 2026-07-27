@@ -13,6 +13,9 @@ on:
     # At 13:23 on day-of-month 23.
     - cron: "23 13 23 * *"
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   check:
     name: Check build
@@ -24,65 +27,40 @@ jobs:
         rust: [stable, 1.88.0]
         feature_set: ["--no-default-features", "--all-features"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: check-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
-      - name: Run build check
-        uses: actions-rs/cargo@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          command: check
-          args: ${{ matrix.feature_set }}
+          prefix: check-${{ matrix.rust }}
+      - name: Run build check
+        run: cargo check ${{ matrix.feature_set }}
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: clippy-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: clippy
-      - name: Run cargo clippy
-        uses: actions-rs/clippy-check@v1
+      - uses: ./.github/actions/cargo-cache
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features -- -D warnings
+          prefix: clippy
+      - name: Run cargo clippy
+        run: cargo clippy --all-features -- -D warnings
 
   format:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
   tests:
     name: Tests
@@ -94,26 +72,14 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         rust: [stable]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@master
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: tests-${{ runner.os }}-${{ matrix.rust }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
+      - uses: ./.github/actions/cargo-cache
+        with:
+          prefix: tests-${{ matrix.rust }}
       - name: Build tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --tests
+        run: cargo build --tests
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features
+        run: cargo test --all-features

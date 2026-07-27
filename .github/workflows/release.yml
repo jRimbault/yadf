@@ -4,18 +4,17 @@ on:
     tags:
       - "v*"
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   # Publish yadf to crates.io
   publish:
     name: Publish crates.io package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
       - name: Publish
         run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
 
@@ -45,24 +44,16 @@ jobs:
             name: yadf-x86_64-pc-windows-msvc.zip
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          profile: minimal
-          target: ${{ matrix.target }}
+          targets: ${{ matrix.target }}
 
       - name: Setup musl tools
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: sudo apt install -y musl-tools
 
       - name: Build
-        if: matrix.target != 'x86_64-unknown-linux-musl'
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Build (musl)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare artifacts [Windows]
@@ -79,7 +70,7 @@ jobs:
           tar czvf ../../../${{ matrix.name }} yadf
           cd -
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
@@ -89,16 +80,16 @@ jobs:
     name: GitHub Release
     needs: github_build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v2
-        with:
-          go-version: "^1.13.1"
-
-      - uses: actions/download-artifact@v2
+      # Downloads every artifact of this run, each into a directory named
+      # after it, which is what the `yadf-*/yadf-*` globs below expect.
+      - uses: actions/download-artifact@v4
 
       - name: Build release notes
         run: |
@@ -120,7 +111,7 @@ jobs:
           done
 
       - name: Publish
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: yadf-*/yadf-*
           body_path: RELEASE.md
