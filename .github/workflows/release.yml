@@ -10,8 +10,9 @@ env:
   # benchmarking. A binary handed to someone else must not be tuned for the
   # runner that happened to build it, or it dies with SIGILL on any CPU
   # missing an instruction the compiler chose to emit. RUSTFLAGS takes
-  # precedence over `build.rustflags`, so this pins every job in this
-  # workflow back to the portable baseline.
+  # precedence over `build.rustflags`, so this pins the x86_64 jobs that
+  # only compile for themselves (verify, publish) to the portable baseline;
+  # the build matrix overrides it per target below.
   RUSTFLAGS: "-C target-cpu=x86-64"
 
 jobs:
@@ -40,25 +41,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - x86_64-unknown-linux-musl
-          # - x86_64-apple-darwin
-          - x86_64-pc-windows-msvc
+        # `rustflags` is the portable CPU baseline for each target: never the
+        # building runner's own CPU. `x86-64` is the base 64-bit instruction
+        # set; `apple-a14` is the M1, which is the oldest Apple Silicon there
+        # is. Every value is checked against `rustc --print target-cpus` --
+        # a name valid for one architecture is rejected outright by another.
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             name: yadf-x86_64-unknown-linux-gnu.tar.gz
+            rustflags: "-C target-cpu=x86-64"
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             name: yadf-x86_64-unknown-linux-musl.tar.gz
-          # - target: x86_64-apple-darwin
-          #  os: macOS-latest
-          #  name: yadf-x86_64-apple-darwin.tar.gz
+            rustflags: "-C target-cpu=x86-64"
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: yadf-x86_64-apple-darwin.tar.gz
+            rustflags: "-C target-cpu=x86-64"
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: yadf-aarch64-apple-darwin.tar.gz
+            rustflags: "-C target-cpu=apple-a14"
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             name: yadf-x86_64-pc-windows-msvc.zip
+            rustflags: "-C target-cpu=x86-64"
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
