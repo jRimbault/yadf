@@ -89,7 +89,7 @@ impl<P> Yadf<P>
 where
     P: AsRef<std::path::Path>,
 {
-    /// This will attemps a complete scan according to its configuration.
+    /// This will attempt a complete scan according to its configuration.
     pub fn scan<H>(self) -> FileCounter<H::Hash>
     where
         H: hasher::Hasher,

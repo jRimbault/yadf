@@ -1,7 +1,7 @@
 use super::{Display, Factor, Replicates};
 use std::collections::btree_map::Values;
 
-/// [`Iterator`](Iterator) adapater.
+/// [`Iterator`](Iterator) adapter.
 #[derive(Debug)]
 pub struct Iter<'a, K, V> {
     values: Values<'a, K, Vec<V>>,
@@ -20,7 +20,7 @@ impl<K, V> Replicates<'_, K, V> {
     /// Returns an object that implements [`Display`](std::fmt::Display).
     ///
     /// Depending on the contents of the [`TreeBag`](super::TreeBag), the display object
-    /// can be parameterized to get a different [`Display`](std::fmt::Display) implemenation.
+    /// can be parameterized to get a different [`Display`](std::fmt::Display) implementation.
     pub fn display<U>(&self) -> Display<'_, K, V, U> {
         Display {
             format_marker: std::marker::PhantomData,
