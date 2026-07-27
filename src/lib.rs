@@ -4,7 +4,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! yadf = { version = "1.3.0", default-features = false }
+//! yadf = { version = "1.4.0", default-features = false }
 //! ```
 //!
 //! A collection of functions and structs to find duplicate files.
