@@ -32,6 +32,7 @@ mod hasher;
 mod path;
 
 pub use bag::{Factor, Fdupes, Machine, TreeBag};
+pub use fs::default_io_threads;
 pub use globset;
 pub use hasher::Hasher;
 pub use path::Path;
@@ -77,6 +78,11 @@ pub struct Yadf<P: AsRef<std::path::Path>> {
     #[cfg(unix)]
     #[builder(default, setter(doc = "Treat hard links as duplicates"))]
     hard_links: bool,
+    #[builder(
+        default = fs::default_io_threads(),
+        setter(doc = "Concurrency for the I/O-bound hashing phases (default: number of CPUs)")
+    )]
+    io_threads: usize,
 }
 
 impl<P> Yadf<P>
@@ -104,7 +110,12 @@ where
             self.regex,
             self.glob.map(|g| g.compile_matcher()),
         );
-        let bag = fs::find_dupes_partial::<H, _>(&self.paths, self.max_depth, file_filter);
+        let bag = fs::find_dupes_partial::<H, _>(
+            &self.paths,
+            self.max_depth,
+            file_filter,
+            self.io_threads,
+        );
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "scanned {} files",
@@ -116,7 +127,7 @@ where
             );
             log::trace!("{:?}", bag);
         }
-        let bag = fs::dedupe::<H>(bag);
+        let bag = fs::dedupe::<H>(bag, self.io_threads);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "found {} duplicates in {} groups after checksumming",

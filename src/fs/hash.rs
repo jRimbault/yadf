@@ -8,6 +8,18 @@ use std::path::Path;
 /// file is read in a handful of syscalls rather than hundreds.
 const FULL_READ_BUFFER_SIZE: usize = 256 * 1024;
 
+/// Get a checksum for a file known (from a prior size-grouping pass) to be
+/// the only file of its size, and therefore guaranteed unique. Never opens
+/// the file.
+pub fn size_only<H>(len: u64) -> H::Hash
+where
+    H: crate::hasher::Hasher,
+{
+    let mut hasher = H::default();
+    hasher.write(&len.to_le_bytes());
+    hasher.finish()
+}
+
 /// Get a checksum of the first 4 KiB (at most) of a file.
 ///
 /// `len` is the already-known file size (from the caller's earlier

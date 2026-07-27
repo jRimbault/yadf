@@ -52,6 +52,7 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
         .glob(args.pattern.clone())
         .max_depth(args.max_depth)
         .hard_links(args.hard_links)
+        .io_threads(args.io_threads.unwrap_or_else(yadf::default_io_threads))
         .build()
 }
 
@@ -64,6 +65,7 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
         .regex(args.regex.clone())
         .glob(args.pattern.clone())
         .max_depth(args.max_depth)
+        .io_threads(args.io_threads.unwrap_or_else(yadf::default_io_threads))
         .build()
 }
 
@@ -155,6 +157,13 @@ pub struct Args {
     /// Maximum recursion depth
     #[clap(short = 'd', long = "depth", value_name = "depth")]
     max_depth: Option<usize>,
+    /// Concurrency for the I/O-bound hashing phases
+    ///
+    /// Defaults to the number of CPUs. Going higher can help small random
+    /// reads saturate the queue on some SSD/NVMe devices; going to 1 can
+    /// help on spinning disks. The optimum is storage-dependent.
+    #[clap(long, value_name = "n")]
+    io_threads: Option<usize>,
     /// Treat hard links to same file as duplicates
     #[cfg_attr(unix, clap(short = 'H', long))]
     #[cfg(unix)]

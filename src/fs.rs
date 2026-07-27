@@ -12,16 +12,88 @@ use std::path::{Path, PathBuf};
 const CHANNEL_SIZE: usize = 8 * 1024;
 const BLOCK_SIZE: usize = 4 * 1024;
 
+/// Default concurrency for the I/O-bound hashing phases, distinct from (but
+/// currently equal to) the walker's concurrency.
+///
+/// Oversubscribing well past the core count can help small random reads on
+/// some SSD/NVMe devices saturate their queue depth (see pkolaczk's
+/// disk-parallelism measurements), but it is not a safe default: measured
+/// locally, going from 1x to 4x cores bought a few percent on a cold cache
+/// while costing up to 60% on a warm one, because the extra threads have
+/// nothing but each other to contend with once there is no device latency
+/// to hide. Use `--io-threads` to opt into oversubscription on storage
+/// where it is known to help.
+pub fn default_io_threads() -> usize {
+    num_cpus::get()
+}
+
+/// A candidate file carried through the hashing pipeline together with its
+/// already-known size, so later stages never need to re-`stat` it.
+#[derive(Debug)]
+pub struct Candidate {
+    path: PathBuf,
+    size: u64,
+}
+
 /// Foundation of the API.
-/// This will attemps a naive scan of every file,
-/// within the given size constraints, at the given path.
+///
+/// Walks the given paths, groups files by size (a side effect of the
+/// metadata the walk already fetches, at no extra syscall cost), then only
+/// opens files that share a size with at least one other file: a file with
+/// a unique size can never be a duplicate, so it is never read.
 pub fn find_dupes_partial<H, P>(
     directories: &[P],
     max_depth: Option<usize>,
     filter: filter::FileFilter,
-) -> TreeBag<H::Hash, PathBuf>
+    io_threads: usize,
+) -> TreeBag<H::Hash, Candidate>
 where
     H: crate::hasher::Hasher,
+    P: AsRef<Path>,
+{
+    let by_size = collect_by_size(directories, max_depth, &filter);
+    with_io_pool(io_threads, || partial_hash_by_size::<H>(by_size))
+}
+
+/// Rehashes every bucket with more than one candidate to confirm (or rule
+/// out) a real content match; buckets already known to be unique are
+/// passed through untouched.
+pub fn dedupe<H>(
+    tree: TreeBag<H::Hash, Candidate>,
+    io_threads: usize,
+) -> crate::FileCounter<H::Hash>
+where
+    H: crate::hasher::Hasher,
+{
+    with_io_pool(io_threads, || {
+        let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
+        rayon::join(
+            move || receiver.into_iter().collect(),
+            move || {
+                tree.into_inner()
+                    .into_par_iter()
+                    .for_each_with(sender, process_bucket::<H>)
+            },
+        )
+        .0
+    })
+}
+
+fn with_io_pool<T: Send>(io_threads: usize, work: impl FnOnce() -> T + Send) -> T {
+    let io_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(io_threads)
+        .build()
+        .expect("failed to build I/O thread pool");
+    io_pool.install(work)
+}
+
+/// Walks `directories` and groups every matching file by its size.
+fn collect_by_size<P>(
+    directories: &[P],
+    max_depth: Option<usize>,
+    filter: &filter::FileFilter,
+) -> TreeBag<u64, PathBuf>
+where
     P: AsRef<Path>,
 {
     let mut paths = directories
@@ -43,7 +115,7 @@ where
                     log::error!("{}", error);
                     return ignore::WalkState::Continue;
                 }
-                if let Some(key_value) = hash_entry::<H>(&filter, entry.unwrap()) {
+                if let Some(key_value) = size_entry(filter, entry.unwrap()) {
                     if let Err(error) = sender.send(key_value) {
                         log::error!("{}, couldn't send value across channel", error);
                     }
@@ -55,10 +127,7 @@ where
     .0
 }
 
-fn hash_entry<H>(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(H::Hash, PathBuf)>
-where
-    H: crate::hasher::Hasher,
-{
+fn size_entry(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)> {
     let path = entry.path();
     let meta = entry
         .metadata()
@@ -68,13 +137,13 @@ where
     if !filter.is_match(path, meta) {
         return None;
     }
-    let hash = hash::partial::<H>(path, len)
-        .map_err(|error| log::error!("{}, couldn't hash {:?}", error, path))
-        .ok()?;
-    Some((hash, entry.into_path()))
+    Some((len, entry.into_path()))
 }
 
-pub fn dedupe<H>(tree: TreeBag<H::Hash, PathBuf>) -> crate::FileCounter<H::Hash>
+/// Turns size-buckets into partial-hash buckets. Files that are the only
+/// one of their size are never opened; the rest are read for their first
+/// 4 KiB.
+fn partial_hash_by_size<H>(by_size: TreeBag<u64, PathBuf>) -> TreeBag<H::Hash, Candidate>
 where
     H: crate::hasher::Hasher,
 {
@@ -82,49 +151,76 @@ where
     rayon::join(
         move || receiver.into_iter().collect(),
         move || {
-            tree.into_inner()
+            by_size
+                .into_inner()
                 .into_par_iter()
-                .for_each_with(sender, process_bucket::<H>)
+                .for_each_with(sender, hash_size_bucket::<H>)
         },
     )
     .0
 }
 
-fn process_bucket<H>(
-    sender: &mut crossbeam_channel::Sender<(H::Hash, crate::Path)>,
-    (old_hash, bucket): (H::Hash, Vec<PathBuf>),
+fn hash_size_bucket<H>(
+    sender: &mut crossbeam_channel::Sender<(H::Hash, Candidate)>,
+    (size, bucket): (u64, Vec<PathBuf>),
 ) where
     H: crate::hasher::Hasher,
 {
     if bucket.len() == 1 {
-        let file = bucket.into_iter().next().unwrap();
-        if let Err(error) = sender.send((old_hash, file.into())) {
-            log::error!("{}, couldn't send value across channel", error);
-        }
-    } else {
-        bucket
-            .into_par_iter()
-            .for_each_with(sender.clone(), |sender, file| {
-                let hash = rehash_file::<H>(&file).unwrap_or(old_hash);
-                if let Err(error) = sender.send((hash, file.into())) {
-                    log::error!("{}, couldn't send value across channel", error);
-                }
-            });
+        let path = bucket.into_iter().next().unwrap();
+        let hash = hash::size_only::<H>(size);
+        send(sender, hash, Candidate { path, size });
+        return;
     }
+    bucket
+        .into_par_iter()
+        .for_each_with(sender.clone(), |sender, path| {
+            match hash::partial::<H>(&path, size) {
+                Ok(hash) => send(sender, hash, Candidate { path, size }),
+                Err(error) => log::error!("{}, couldn't hash {:?}", error, path),
+            }
+        });
 }
 
-fn rehash_file<H>(file: &Path) -> Result<H::Hash, ()>
+fn process_bucket<H>(
+    sender: &mut crossbeam_channel::Sender<(H::Hash, crate::Path)>,
+    (old_hash, bucket): (H::Hash, Vec<Candidate>),
+) where
+    H: crate::hasher::Hasher,
+{
+    if bucket.len() == 1 {
+        let candidate = bucket.into_iter().next().unwrap();
+        send(sender, old_hash, candidate.path.into());
+        return;
+    }
+    bucket
+        .into_par_iter()
+        .for_each_with(sender.clone(), |sender, candidate| {
+            let hash = full_hash::<H>(&candidate).unwrap_or(old_hash);
+            send(sender, hash, candidate.path.into());
+        });
+}
+
+fn full_hash<H>(candidate: &Candidate) -> Result<H::Hash, ()>
 where
     H: crate::hasher::Hasher,
 {
-    if file.metadata().map(|f| f.len()).unwrap_or(0) < BLOCK_SIZE as _ {
+    if candidate.size < BLOCK_SIZE as u64 {
+        // Its partial hash already covered the whole content plus the
+        // size: nothing more to distinguish it by.
         return Err(());
     }
-    match hash::full::<H>(file) {
-        Ok(hash) => Ok(hash),
-        Err(error) => {
-            log::error!("{}, couldn't hash {:?}, reusing partial hash", error, file);
-            Err(())
-        }
+    hash::full::<H>(&candidate.path).map_err(|error| {
+        log::error!(
+            "{}, couldn't hash {:?}, reusing previous hash",
+            error,
+            candidate.path
+        )
+    })
+}
+
+fn send<H, V>(sender: &mut crossbeam_channel::Sender<(H, V)>, hash: H, value: V) {
+    if let Err(error) = sender.send((hash, value)) {
+        log::error!("{}, couldn't send value across channel", error);
     }
 }
