@@ -151,7 +151,20 @@ jobs:
         run: |
           wget https://github.com/git-chglog/git-chglog/releases/download/0.9.1/git-chglog_linux_amd64 -O git-chglog
           chmod 744 git-chglog
-          ./git-chglog -c .github/chglog/release.yml $(git describe --tags) > RELEASE.md
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            # On a real tag, `git describe --tags` at HEAD is exactly that
+            # tag, so this is a single-tag query: commits since the
+            # previous tag.
+            query="$(git describe --tags)"
+            ./git-chglog -c .github/chglog/release.yml "$query" >RELEASE.md
+          else
+            # No tag exists yet on a dispatch run, so `git describe --tags`
+            # returns a pseudo-version (e.g. "v1.3.0-38-gabc1234") that
+            # git-chglog cannot resolve as a tag. Preview the unreleased
+            # commits instead: everything after the latest real tag.
+            latest="$(git describe --tags --abbrev=0)"
+            ./git-chglog -c .github/chglog/release.yml --next-tag HEAD "$latest.." >RELEASE.md
+          fi
 
       - name: Compute checksums
         run: |
