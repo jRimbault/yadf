@@ -134,8 +134,8 @@ filesystem cache is cold.
 
 | Program (warm filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] |
 | :------------------------------ | ------: | ----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.34.0 |     0.676 ± 0.007 |   0.670 |   0.692 |
-| [`jdupes`][1]                   |  1.20.2 |     2.649 ± 0.013 |   2.634 |   2.671 |
+| [`fclones`][0]                  |  0.35.0 |     1.504 ± 0.018 |   1.475 |   1.531 |
+| [`jdupes`][1]                   |  1.31.1 |     2.842 ± 0.026 |   2.805 |   2.877 |
 | [`ddh`][2]                      |  0.13.0 |     1.187 ± 0.022 |   1.159 |   1.220 |
 | [`dupe-krill`][4]               |   1.5.0 |     4.031 ± 0.058 |   3.929 |   4.134 |
 | [`fddf`][5]                     |   1.7.0 |     0.729 ± 0.013 |   0.708 |   0.749 |
@@ -143,15 +143,15 @@ filesystem cache is cold.
 
 | Program (cold filesystem cache) | Version | Mean [s]           | Min [s] | Max [s] |
 | :------------------------------ | ------: | -----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.34.0 |      2.830 ± 0.015 |   2.808 |   2.843 |
-| [`jdupes`][1]                   |  1.20.2 |     17.366 ± 0.043 |  17.332 |  17.435 |
+| [`fclones`][0]                  |  0.35.0 |      2.855 ± 0.017 |   2.832 |   2.875 |
+| [`jdupes`][1]                   |  1.31.1 |     17.692 ± 0.096 |  17.604 |  17.894 |
 | [`ddh`][2]                      |  0.13.0 |      3.160 ± 0.094 |   3.094 |   3.326 |
 | [`dupe-krill`][4]               |   1.5.0 |     17.746 ± 0.037 |  17.701 |  17.783 |
 | [`fddf`][5]                     |   1.7.0 |      2.990 ± 0.014 |   2.982 |   3.014 |
 | `yadf`                          |   1.4.0 |  **2.804 ± 0.019** |   2.784 |   2.833 |
 
-_Cold cache, the top three are within ~6%, and `yadf` and `fclones` are tied around
-about one standard deviation apart._
+_Cold cache, the top three are within ~7%, and `yadf` and `fclones` are less than
+2% apart._
 
 `fclones group` skips empty files, hidden files, `.gitignore` matches and symlinks by default;
 these runs pass `--min 0` and the corpus contains none of those. Benchmarking against a home
@@ -162,7 +162,7 @@ compare `yadf` against itself across commits or releases, see
 [`scripts/bench-versions.sh`](./scripts/bench-versions.sh).
 
 [0]: https://github.com/pkolaczk/fclones
-[1]: https://github.com/jbruchon/jdupes
+[1]: https://codeberg.org/jbruchon/jdupes
 [2]: https://github.com/darakian/ddh
 [3]: https://github.com/sahib/rmlint
 [4]: https://github.com/kornelski/dupe-krill
@@ -177,4 +177,3 @@ compare `yadf` against itself across commits or releases, see
 - Disk: NVMe, CT2000P5PSSD8
 
 </details>
-
