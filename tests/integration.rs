@@ -30,7 +30,7 @@ fn trace_output() -> AnyResult {
     let _expected = serde_json::to_string(&[[file1.to_string_lossy(), file2.to_string_lossy()]])
         .unwrap()
         + "\n";
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .arg("-vvvv") // test stderr contains enough debug output
         .args(["--format", "json"])
         .args(["--algorithm", "seahash"])
@@ -71,7 +71,7 @@ fn regex() -> AnyResult {
     ]
     .join("\n")
         + "\n";
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .args(["--regex", "^particular_\\d_name$"])
         .arg(root.as_ref())
         .assert()
@@ -94,7 +94,7 @@ fn glob_pattern() -> AnyResult {
     ]
     .join("\n")
         + "\n";
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .args(["--pattern", "particular*name"])
         .arg(root.as_ref())
         .assert()
@@ -117,7 +117,7 @@ fn min_file_size() -> AnyResult {
     ]
     .join("\n")
         + "\n";
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .args(["--min", "4K"])
         .arg(root.as_ref())
         .assert()
@@ -140,7 +140,7 @@ fn max_file_size() -> AnyResult {
     ]
     .join("\n")
         + "\n";
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .args(["--max", "2K"])
         .arg(root.as_ref())
         .assert()
@@ -159,7 +159,7 @@ fn non_utf8_paths() -> AnyResult {
     let filename = PathBuf::from(OsString::from_vec(b"\xe7\xe7".to_vec()));
     root.write_file(&filename, b"")?;
     root.write_file("aa", b"")?;
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .arg(root.as_ref())
         .args(["-f", "json"])
         .arg("-vv")
@@ -173,7 +173,7 @@ fn hard_links_flag() -> AnyResult {
     let predicate = predstr::contains("--hard-links");
     #[cfg(not(unix))]
     let predicate = predicate.not();
-    assert_cmd::Command::cargo_bin(assert_cmd::crate_name!())?
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
         .arg("-h")
         .assert()
         .success()

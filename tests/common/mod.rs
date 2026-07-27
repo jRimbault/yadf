@@ -10,7 +10,7 @@ where
     rand::distr::StandardUniform: rand::distr::Distribution<T>,
     I: std::iter::FromIterator<T>,
 {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     std::iter::repeat_with(|| rng.random()).take(size).collect()
 }
