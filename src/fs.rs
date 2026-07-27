@@ -19,15 +19,27 @@ const SUFFIX_HASH_THRESHOLD: u64 = 64 * 1024;
 /// Threads dedicated to issuing readahead hints. They only ever `open` and
 /// `posix_fadvise`, never read or hash, so they cost almost no CPU and can
 /// safely outnumber the cores.
-const PREFETCH_THREADS: usize = 32;
-/// How far ahead of the hashing threads the prefetcher is allowed to run,
-/// in files. Bounds how much speculative data can sit in the page cache.
+///
+/// All four prefetch constants below were swept on a 150k-file / 27.6 GB
+/// corpus. Cold and warm wall time turned out to be insensitive to every one
+/// of them: threads 8-128, partial window 256-16384, content window 32-2048
+/// and content length 4 KiB-1 MiB all landed within ~1% of each other, which
+/// is the run-to-run noise. They are therefore chosen for the secondary
+/// criteria -- syscall cost and page-cache pressure -- rather than tuned to a
+/// sharp optimum. Do not treat them as finely calibrated.
+const PREFETCH_THREADS: usize = 16;
+/// How far ahead of the hashing threads the prefetcher may run, in files.
+/// Bounds how much speculative data can sit in the page cache. The leash
+/// does earn its keep: letting the prefetcher run unbounded (a window past
+/// the file count) was the one setting that measured consistently worse.
 const PARTIAL_PREFETCH_WINDOW: usize = 4096;
-const CONTENT_PREFETCH_WINDOW: usize = 256;
-/// Only the head of a file is prefetched in the content phase; once the
-/// read is under way `POSIX_FADV_SEQUENTIAL` keeps it fed. Prefetching whole
-/// multi-hundred-MB files would evict more than it gains.
-const CONTENT_PREFETCH_LEN: u64 = 1024 * 1024;
+const CONTENT_PREFETCH_WINDOW: usize = 64;
+/// Deliberately small: the gain comes from getting a file's read *started*
+/// before a hashing thread blocks on it, not from bulk-loading it. A 4 KiB
+/// hint measured exactly as fast as a 1 MiB one while spending ~10% less
+/// system time, and once the read is under way `POSIX_FADV_SEQUENTIAL` keeps
+/// it fed anyway.
+const CONTENT_PREFETCH_LEN: u64 = 16 * 1024;
 
 /// Default concurrency for the I/O-bound hashing phases, distinct from (but
 /// currently equal to) the walker's concurrency.
