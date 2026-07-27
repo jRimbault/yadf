@@ -3,6 +3,13 @@ on:
   push:
     tags:
       - "v*"
+  # Lets the whole pipeline -- all five builds, packaging, checksums,
+  # release notes -- be exercised on demand from a branch, with the two
+  # irreversible calls (crates.io upload, GitHub release creation)
+  # replaced by their dry-run/summary equivalents. See the `if: github.ref_type
+  # == 'tag'` guards below: that is what is actually a real tag push versus
+  # this trigger.
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,13 +25,16 @@ env:
 jobs:
   # A tag that disagrees with Cargo.toml means either the wrong commit was
   # tagged or the version bump was forgotten. Both are cheaper to catch here
-  # than after a crates.io upload, which cannot be undone.
+  # than after a crates.io upload, which cannot be undone. There is no tag to
+  # compare against on a workflow_dispatch run, so this step is skipped
+  # rather than comparing against a branch name.
   verify:
     name: Verify tag matches Cargo.toml
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Compare tag with package version
+        if: github.ref_type == 'tag'
         run: |
           tag="${GITHUB_REF_NAME#v}"
           version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
@@ -115,7 +125,11 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - name: Publish
+        if: github.ref_type == 'tag'
         run: cargo publish --locked --token ${{ secrets.CRATES_IO_TOKEN }}
+      - name: Publish (dry run)
+        if: github.ref_type != 'tag'
+        run: cargo publish --locked --dry-run
 
   # Create GitHub release with Rust build targets and release notes
   github_release:
@@ -153,10 +167,29 @@ jobs:
           done
 
       - name: Publish
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           files: yadf-*/yadf-*
           body_path: RELEASE.md
-          prerelease: ${{ endsWith(github.ref, 'pre') }}
+          # A semver prerelease always has a hyphen (`-rc.1`, `-pre.2`); a
+          # release tag never does. `endsWith(github.ref, 'pre')` only
+          # matched a literal "...pre" suffix and missed every other
+          # prerelease scheme, e.g. "-rc.1".
+          prerelease: ${{ contains(github.ref_name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish (summary only)
+        if: github.ref_type != 'tag'
+        run: |
+          {
+            echo "### Dry run: no GitHub release created"
+            echo
+            echo "Would have uploaded:"
+            for file in yadf-*/yadf-*; do
+              echo "- \`$file\`"
+            done
+            echo
+            cat RELEASE.md
+          } >>"$GITHUB_STEP_SUMMARY"
