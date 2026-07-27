@@ -6,21 +6,37 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # `.cargo/config.toml` builds with `-C target-cpu=native` for local
+  # benchmarking. A binary handed to someone else must not be tuned for the
+  # runner that happened to build it, or it dies with SIGILL on any CPU
+  # missing an instruction the compiler chose to emit. RUSTFLAGS takes
+  # precedence over `build.rustflags`, so this pins every job in this
+  # workflow back to the portable baseline.
+  RUSTFLAGS: "-C target-cpu=x86-64"
 
 jobs:
-  # Publish yadf to crates.io
-  publish:
-    name: Publish crates.io package
+  # A tag that disagrees with Cargo.toml means either the wrong commit was
+  # tagged or the version bump was forgotten. Both are cheaper to catch here
+  # than after a crates.io upload, which cannot be undone.
+  verify:
+    name: Verify tag matches Cargo.toml
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Publish
-        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}
+      - name: Compare tag with package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          echo "tag: $GITHUB_REF_NAME, Cargo.toml: $version"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match Cargo.toml version $version"
+            exit 1
+          fi
 
   # Build sources for every OS
   github_build:
     name: Build release binaries
+    needs: verify
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +70,7 @@ jobs:
         run: sudo apt install -y musl-tools
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Prepare artifacts [Windows]
         if: matrix.os == 'windows-latest'
@@ -74,6 +90,21 @@ jobs:
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
+
+  # Publish yadf to crates.io.
+  #
+  # Deliberately gated on the binaries building first: a crates.io version
+  # can never be reused, so uploading before knowing the release is sound
+  # burns the version number for good.
+  publish:
+    name: Publish crates.io package
+    needs: [verify, github_build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish
+        run: cargo publish --locked --token ${{ secrets.CRATES_IO_TOKEN }}
 
   # Create GitHub release with Rust build targets and release notes
   github_release:

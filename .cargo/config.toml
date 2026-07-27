@@ -1,2 +1,11 @@
+# Tunes local builds for the machine doing the building, which is what the
+# benchmark scripts want (see scripts/bench-versions.sh).
+#
+# This must never reach a binary someone else runs: code built with
+# `target-cpu=native` on one machine dies with SIGILL (or
+# STATUS_ILLEGAL_INSTRUCTION on Windows) on any CPU lacking an instruction
+# the compiler chose to emit. The release workflow therefore overrides
+# RUSTFLAGS with an explicit baseline, and CI keys its build cache on the
+# runner's CPU so artifacts are never reused across machines.
 [build]
 rustflags = ["-C", "target-cpu=native"]
