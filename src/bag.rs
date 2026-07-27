@@ -57,7 +57,7 @@ pub struct Display<'a, K, V, U> {
 }
 
 impl<K, V> From<BTreeMap<K, Vec<V>>> for TreeBag<K, V> {
-    /// Build a [`TreeBag`](TreeBag) from a [`BTreeMap`](BTreeMap).
+    /// Build a [`TreeBag`] from a [`BTreeMap`].
     fn from(btree: BTreeMap<K, Vec<V>>) -> Self {
         Self(btree)
     }
@@ -72,22 +72,22 @@ impl<K, V> TreeBag<K, V> {
         }
     }
 
-    /// Provides a view only on the buckets as constrained by the replication [`Factor`](Factor).
+    /// Provides a view only on the buckets as constrained by the replication [`Factor`].
     pub const fn replicates(&self, factor: Factor) -> Replicates<'_, K, V> {
         Replicates { tree: self, factor }
     }
 
-    /// Borrows the backing [`BTreeMap`](BTreeMap) of the bag.
+    /// Borrows the backing [`BTreeMap`] of the bag.
     pub const fn as_inner(&self) -> &BTreeMap<K, Vec<V>> {
         &self.0
     }
 
-    /// Mutably borrows the backing [`BTreeMap`](BTreeMap) of the bag.
+    /// Mutably borrows the backing [`BTreeMap`] of the bag.
     pub fn as_inner_mut(&mut self) -> &mut BTreeMap<K, Vec<V>> {
         &mut self.0
     }
 
-    /// Consumes the wrapper [`TreeBag`](TreeBag) and returns the inner [`BTreeMap`](BTreeMap).
+    /// Consumes the wrapper [`TreeBag`] and returns the inner [`BTreeMap`].
     pub fn into_inner(self) -> BTreeMap<K, Vec<V>> {
         self.0
     }
@@ -168,7 +168,7 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if the key is not present in the [`TreeBag`](TreeBag).
+    /// Panics if the key is not present in the [`TreeBag`].
     fn index(&self, key: &Q) -> &Self::Output {
         self.get(key).expect("no entry found for key")
     }

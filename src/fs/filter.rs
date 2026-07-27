@@ -103,7 +103,8 @@ mod inode {
     /// bottleneck when many I/O threads hit it concurrently.
     const SHARD_COUNT: usize = 64;
 
-    /// Filter out unique inodes
+    /// Filters out files whose inode has already been seen, keeping only
+    /// the first-encountered path for each hard-linked inode.
     #[derive(Debug)]
     pub enum Filter {
         Disabled,

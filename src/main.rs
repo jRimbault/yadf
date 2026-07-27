@@ -136,7 +136,8 @@ impl Format {
 pub struct Args {
     /// Directories to search
     ///
-    /// default is to search inside the current working directory
+    /// If omitted and stdin is not a terminal, paths are read one per line
+    /// from stdin; otherwise the default is the current working directory
     #[clap(value_parser)]
     paths: Vec<PathBuf>,
     /// Output format
@@ -169,11 +170,11 @@ pub struct Args {
     #[cfg(unix)]
     hard_links: bool,
     /// Check files with a name matching a Perl-style regex,
-    /// see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
+    /// see: https://docs.rs/regex/1.13.1/regex/index.html#syntax
     #[clap(short = 'R', long)]
     regex: Option<regex::Regex>,
     /// Check files with a name matching a glob pattern,
-    /// see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
+    /// see: https://docs.rs/globset/0.4.19/globset/index.html#syntax
     #[clap(short, long, value_name = "glob")]
     pattern: Option<globset::Glob>,
     #[clap(flatten)]

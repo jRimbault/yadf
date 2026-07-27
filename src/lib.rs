@@ -4,7 +4,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! yadf = { version = "0.15.0", default-features = false }
+//! yadf = { version = "1.3.0", default-features = false }
 //! ```
 //!
 //! A collection of functions and structs to find duplicate files.
@@ -59,7 +59,7 @@ pub type FileReplicates<'a, H> = bag::Replicates<'a, H, Path>;
 /// # }
 /// ```
 ///
-/// see the docs for the [`YadfBuilder`](YadfBuilder)
+/// see the docs for the [`YadfBuilder`]
 #[derive(Debug, typed_builder::TypedBuilder)]
 #[builder(doc)]
 pub struct Yadf<P: AsRef<std::path::Path>> {

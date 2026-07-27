@@ -1,7 +1,7 @@
 use super::{Display, Factor, Replicates};
 use std::collections::btree_map::Values;
 
-/// [`Iterator`](Iterator) adapter.
+/// [`Iterator`] adapter.
 #[derive(Debug)]
 pub struct Iter<'a, K, V> {
     values: Values<'a, K, Vec<V>>,
