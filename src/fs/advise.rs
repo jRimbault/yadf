@@ -1,31 +1,33 @@
-//! Best-effort `posix_fadvise` hints and `O_NOATIME` opens.
+//! Platform layer: best-effort `posix_fadvise` hints, `O_NOATIME` opens and
+//! rlimit raising. Everything here is a hint or a perk -- failures
+//! (unsupported filesystem, non-Linux target) are silently ignored and must
+//! never affect correctness.
 //!
-//! `Random` tells the kernel not to bother with readahead, which otherwise
-//! wastes bandwidth fetching bytes past a 4 KiB prefix read on a cold cache.
-//! `Sequential` widens readahead for the full-file pass, which does want it.
-//! These are hints: failures (unsupported filesystem, non-Linux target) are
-//! silently ignored and must never affect correctness.
+//! Typed access to this module goes through [`super::file::Reader`] and
+//! [`super::prefetch`]; nothing else should reach for it directly.
 
+use super::file::Access;
+use crate::units::Bytes;
 use std::fs::File;
 use std::io;
 use std::path::Path;
 
-pub enum Advice {
-    Random,
-    Sequential,
-}
-
+/// Tells the kernel how `file` is about to be read.
+///
+/// `Random` stops it wasting bandwidth fetching bytes past a 4 KiB prefix
+/// read on a cold cache; `Sequential` widens readahead for the full-file
+/// pass, which does want it.
 #[cfg(target_os = "linux")]
-pub fn advise(file: &File, advice: Advice) {
-    let advice = match advice {
-        Advice::Random => rustix::fs::Advice::Random,
-        Advice::Sequential => rustix::fs::Advice::Sequential,
+pub fn advise(file: &File, access: Access) {
+    let advice = match access {
+        Access::Random => rustix::fs::Advice::Random,
+        Access::Sequential => rustix::fs::Advice::Sequential,
     };
     let _ = rustix::fs::fadvise(file, 0, None, advice);
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn advise(_file: &File, _advice: Advice) {}
+pub fn advise(_file: &File, _access: Access) {}
 
 /// Opens a file for reading, asking the kernel to skip the atime update
 /// every read would otherwise trigger. Falls back to a plain open on
@@ -64,8 +66,8 @@ pub const PREFETCH_SUPPORTED: bool = cfg!(target_os = "linux");
 /// Purely an optimisation: it warms the cache and nothing else, so a failure
 /// anywhere here can only cost speed, never correctness.
 #[cfg(target_os = "linux")]
-pub fn prefetch(path: &Path, len: u64) {
-    let Some(len) = std::num::NonZeroU64::new(len) else {
+pub fn prefetch(path: &Path, len: Bytes) {
+    let Some(len) = std::num::NonZeroU64::new(len.get()) else {
         return;
     };
     if let Ok(file) = open_noatime(path) {
@@ -74,7 +76,7 @@ pub fn prefetch(path: &Path, len: u64) {
 }
 
 #[cfg(not(target_os = "linux"))]
-pub fn prefetch(_path: &Path, _len: u64) {}
+pub fn prefetch(_path: &Path, _len: Bytes) {}
 
 /// Best-effort raise of the open-file soft limit to the hard limit.
 ///

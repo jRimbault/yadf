@@ -30,9 +30,10 @@ mod ext;
 mod fs;
 mod hasher;
 mod path;
+mod units;
 
 pub use bag::{Factor, Fdupes, Machine, TreeBag};
-pub use fs::default_io_threads;
+pub use fs::pool::default_threads as default_io_threads;
 pub use globset;
 pub use hasher::Hasher;
 pub use path::Path;
@@ -79,7 +80,7 @@ pub struct Yadf<P: AsRef<std::path::Path>> {
     #[builder(default, setter(doc = "Treat hard links as duplicates"))]
     hard_links: bool,
     #[builder(
-        default = fs::default_io_threads(),
+        default = fs::pool::default_threads(),
         setter(doc = "Concurrency for the I/O-bound hashing phases (default: number of CPUs)")
     )]
     io_threads: usize,

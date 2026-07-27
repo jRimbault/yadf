@@ -1,67 +1,36 @@
 //! Inner parts of `yadf`. Initial file collection and checksumming.
+//!
+//! The phases below read as a pipeline over [`TreeBag`]s; the machinery they
+//! sit on lives in its own modules: [`pipeline`] for the worker/collector
+//! fan-in, [`prefetch`] for cache warming, [`pool`] for the I/O threads,
+//! [`file`] and [`hash`] for reading and checksumming.
 
 mod advise;
+mod file;
 pub mod filter;
 mod hash;
+mod pipeline;
+pub mod pool;
+mod prefetch;
 
 use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
+use crate::units::Bytes;
 use crate::TreeBag;
+use pipeline::Sink;
+use prefetch::{Progress, Queue, Window};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-const CHANNEL_SIZE: usize = 8 * 1024;
-const BLOCK_SIZE: usize = 4 * 1024;
 /// Files above this size get an extra 4 KiB tail-hash pass before a full
 /// read, to cheaply split apart large files that only share a header.
-const SUFFIX_HASH_THRESHOLD: u64 = 64 * 1024;
-
-/// Threads dedicated to issuing readahead hints. They only ever `open` and
-/// `posix_fadvise`, never read or hash, so they cost almost no CPU and can
-/// safely outnumber the cores.
-///
-/// All four prefetch constants below were swept on a 150k-file / 27.6 GB
-/// corpus. Cold and warm wall time turned out to be insensitive to every one
-/// of them: threads 8-128, partial window 256-16384, content window 32-2048
-/// and content length 4 KiB-1 MiB all landed within ~1% of each other, which
-/// is the run-to-run noise. They are therefore chosen for the secondary
-/// criteria -- syscall cost and page-cache pressure -- rather than tuned to a
-/// sharp optimum. Do not treat them as finely calibrated.
-const PREFETCH_THREADS: usize = 16;
-/// How far ahead of the hashing threads the prefetcher may run, in files.
-/// Bounds how much speculative data can sit in the page cache. The leash
-/// does earn its keep: letting the prefetcher run unbounded (a window past
-/// the file count) was the one setting that measured consistently worse.
-const PARTIAL_PREFETCH_WINDOW: usize = 4096;
-const CONTENT_PREFETCH_WINDOW: usize = 64;
-/// Deliberately small: the gain comes from getting a file's read *started*
-/// before a hashing thread blocks on it, not from bulk-loading it. A 4 KiB
-/// hint measured exactly as fast as a 1 MiB one while spending ~10% less
-/// system time, and once the read is under way `POSIX_FADV_SEQUENTIAL` keeps
-/// it fed anyway.
-const CONTENT_PREFETCH_LEN: u64 = 16 * 1024;
-
-/// Default concurrency for the I/O-bound hashing phases, distinct from (but
-/// currently equal to) the walker's concurrency.
-///
-/// Oversubscribing well past the core count can help small random reads on
-/// some SSD/NVMe devices saturate their queue depth (see pkolaczk's
-/// disk-parallelism measurements), but it is not a safe default: measured
-/// locally, going from 1x to 4x cores bought a few percent on a cold cache
-/// while costing up to 60% on a warm one, because the extra threads have
-/// nothing but each other to contend with once there is no device latency
-/// to hide. Use `--io-threads` to opt into oversubscription on storage
-/// where it is known to help.
-pub fn default_io_threads() -> usize {
-    num_cpus::get()
-}
+const SUFFIX_HASH_THRESHOLD: Bytes = Bytes::kib(64);
 
 /// A candidate file carried through the hashing pipeline together with its
 /// already-known size, so later stages never need to re-`stat` it.
 #[derive(Debug)]
 pub struct Candidate {
     path: PathBuf,
-    size: u64,
+    size: Bytes,
 }
 
 impl AsRef<Path> for Candidate {
@@ -88,31 +57,12 @@ where
 {
     let by_size = collect_by_size(directories, max_depth, &filter);
     // Only files sharing a size get opened, so only those are worth warming.
-    let queue = prefetch_queue(&by_size, |_| BLOCK_SIZE as u64);
-    with_io_pool(io_threads, || {
-        with_prefetch(queue, PARTIAL_PREFETCH_WINDOW, |progress| {
+    let queue = Queue::covering(&by_size, |_| hash::BLOCK);
+    pool::install(io_threads, || {
+        queue.warm(Window::PARTIAL, |progress| {
             partial_hash_by_size::<H>(by_size, progress)
         })
     })
-}
-
-/// Flattens the buckets that are actually going to be read into a queue for
-/// the prefetcher, in iteration order. Singleton buckets are skipped: those
-/// files are never opened.
-fn prefetch_queue<K, V>(bag: &TreeBag<K, V>, len: impl Fn(&V) -> u64) -> Vec<(PathBuf, u64)>
-where
-    K: Ord,
-    V: AsRef<Path>,
-{
-    bag.as_inner()
-        .values()
-        .filter(|bucket| bucket.len() > 1)
-        .flat_map(|bucket| {
-            bucket
-                .iter()
-                .map(|value| (value.as_ref().to_path_buf(), len(value)))
-        })
-        .collect()
 }
 
 /// Rehashes every bucket with more than one candidate to confirm (or rule
@@ -125,88 +75,23 @@ pub fn dedupe<H>(
 where
     H: crate::hasher::Hasher,
 {
-    let queue = prefetch_queue(&tree, |candidate| candidate.size.min(CONTENT_PREFETCH_LEN));
-    with_io_pool(io_threads, || {
-        with_prefetch(queue, CONTENT_PREFETCH_WINDOW, |progress| {
-            let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
-            rayon::join(
-                move || receiver.into_iter().collect(),
-                move || {
-                    tree.into_inner().into_par_iter().for_each_with(
-                        sender,
-                        |sender, bucket: (H::Hash, Vec<Candidate>)| {
-                            let read = bucket.1.len();
-                            process_bucket::<H>(sender, bucket);
-                            progress.fetch_add(read, Ordering::Relaxed);
-                        },
-                    )
-                },
-            )
-            .0
+    let queue = Queue::covering(&tree, |candidate| {
+        candidate.size.min(prefetch::CONTENT_HEAD)
+    });
+    pool::install(io_threads, || {
+        queue.warm(Window::CONTENT, |progress| {
+            pipeline::collect(|sink| {
+                tree.into_inner().into_par_iter().for_each_with(
+                    sink,
+                    |sink, bucket: (H::Hash, Vec<Candidate>)| {
+                        let read = bucket.1.len();
+                        process_bucket::<H>(sink, bucket);
+                        progress.advance(read);
+                    },
+                )
+            })
         })
     })
-}
-
-/// Runs `work` while dedicated threads walk `queue` in order, asking the
-/// kernel to start fetching each file before a hashing thread gets to it.
-///
-/// The prefetcher is kept on a leash: it never runs more than `window`
-/// entries ahead of the progress counter that `work` is expected to advance
-/// as it consumes files. Without that bound it would race to the end of the
-/// queue and fill the page cache with data that gets evicted before anyone
-/// reads it.
-///
-/// This can only ever affect timing. The hashing path is untouched and still
-/// opens and reads every file itself, so a prefetch that is skipped, fails,
-/// or lands too late costs speed and nothing else.
-fn with_prefetch<T>(
-    queue: Vec<(PathBuf, u64)>,
-    window: usize,
-    work: impl FnOnce(&AtomicUsize) -> T,
-) -> T {
-    let progress = AtomicUsize::new(0);
-    if !advise::PREFETCH_SUPPORTED || queue.is_empty() {
-        return work(&progress);
-    }
-    let cursor = AtomicUsize::new(0);
-    let finished = AtomicBool::new(false);
-    std::thread::scope(|scope| {
-        for _ in 0..PREFETCH_THREADS.min(queue.len()) {
-            scope.spawn(|| {
-                loop {
-                    let index = cursor.fetch_add(1, Ordering::Relaxed);
-                    let Some((path, len)) = queue.get(index) else {
-                        return;
-                    };
-                    // Wait for the hashers to catch up before running further
-                    // ahead, and bail out entirely once they are done.
-                    while index > progress.load(Ordering::Relaxed) + window {
-                        if finished.load(Ordering::Acquire) {
-                            return;
-                        }
-                        std::thread::sleep(std::time::Duration::from_micros(200));
-                    }
-                    if finished.load(Ordering::Acquire) {
-                        return;
-                    }
-                    advise::prefetch(path, *len);
-                }
-            });
-        }
-        let result = work(&progress);
-        finished.store(true, Ordering::Release);
-        result
-    })
-}
-
-fn with_io_pool<T: Send>(io_threads: usize, work: impl FnOnce() -> T + Send) -> T {
-    static RAISE_NOFILE_LIMIT: std::sync::Once = std::sync::Once::new();
-    RAISE_NOFILE_LIMIT.call_once(advise::raise_nofile_limit);
-    let io_pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(io_threads)
-        .build()
-        .expect("failed to build I/O thread pool");
-    io_pool.install(work)
 }
 
 /// Walks `directories` and groups every matching file by its size.
@@ -214,7 +99,7 @@ fn collect_by_size<P>(
     directories: &[P],
     max_depth: Option<usize>,
     filter: &filter::FileFilter,
-) -> TreeBag<u64, PathBuf>
+) -> TreeBag<Bytes, PathBuf>
 where
     P: AsRef<Path>,
 {
@@ -228,98 +113,85 @@ where
         .max_depth(max_depth)
         .threads(num_cpus::get())
         .build_parallel();
-    let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
-    rayon::join(
-        move || receiver.into_iter().collect(),
-        move || {
-            walker.for_each(|entry| {
-                if let Err(error) = entry {
-                    log::error!("{}", error);
-                    return ignore::WalkState::Continue;
-                }
-                if let Some(key_value) = size_entry(filter, entry.unwrap()) {
-                    if let Err(error) = sender.send(key_value) {
-                        log::error!("{}, couldn't send value across channel", error);
+    pipeline::collect(|sink| {
+        let sink = &sink;
+        walker.for_each(|entry| {
+            match entry {
+                Err(error) => log::error!("{}", error),
+                Ok(entry) => {
+                    if let Some((size, path)) = size_entry(filter, entry) {
+                        sink.send(size, path);
                     }
                 }
-                ignore::WalkState::Continue
-            })
-        },
-    )
-    .0
+            }
+            ignore::WalkState::Continue
+        })
+    })
 }
 
-fn size_entry(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u64, PathBuf)> {
+fn size_entry(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(Bytes, PathBuf)> {
     let path = entry.path();
     let meta = entry
         .metadata()
         .map_err(|error| log::error!("{}, couldn't get metadata for {:?}", error, path))
         .ok()?;
-    let len = meta.len();
+    let size = Bytes::new(meta.len());
     if !filter.is_match(path, meta) {
         return None;
     }
-    Some((len, entry.into_path()))
+    Some((size, entry.into_path()))
 }
 
 /// Turns size-buckets into partial-hash buckets. Files that are the only
 /// one of their size are never opened; the rest are read for their first
 /// 4 KiB.
 fn partial_hash_by_size<H>(
-    by_size: TreeBag<u64, PathBuf>,
-    progress: &AtomicUsize,
+    by_size: TreeBag<Bytes, PathBuf>,
+    progress: &Progress,
 ) -> TreeBag<H::Hash, Candidate>
 where
     H: crate::hasher::Hasher,
 {
-    let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
-    rayon::join(
-        move || receiver.into_iter().collect(),
-        move || {
-            by_size.into_inner().into_par_iter().for_each_with(
-                sender,
-                |sender, bucket: (u64, Vec<PathBuf>)| {
-                    let read = bucket.1.len();
-                    hash_size_bucket::<H>(sender, bucket);
-                    progress.fetch_add(read, Ordering::Relaxed);
-                },
-            )
-        },
-    )
-    .0
+    pipeline::collect(|sink| {
+        by_size.into_inner().into_par_iter().for_each_with(
+            sink,
+            |sink, bucket: (Bytes, Vec<PathBuf>)| {
+                let read = bucket.1.len();
+                hash_size_bucket::<H>(sink, bucket);
+                progress.advance(read);
+            },
+        )
+    })
 }
 
-fn hash_size_bucket<H>(
-    sender: &mut crossbeam_channel::Sender<(H::Hash, Candidate)>,
-    (size, bucket): (u64, Vec<PathBuf>),
-) where
+fn hash_size_bucket<H>(sink: &Sink<H::Hash, Candidate>, (size, bucket): (Bytes, Vec<PathBuf>))
+where
     H: crate::hasher::Hasher,
 {
     if bucket.len() == 1 {
         let path = bucket.into_iter().next().unwrap();
-        let hash = hash::size_only::<H>(size);
-        send(sender, hash, Candidate { path, size });
+        sink.send(hash::size_only::<H>(size), Candidate { path, size });
         return;
     }
     bucket
         .into_par_iter()
-        .for_each_with(sender.clone(), |sender, path| {
+        .for_each_with(sink.clone(), |sink, path| {
             match hash::partial::<H>(&path, size) {
-                Ok(hash) => send(sender, hash, Candidate { path, size }),
+                Ok(hash) => sink.send(hash, Candidate { path, size }),
                 Err(error) => log::error!("{}, couldn't hash {:?}", error, path),
             }
         });
 }
 
 fn process_bucket<H>(
-    sender: &mut crossbeam_channel::Sender<(H::Hash, crate::Path)>,
+    sink: &Sink<H::Hash, crate::Path>,
     (old_hash, bucket): (H::Hash, Vec<Candidate>),
 ) where
     H: crate::hasher::Hasher,
 {
     if bucket.len() == 1 {
         let candidate = bucket.into_iter().next().unwrap();
-        send(sender, old_hash, candidate.path.into());
+        sink.send(old_hash, candidate.path.into());
         return;
     }
     let (large, rest): (Vec<_>, Vec<_>) = bucket
@@ -327,9 +199,9 @@ fn process_bucket<H>(
         .partition(|candidate| candidate.size >= SUFFIX_HASH_THRESHOLD);
 
     rest.into_par_iter()
-        .for_each_with(sender.clone(), |sender, candidate| {
+        .for_each_with(sink.clone(), |sink, candidate| {
             let hash = full_hash::<H>(&candidate).unwrap_or(old_hash);
-            send(sender, hash, candidate.path.into());
+            sink.send(hash, candidate.path.into());
         });
 
     if large.is_empty() {
@@ -350,56 +222,59 @@ fn process_bucket<H>(
         .into_iter()
         .collect();
     by_suffix.into_inner().into_par_iter().for_each_with(
-        sender.clone(),
-        |sender, (suffix_hash, group)| {
+        sink.clone(),
+        |sink, (suffix_hash, group)| {
             if group.len() == 1 {
                 let candidate = group.into_iter().next().unwrap();
-                send(sender, suffix_hash, candidate.path.into());
+                sink.send(suffix_hash, candidate.path.into());
                 return;
             }
             group
                 .into_par_iter()
-                .for_each_with(sender.clone(), |sender, candidate| {
+                .for_each_with(sink.clone(), |sink, candidate| {
                     let hash = full_hash::<H>(&candidate).unwrap_or(suffix_hash);
-                    send(sender, hash, candidate.path.into());
+                    sink.send(hash, candidate.path.into());
                 });
         },
     );
 }
 
-fn full_hash<H>(candidate: &Candidate) -> Result<H::Hash, ()>
+/// The candidate's full-content hash, or `None` if there is nothing to be
+/// gained from reading it and the caller should keep the hash it has.
+fn full_hash<H>(candidate: &Candidate) -> Option<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    if candidate.size < BLOCK_SIZE as u64 {
+    if candidate.size < hash::BLOCK {
         // Its partial hash already covered the whole content plus the
         // size: nothing more to distinguish it by.
-        return Err(());
+        return None;
     }
-    hash::full::<H>(&candidate.path).map_err(|error| {
-        log::error!(
-            "{}, couldn't hash {:?}, reusing previous hash",
-            error,
-            candidate.path
-        )
-    })
+    hash::full::<H>(&candidate.path)
+        .map_err(|error| {
+            log::error!(
+                "{}, couldn't hash {:?}, reusing previous hash",
+                error,
+                candidate.path
+            )
+        })
+        .ok()
 }
 
-fn suffix_hash<H>(candidate: &Candidate) -> Result<H::Hash, ()>
+/// The candidate's tail hash, or `None` if it couldn't be read -- in which
+/// case the caller keeps the hash it has, and the file simply stays in its
+/// current group.
+fn suffix_hash<H>(candidate: &Candidate) -> Option<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    hash::suffix::<H>(&candidate.path, candidate.size).map_err(|error| {
-        log::error!(
-            "{}, couldn't hash suffix of {:?}, reusing previous hash",
-            error,
-            candidate.path
-        )
-    })
-}
-
-fn send<H, V>(sender: &mut crossbeam_channel::Sender<(H, V)>, hash: H, value: V) {
-    if let Err(error) = sender.send((hash, value)) {
-        log::error!("{}, couldn't send value across channel", error);
-    }
+    hash::suffix::<H>(&candidate.path, candidate.size)
+        .map_err(|error| {
+            log::error!(
+                "{}, couldn't hash suffix of {:?}, reusing previous hash",
+                error,
+                candidate.path
+            )
+        })
+        .ok()
 }
