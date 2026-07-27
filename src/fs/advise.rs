@@ -47,6 +47,35 @@ pub fn open_noatime(path: &Path) -> io::Result<File> {
     File::open(path)
 }
 
+/// Whether [`prefetch`] does anything on this platform. Callers use this to
+/// skip spawning prefetch threads that would have nothing to do.
+pub const PREFETCH_SUPPORTED: bool = cfg!(target_os = "linux");
+
+/// Asks the kernel to start pulling the first `len` bytes of `path` into the
+/// page cache, without reading them.
+///
+/// This is the whole point of the prefetcher: `POSIX_FADV_WILLNEED` queues an
+/// asynchronous read at the device and returns immediately, so a thread that
+/// issues it does not block waiting for the data. That raises the number of
+/// requests in flight without adding threads that also *hash* — which is what
+/// makes it different from simply raising `--io-threads`, where every extra
+/// thread contends for CPU on a warm cache.
+///
+/// Purely an optimisation: it warms the cache and nothing else, so a failure
+/// anywhere here can only cost speed, never correctness.
+#[cfg(target_os = "linux")]
+pub fn prefetch(path: &Path, len: u64) {
+    let Some(len) = std::num::NonZeroU64::new(len) else {
+        return;
+    };
+    if let Ok(file) = open_noatime(path) {
+        let _ = rustix::fs::fadvise(&file, 0, Some(len), rustix::fs::Advice::WillNeed);
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn prefetch(_path: &Path, _len: u64) {}
+
 /// Best-effort raise of the open-file soft limit to the hard limit.
 ///
 /// `--io-threads` above the core count, plus the walker's own pool, can

@@ -8,12 +8,26 @@ use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
 use crate::TreeBag;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 const CHANNEL_SIZE: usize = 8 * 1024;
 const BLOCK_SIZE: usize = 4 * 1024;
 /// Files above this size get an extra 4 KiB tail-hash pass before a full
 /// read, to cheaply split apart large files that only share a header.
 const SUFFIX_HASH_THRESHOLD: u64 = 64 * 1024;
+
+/// Threads dedicated to issuing readahead hints. They only ever `open` and
+/// `posix_fadvise`, never read or hash, so they cost almost no CPU and can
+/// safely outnumber the cores.
+const PREFETCH_THREADS: usize = 32;
+/// How far ahead of the hashing threads the prefetcher is allowed to run,
+/// in files. Bounds how much speculative data can sit in the page cache.
+const PARTIAL_PREFETCH_WINDOW: usize = 4096;
+const CONTENT_PREFETCH_WINDOW: usize = 256;
+/// Only the head of a file is prefetched in the content phase; once the
+/// read is under way `POSIX_FADV_SEQUENTIAL` keeps it fed. Prefetching whole
+/// multi-hundred-MB files would evict more than it gains.
+const CONTENT_PREFETCH_LEN: u64 = 1024 * 1024;
 
 /// Default concurrency for the I/O-bound hashing phases, distinct from (but
 /// currently equal to) the walker's concurrency.
@@ -38,6 +52,12 @@ pub struct Candidate {
     size: u64,
 }
 
+impl AsRef<Path> for Candidate {
+    fn as_ref(&self) -> &Path {
+        &self.path
+    }
+}
+
 /// Foundation of the API.
 ///
 /// Walks the given paths, groups files by size (a side effect of the
@@ -55,7 +75,32 @@ where
     P: AsRef<Path>,
 {
     let by_size = collect_by_size(directories, max_depth, &filter);
-    with_io_pool(io_threads, || partial_hash_by_size::<H>(by_size))
+    // Only files sharing a size get opened, so only those are worth warming.
+    let queue = prefetch_queue(&by_size, |_| BLOCK_SIZE as u64);
+    with_io_pool(io_threads, || {
+        with_prefetch(queue, PARTIAL_PREFETCH_WINDOW, |progress| {
+            partial_hash_by_size::<H>(by_size, progress)
+        })
+    })
+}
+
+/// Flattens the buckets that are actually going to be read into a queue for
+/// the prefetcher, in iteration order. Singleton buckets are skipped: those
+/// files are never opened.
+fn prefetch_queue<K, V>(bag: &TreeBag<K, V>, len: impl Fn(&V) -> u64) -> Vec<(PathBuf, u64)>
+where
+    K: Ord,
+    V: AsRef<Path>,
+{
+    bag.as_inner()
+        .values()
+        .filter(|bucket| bucket.len() > 1)
+        .flat_map(|bucket| {
+            bucket
+                .iter()
+                .map(|value| (value.as_ref().to_path_buf(), len(value)))
+        })
+        .collect()
 }
 
 /// Rehashes every bucket with more than one candidate to confirm (or rule
@@ -68,17 +113,77 @@ pub fn dedupe<H>(
 where
     H: crate::hasher::Hasher,
 {
+    let queue = prefetch_queue(&tree, |candidate| candidate.size.min(CONTENT_PREFETCH_LEN));
     with_io_pool(io_threads, || {
-        let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
-        rayon::join(
-            move || receiver.into_iter().collect(),
-            move || {
-                tree.into_inner()
-                    .into_par_iter()
-                    .for_each_with(sender, process_bucket::<H>)
-            },
-        )
-        .0
+        with_prefetch(queue, CONTENT_PREFETCH_WINDOW, |progress| {
+            let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
+            rayon::join(
+                move || receiver.into_iter().collect(),
+                move || {
+                    tree.into_inner().into_par_iter().for_each_with(
+                        sender,
+                        |sender, bucket: (H::Hash, Vec<Candidate>)| {
+                            let read = bucket.1.len();
+                            process_bucket::<H>(sender, bucket);
+                            progress.fetch_add(read, Ordering::Relaxed);
+                        },
+                    )
+                },
+            )
+            .0
+        })
+    })
+}
+
+/// Runs `work` while dedicated threads walk `queue` in order, asking the
+/// kernel to start fetching each file before a hashing thread gets to it.
+///
+/// The prefetcher is kept on a leash: it never runs more than `window`
+/// entries ahead of the progress counter that `work` is expected to advance
+/// as it consumes files. Without that bound it would race to the end of the
+/// queue and fill the page cache with data that gets evicted before anyone
+/// reads it.
+///
+/// This can only ever affect timing. The hashing path is untouched and still
+/// opens and reads every file itself, so a prefetch that is skipped, fails,
+/// or lands too late costs speed and nothing else.
+fn with_prefetch<T>(
+    queue: Vec<(PathBuf, u64)>,
+    window: usize,
+    work: impl FnOnce(&AtomicUsize) -> T,
+) -> T {
+    let progress = AtomicUsize::new(0);
+    if !advise::PREFETCH_SUPPORTED || queue.is_empty() {
+        return work(&progress);
+    }
+    let cursor = AtomicUsize::new(0);
+    let finished = AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        for _ in 0..PREFETCH_THREADS.min(queue.len()) {
+            scope.spawn(|| {
+                loop {
+                    let index = cursor.fetch_add(1, Ordering::Relaxed);
+                    let Some((path, len)) = queue.get(index) else {
+                        return;
+                    };
+                    // Wait for the hashers to catch up before running further
+                    // ahead, and bail out entirely once they are done.
+                    while index > progress.load(Ordering::Relaxed) + window {
+                        if finished.load(Ordering::Acquire) {
+                            return;
+                        }
+                        std::thread::sleep(std::time::Duration::from_micros(200));
+                    }
+                    if finished.load(Ordering::Acquire) {
+                        return;
+                    }
+                    advise::prefetch(path, *len);
+                }
+            });
+        }
+        let result = work(&progress);
+        finished.store(true, Ordering::Release);
+        result
     })
 }
 
@@ -148,7 +253,10 @@ fn size_entry(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(u
 /// Turns size-buckets into partial-hash buckets. Files that are the only
 /// one of their size are never opened; the rest are read for their first
 /// 4 KiB.
-fn partial_hash_by_size<H>(by_size: TreeBag<u64, PathBuf>) -> TreeBag<H::Hash, Candidate>
+fn partial_hash_by_size<H>(
+    by_size: TreeBag<u64, PathBuf>,
+    progress: &AtomicUsize,
+) -> TreeBag<H::Hash, Candidate>
 where
     H: crate::hasher::Hasher,
 {
@@ -156,10 +264,14 @@ where
     rayon::join(
         move || receiver.into_iter().collect(),
         move || {
-            by_size
-                .into_inner()
-                .into_par_iter()
-                .for_each_with(sender, hash_size_bucket::<H>)
+            by_size.into_inner().into_par_iter().for_each_with(
+                sender,
+                |sender, bucket: (u64, Vec<PathBuf>)| {
+                    let read = bucket.1.len();
+                    hash_size_bucket::<H>(sender, bucket);
+                    progress.fetch_add(read, Ordering::Relaxed);
+                },
+            )
         },
     )
     .0
