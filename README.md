@@ -73,11 +73,12 @@ Arguments:
 
 Options:
   -f, --format <FORMAT>        Output format [default: fdupes] [possible values: csv, fdupes, json, json-pretty, ld-json, machine]
-  -a, --algorithm <ALGORITHM>  Hashing algorithm [default: ahash] [possible values: ahash, highway, metrohash, seahash, xxhash]
+  -a, --algorithm <ALGORITHM>  Hashing algorithm [default: highway] [possible values: ahash, blake3, highway, metrohash, seahash, xxhash]
   -n, --no-empty               Excludes empty files
       --min <size>             Minimum file size
       --max <size>             Maximum file size
   -d, --depth <depth>          Maximum recursion depth
+      --io-threads <n>         Concurrency for the I/O-bound hashing phases
   -H, --hard-links             Treat hard links to same file as duplicates
   -R, --regex <REGEX>          Check files with a name matching a Perl-style regex, see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
   -p, --pattern <glob>         Check files with a name matching a glob pattern, see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
@@ -95,19 +96,26 @@ For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).
 
 ## Notes on the algorithm
 
-Most¹ dupe finders follow a 3 steps algorithm:
+Most¹ dupe finders follow a multi-step algorithm:
 
 1. group files by their size
 2. group files by their first few bytes
-3. group files by their entire content
+3. group files by their last few bytes (for large files)
+4. group files by their entire content
 
-`yadf` skips the first step, and only does the steps 2 and 3, preferring hashing rather than byte comparison. In my [tests][3-steps] having the first step on a SSD actually slowed down the program.
-`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], it uses a cache aware implementation avoiding too many cache misses. `yadf` uses the parallel walker provided by `ignore` (disabling its _ignore_ features) and `rayon`'s parallel iterators to do each of these 2 steps in parallel.
+Early versions of `yadf` skipped step 1, hashing the file size together with the first bytes
+instead: on a *warm* page cache, an extra directory pass to group by size was pure overhead. On
+a *cold* cache that trade inverts — most files have a unique size and can be ruled out as
+duplicates without ever being opened, so skipping step 1 means paying for a real disk read on
+files that could never have matched anything. `yadf` groups by size first, and only opens a
+file if at least one other file shares its size; only files that also collide on size *and* a
+4 KiB prefix, and are large enough to be worth it, get a cheap 4 KiB tail read (step 3) before
+the expensive full read (step 4).
+`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], it uses a cache aware implementation avoiding too many cache misses. `yadf` uses the parallel walker provided by `ignore` (disabling its _ignore_ features) and `rayon`'s parallel iterators to do each of these steps in parallel, with a separate, more concurrent thread pool (`--io-threads`) for the I/O-bound hashing steps.
 
 ¹: some need a different algorithm to support different features or different performance trade-offs
 
 [btreemap]: https://doc.rust-lang.org/std/collections/struct.BTreeMap.html
-[3-steps]: https://github.com/jRimbault/yadf/tree/3-steps
 [hashmap]: https://doc.rust-lang.org/std/collections/struct.HashMap.html
 
 ### Design goals
@@ -138,7 +146,15 @@ My home directory contains upwards of 700k paths and 39 GB of data, and is proba
 
 _I test less programs here because it takes several hours to run._
 
-The script used to benchmark can be read [here](./bench.sh).
+These numbers are from `yadf` 1.1.0 and are kept here as a historical baseline; they predate
+the cold-cache optimizations described above (size pre-grouping, `posix_fadvise` hints,
+suffix hashing, a separate I/O thread pool) and are due for a re-run.
+
+The script used to benchmark against other tools can be read [here](./scripts/bench.sh). To
+compare `yadf` against itself across commits or releases, see
+[`scripts/bench-versions.sh`](./scripts/bench-versions.sh), which builds each revision,
+verifies they all report the same duplicates over a reproducible synthetic corpus (see
+[`scripts/gen-corpus.py`](./scripts/gen-corpus.py)), then times them with `hyperfine`.
 
 [0]: https://github.com/pkolaczk/fclones
 [1]: https://github.com/jbruchon/jdupes
