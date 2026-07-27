@@ -6,6 +6,10 @@
 #
 # fclones and jdupes both don't scan recursively by default
 #
+# fclones also skips empty, hidden, gitignored and symlinked files by
+# default, hence --min 0 --hidden --no-ignore, so it looks at the same
+# files the others do
+#
 # dupe-krill skips file smaller than the block size, hence the -s flag,
 # and will hardlinks files together, hence the --dry-run flag
 #
@@ -26,7 +30,7 @@ hyperfine --warmup "$warmups" \
   --min-runs 10 \
   --export-markdown export.md \
   --prepare "$prepare_cmd" \
-  "fclones group --min 0 ~" \
+  "fclones group --min 0 --hidden --no-ignore ~" \
   "jdupes -z -r ~" \
   "ddh --directories ~" \
   "dupe-krill -s -d ~" \

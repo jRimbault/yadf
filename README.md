@@ -103,15 +103,14 @@ Most¹ dupe finders follow a multi-step algorithm:
 3. group files by their last few bytes (for large files)
 4. group files by their entire content
 
-Early versions of `yadf` skipped step 1, hashing the file size together with the first bytes
-instead: on a *warm* page cache, an extra directory pass to group by size was pure overhead. On
-a *cold* cache that trade inverts — most files have a unique size and can be ruled out as
-duplicates without ever being opened, so skipping step 1 means paying for a real disk read on
-files that could never have matched anything. `yadf` groups by size first, and only opens a
-file if at least one other file shares its size; only files that also collide on size *and* a
-4 KiB prefix, and are large enough to be worth it, get a cheap 4 KiB tail read (step 3) before
-the expensive full read (step 4).
+Early versions of `yadf` skipped step 1, which was faster on a warm cache but meant reading
+files that could never have matched anything. It now groups by size first and only opens a file
+if another file shares its size. Step 3 is only done for files large enough to be worth it.
 `yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], it uses a cache aware implementation avoiding too many cache misses. `yadf` uses the parallel walker provided by `ignore` (disabling its _ignore_ features) and `rayon`'s parallel iterators to do each of these steps in parallel, with a separate, more concurrent thread pool (`--io-threads`) for the I/O-bound hashing steps.
+
+On Linux a few extra threads `posix_fadvise` the files about to be read, keeping enough
+requests in flight to hide device latency on a cold cache. They never hash, so unlike raising
+`--io-threads` they cost almost nothing warm.
 
 ¹: some need a different algorithm to support different features or different performance trade-offs
 
@@ -129,51 +128,38 @@ NVMe SSD. I recommend `fclones` as it has more hardware heuristics, and in gener
 
 The numbers below are from a reproducible synthetic corpus rather than a personal home
 directory, so they can be regenerated exactly: `scripts/gen-corpus.py --seed 42 --files 150000
---dup-ratio 0.15 --collide-prefix 0.05 --size-dist realistic`, 150,001 files, 27.6 GB, with
-6,453 duplicate groups and 3,750 near-duplicate (shared-prefix, differing content) pairs mixed
-in. Each program was run with `hyperfine` against the same tree; see
-[`scripts/bench.sh`](./scripts/bench.sh) for the exact commands. Arguably the most important
-measure here is the mean time when the filesystem cache is cold, since that's the situation on
-a first run.
+--dup-ratio 0.15 --collide-prefix 0.05 --size-dist realistic`, 150,001 files, 27.6 GB, 6,453
+duplicate groups. Arguably, the most important measure here is the mean time when the
+filesystem cache is cold.
 
 | Program (warm filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] |
 | :------------------------------ | ------: | ----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.34.0 |      1.107 ± 0.071 |   1.057 |   1.285 |
-| [`jdupes`][1]                   |  1.20.2 |      3.041 ± 0.061 |   2.968 |   3.172 |
-| [`ddh`][2]                      |  0.13.0 |      1.111 ± 0.026 |   1.089 |   1.166 |
-| [`dupe-krill`][4]               |   1.5.0 |      4.044 ± 0.073 |   3.949 |   4.144 |
-| [`fddf`][5]                     |   1.7.0 |      0.792 ± 0.016 |   0.779 |   0.822 |
-| `yadf`                          |   1.3.0 | **0.603 ± 0.018** |   0.580 |   0.633 |
+| [`fclones`][0]                  |  0.34.0 |     0.676 ± 0.007 |   0.670 |   0.692 |
+| [`jdupes`][1]                   |  1.20.2 |     2.649 ± 0.013 |   2.634 |   2.671 |
+| [`ddh`][2]                      |  0.13.0 |     1.187 ± 0.022 |   1.159 |   1.220 |
+| [`dupe-krill`][4]               |   1.5.0 |     4.031 ± 0.058 |   3.929 |   4.134 |
+| [`fddf`][5]                     |   1.7.0 |     0.729 ± 0.013 |   0.708 |   0.749 |
+| `yadf`                          |   1.3.0 | **0.594 ± 0.012** |   0.580 |   0.624 |
 
 | Program (cold filesystem cache) | Version | Mean [s]           | Min [s] | Max [s] |
 | :------------------------------ | ------: | -----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.34.0 |  **2.856 ± 0.123** |   2.762 |   3.072 |
-| [`jdupes`][1]                   |  1.20.2 |      17.553 ± 0.057 |  17.500 |  17.642 |
-| [`ddh`][2]                      |  0.13.0 |       3.061 ± 0.061 |   2.976 |   3.139 |
-| [`dupe-krill`][4]               |   1.5.0 |      17.904 ± 0.088 |  17.814 |  18.006 |
-| [`fddf`][5]                     |   1.7.0 |       3.005 ± 0.025 |   2.975 |   3.037 |
-| `yadf`                          |   1.3.0 |       3.348 ± 0.029 |   3.319 |   3.380 |
+| [`fclones`][0]                  |  0.34.0 |      2.830 ± 0.015 |   2.808 |   2.843 |
+| [`jdupes`][1]                   |  1.20.2 |     17.366 ± 0.043 |  17.332 |  17.435 |
+| [`ddh`][2]                      |  0.13.0 |      3.160 ± 0.094 |   3.094 |   3.326 |
+| [`dupe-krill`][4]               |   1.5.0 |     17.746 ± 0.037 |  17.701 |  17.783 |
+| [`fddf`][5]                     |   1.7.0 |      2.990 ± 0.014 |   2.982 |   3.014 |
+| `yadf`                          |   1.3.0 |  **2.804 ± 0.019** |   2.784 |   2.833 |
 
-Warm cache is still where `yadf` is fastest here. On a cold cache, `fclones`, `ddh` and `fddf`
-are now all within a few percent of each other, and `fclones` is slightly ahead of `yadf`, not
-behind it as in earlier versions of this table. `fclones` in particular has clearly done real
-work on its cold-cache path since 0.29.3.
-This is on one machine with one corpus shape; the ranking among the top four is close enough
-that it could plausibly flip on different hardware or a different file mix, which is exactly
-why `scripts/bench-versions.sh` exists — to let anyone re-run this rather than trust a table.
-`--io-threads` was swept from 16 to 128 on this run and made at most a ~5% difference, so the
-default (one thread per core) was left as-is; it may matter more on other NVMe controllers.
-`jdupes` and `dupe-krill` fall far behind on a cold cache specifically, suggesting a less
-concurrent read path.
+_Cold cache, the top three are within ~6%, and `yadf` and `fclones` are tied around
+about one standard deviation apart._
 
-None of this changes the recommendation at the top of this document: `fclones` has more
-hardware heuristics and more features, and is the safer default choice.
+`fclones group` skips empty files, hidden files, `.gitignore` matches and symlinks by default;
+these runs pass `--min 0` and the corpus contains none of those. Benchmarking against a home
+directory needs `--min 0 --hidden --no-ignore` to compare the same work.
 
 The script used to benchmark against other tools can be read [here](./scripts/bench.sh). To
 compare `yadf` against itself across commits or releases, see
-[`scripts/bench-versions.sh`](./scripts/bench-versions.sh), which builds each revision,
-verifies they all report the same duplicates over a reproducible synthetic corpus (see
-[`scripts/gen-corpus.py`](./scripts/gen-corpus.py)), then times them with `hyperfine`.
+[`scripts/bench-versions.sh`](./scripts/bench-versions.sh).
 
 [0]: https://github.com/pkolaczk/fclones
 [1]: https://github.com/jbruchon/jdupes
