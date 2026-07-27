@@ -125,30 +125,49 @@ I sought out to build a high performing artefact by assembling together librarie
 ## Benchmarks
 
 The performance of `yadf` is heavily tied to the hardware, specifically the
-NVMe SSD. I recommend `fclones` as it has more hardware heuristics. and in general more features. `yadf` on HDDs is _terrible_.
+NVMe SSD. I recommend `fclones` as it has more hardware heuristics, and in general more features. `yadf` on HDDs is _terrible_.
 
-My home directory contains upwards of 700k paths and 39 GB of data, and is probably a pathological case of file duplication with all the node_modules, python virtual environments, rust target, etc. Arguably, the most important measure here is the mean time when the filesystem cache is cold.
+The numbers below are from a reproducible synthetic corpus rather than a personal home
+directory, so they can be regenerated exactly: `scripts/gen-corpus.py --seed 42 --files 150000
+--dup-ratio 0.15 --collide-prefix 0.05 --size-dist realistic`, 150,001 files, 27.6 GB, with
+6,453 duplicate groups and 3,750 near-duplicate (shared-prefix, differing content) pairs mixed
+in. Each program was run with `hyperfine` against the same tree; see
+[`scripts/bench.sh`](./scripts/bench.sh) for the exact commands. Arguably the most important
+measure here is the mean time when the filesystem cache is cold, since that's the situation on
+a first run.
 
-| Program (warm filesystem cache) | Version |          Mean [s] |   Min [s] | Max [s] |
-| :------------------------------ | ------: | ----------------: | --------: | ------: |
-| [`fclones`][0]                  |  0.29.3 | 7.435 ± 1.609 | 4.622 | 9.317 |
-| [`jdupes`][1]                   |  1.14.0 | 16.787 ± 0.208 | 16.484 | 17.178 |
-| [`ddh`][2]                      |    0.13 | 12.703 ± 1.547 | 10.814 | 14.793 |
-| [`dupe-krill`][4]               |   1.4.7 | 15.555 ± 1.633 | 12.486 | 16.959 |
-| [`fddf`][5]                     |   1.7.0 | 18.441 ± 1.947 | 15.097 | 22.389 |
-| `yadf`                          |   1.1.0 | **3.157 ± 0.638** | 2.362 | 4.175 |
+| Program (warm filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] |
+| :------------------------------ | ------: | ----------------: | ------: | ------: |
+| [`fclones`][0]                  |  0.34.0 |      1.107 ± 0.071 |   1.057 |   1.285 |
+| [`jdupes`][1]                   |  1.20.2 |      3.041 ± 0.061 |   2.968 |   3.172 |
+| [`ddh`][2]                      |  0.13.0 |      1.111 ± 0.026 |   1.089 |   1.166 |
+| [`dupe-krill`][4]               |   1.5.0 |      4.044 ± 0.073 |   3.949 |   4.144 |
+| [`fddf`][5]                     |   1.7.0 |      0.792 ± 0.016 |   0.779 |   0.822 |
+| `yadf`                          |   1.3.0 | **0.603 ± 0.018** |   0.580 |   0.633 |
 
-| Program (cold filesystem cache) | Version |          Mean [s] |   Min [s] | Max [s] |
-| :------------------------------ | ------: | ----------------: | --------: | ------: |
-| [`fclones`][0]                  |  0.29.3 | 68.950 ± 3.694 | 63.165 | 73.534 |
-| [`jdupes`][1]                   |  1.14.0 | 303.907 ± 11.578 | 277.618 | 314.226 |
-| `yadf`                          |   1.1.0 | 52.481 ± 1.125 | 50.412 | 54.265 |
+| Program (cold filesystem cache) | Version | Mean [s]           | Min [s] | Max [s] |
+| :------------------------------ | ------: | -----------------: | ------: | ------: |
+| [`fclones`][0]                  |  0.34.0 |  **2.856 ± 0.123** |   2.762 |   3.072 |
+| [`jdupes`][1]                   |  1.20.2 |      17.553 ± 0.057 |  17.500 |  17.642 |
+| [`ddh`][2]                      |  0.13.0 |       3.061 ± 0.061 |   2.976 |   3.139 |
+| [`dupe-krill`][4]               |   1.5.0 |      17.904 ± 0.088 |  17.814 |  18.006 |
+| [`fddf`][5]                     |   1.7.0 |       3.005 ± 0.025 |   2.975 |   3.037 |
+| `yadf`                          |   1.3.0 |       3.348 ± 0.029 |   3.319 |   3.380 |
 
-_I test less programs here because it takes several hours to run._
+Warm cache is still where `yadf` is fastest here. On a cold cache, `fclones`, `ddh` and `fddf`
+are now all within a few percent of each other, and `fclones` is slightly ahead of `yadf`, not
+behind it as in earlier versions of this table. `fclones` in particular has clearly done real
+work on its cold-cache path since 0.29.3.
+This is on one machine with one corpus shape; the ranking among the top four is close enough
+that it could plausibly flip on different hardware or a different file mix, which is exactly
+why `scripts/bench-versions.sh` exists — to let anyone re-run this rather than trust a table.
+`--io-threads` was swept from 16 to 128 on this run and made at most a ~5% difference, so the
+default (one thread per core) was left as-is; it may matter more on other NVMe controllers.
+`jdupes` and `dupe-krill` fall far behind on a cold cache specifically, suggesting a less
+concurrent read path.
 
-These numbers are from `yadf` 1.1.0 and are kept here as a historical baseline; they predate
-the cold-cache optimizations described above (size pre-grouping, `posix_fadvise` hints,
-suffix hashing, a separate I/O thread pool) and are due for a re-run.
+None of this changes the recommendation at the top of this document: `fclones` has more
+hardware heuristics and more features, and is the safer default choice.
 
 The script used to benchmark against other tools can be read [here](./scripts/bench.sh). To
 compare `yadf` against itself across commits or releases, see
@@ -166,16 +185,10 @@ verifies they all report the same duplicates over a reproducible synthetic corpu
 <details>
     <summary>Hardware used.</summary>
 
-Extract from `neofetch` and `hwinfo --disk`:
-
-- OS: Ubuntu 20.04.1 LTS x86_64
-- Host: XPS 15 9570
-- Kernel: 5.4.0-42-generic
-- CPU: Intel i9-8950HK (12) @ 4.800GHz
-- Memory: 4217MiB / 31755MiB
-- Disk:
-  - model: "SK hynix Disk"
-  - driver: "nvme"
+- OS: Ubuntu, kernel 6.8.0-124-generic
+- CPU: 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz (16 threads)
+- Memory: 15 GiB
+- Disk: NVMe, CT2000P5PSSD8
 
 </details>
 
