@@ -46,6 +46,39 @@ where
     Ok(hasher.finish())
 }
 
+/// Get a checksum of the last 4 KiB (at most) of a file, in a single
+/// positional read rather than a `seek` + `read` pair where the platform
+/// allows it. Cheap way to split apart large files that only share a
+/// header before paying for a full read.
+pub fn suffix<H>(path: &Path, len: u64) -> io::Result<H::Hash>
+where
+    H: crate::hasher::Hasher,
+{
+    let file = File::open(path)?;
+    advise::advise(&file, Advice::Random);
+    let read_len = (len as usize).min(BLOCK_SIZE);
+    let offset = len - read_len as u64;
+    let mut buffer = [0u8; BLOCK_SIZE];
+    read_at(&file, &mut buffer[..read_len], offset)?;
+    let mut hasher = H::default();
+    hasher.write(&buffer[..read_len]);
+    Ok(hasher.finish())
+}
+
+#[cfg(unix)]
+fn read_at(file: &File, buffer: &mut [u8], offset: u64) -> io::Result<()> {
+    use std::os::unix::fs::FileExt;
+    file.read_exact_at(buffer, offset)
+}
+
+#[cfg(not(unix))]
+fn read_at(file: &File, buffer: &mut [u8], offset: u64) -> io::Result<()> {
+    use std::io::{Seek, SeekFrom};
+    let mut file = file;
+    file.seek(SeekFrom::Start(offset))?;
+    file.read_exact(buffer)
+}
+
 /// Get a complete checksum of a file.
 pub fn full<H>(path: &Path) -> io::Result<H::Hash>
 where
@@ -77,5 +110,34 @@ mod tests {
         let h1 = partial::<seahash::SeaHasher>(path, len).unwrap();
         let h2 = full::<seahash::SeaHasher>(path).unwrap();
         assert_ne!(h1, h2);
+    }
+
+    #[test]
+    fn suffix_hash_reads_the_tail_not_the_head() {
+        let dir = tempdir();
+        let path = dir.join("suffix-test");
+        std::fs::write(&path, [b'a'; 8192]).unwrap();
+        let h_all_a = suffix::<seahash::SeaHasher>(&path, 8192).unwrap();
+        let mut content = vec![b'a'; 8192];
+        content[8191] = b'b';
+        std::fs::write(&path, &content).unwrap();
+        let h_last_byte_differs = suffix::<seahash::SeaHasher>(&path, 8192).unwrap();
+        assert_ne!(h_all_a, h_last_byte_differs);
+
+        let mut content = vec![b'a'; 8192];
+        content[0] = b'b';
+        std::fs::write(&path, &content).unwrap();
+        let h_first_byte_differs = suffix::<seahash::SeaHasher>(&path, 8192).unwrap();
+        assert_eq!(
+            h_all_a, h_first_byte_differs,
+            "suffix hash must not be affected by a change outside the last 4 KiB"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn tempdir() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("yadf-hash-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
     }
 }

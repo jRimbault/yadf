@@ -11,6 +11,9 @@ use std::path::{Path, PathBuf};
 
 const CHANNEL_SIZE: usize = 8 * 1024;
 const BLOCK_SIZE: usize = 4 * 1024;
+/// Files above this size get an extra 4 KiB tail-hash pass before a full
+/// read, to cheaply split apart large files that only share a header.
+const SUFFIX_HASH_THRESHOLD: u64 = 64 * 1024;
 
 /// Default concurrency for the I/O-bound hashing phases, distinct from (but
 /// currently equal to) the walker's concurrency.
@@ -193,12 +196,49 @@ fn process_bucket<H>(
         send(sender, old_hash, candidate.path.into());
         return;
     }
-    bucket
-        .into_par_iter()
+    let (large, rest): (Vec<_>, Vec<_>) = bucket
+        .into_iter()
+        .partition(|candidate| candidate.size >= SUFFIX_HASH_THRESHOLD);
+
+    rest.into_par_iter()
         .for_each_with(sender.clone(), |sender, candidate| {
             let hash = full_hash::<H>(&candidate).unwrap_or(old_hash);
             send(sender, hash, candidate.path.into());
         });
+
+    if large.is_empty() {
+        return;
+    }
+    // A differing tail hash is proof enough that two files differ, no
+    // full read needed; only files still colliding on both ends pay for
+    // one. Sound because hash *inequality* is exact -- no assumption is
+    // being made, unlike the eventual duplicate verdict which (like the
+    // rest of yadf) trusts hash equality.
+    let by_suffix: TreeBag<H::Hash, Candidate> = large
+        .into_par_iter()
+        .map(|candidate| {
+            let hash = suffix_hash::<H>(&candidate).unwrap_or(old_hash);
+            (hash, candidate)
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .collect();
+    by_suffix.into_inner().into_par_iter().for_each_with(
+        sender.clone(),
+        |sender, (suffix_hash, group)| {
+            if group.len() == 1 {
+                let candidate = group.into_iter().next().unwrap();
+                send(sender, suffix_hash, candidate.path.into());
+                return;
+            }
+            group
+                .into_par_iter()
+                .for_each_with(sender.clone(), |sender, candidate| {
+                    let hash = full_hash::<H>(&candidate).unwrap_or(suffix_hash);
+                    send(sender, hash, candidate.path.into());
+                });
+        },
+    );
 }
 
 fn full_hash<H>(candidate: &Candidate) -> Result<H::Hash, ()>
@@ -213,6 +253,19 @@ where
     hash::full::<H>(&candidate.path).map_err(|error| {
         log::error!(
             "{}, couldn't hash {:?}, reusing previous hash",
+            error,
+            candidate.path
+        )
+    })
+}
+
+fn suffix_hash<H>(candidate: &Candidate) -> Result<H::Hash, ()>
+where
+    H: crate::hasher::Hasher,
+{
+    hash::suffix::<H>(&candidate.path, candidate.size).map_err(|error| {
+        log::error!(
+            "{}, couldn't hash suffix of {:?}, reusing previous hash",
             error,
             candidate.path
         )
