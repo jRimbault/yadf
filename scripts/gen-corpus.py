@@ -24,10 +24,12 @@ import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import BinaryIO
 
 logger = logging.getLogger(Path(__file__).stem)
 
 BLOCK_SIZE = 4 * 1024
+CHUNK_SIZE = 32 * 1024 * 1024
 
 SIZE_DISTRIBUTIONS: dict[str, tuple[float, float, int]] = {
     # name: (log-normal mu, log-normal sigma, max size in bytes)
@@ -95,7 +97,7 @@ def main(config: CorpusConfig) -> None:
     plan, duplicate_groups, collision_pairs = plan_files(
         rng, len(directories), num_unique_files, num_dup_files, num_collide_files, mu, sigma, size_cap
     )
-    total_bytes = write_files(directories, plan, rng)
+    total_bytes = write_files(directories, plan, config.seed)
 
     manifest = CorpusManifest(
         seed=config.seed,
@@ -106,7 +108,9 @@ def main(config: CorpusConfig) -> None:
         depth=config.depth,
         collide_prefix=config.collide_prefix,
         duplicate_group_count=duplicate_groups,
-        duplicate_file_count=num_dup_files,
+        # Counted off the plan, not off the budget: a leftover file that could
+        # not be paired up is emitted as a unique file instead.
+        duplicate_file_count=sum(1 for planned in plan if planned.content_key.startswith("dup-")),
         collision_pair_count=collision_pairs,
         total_bytes=total_bytes,
         directories=[str(d.relative_to(config.out)) for d in directories],
@@ -179,6 +183,13 @@ def plan_files(
         group_size = min(remaining, rng.randint(2, 5))
         remaining -= group_size
         size = next_size(minimum=min_unique_content_size)
+        if group_size < 2:
+            # The dup budget can leave a single file over, and one file is a
+            # duplicate of nothing: emit it as unique rather than counting a
+            # group no dupe finder will ever report.
+            plan.append(PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}"))
+            file_index += 1
+            break
         content_key = f"dup-{duplicate_groups}"
         for _ in range(group_size):
             plan.append(PlannedFile(next_dir(), f"d{file_index}", size, content_key))
@@ -207,40 +218,51 @@ def plan_files(
     return plan, duplicate_groups, collision_pairs
 
 
-def write_files(directories: list[Path], plan: list[PlannedFile], rng: random.Random) -> int:
+def write_files(directories: list[Path], plan: list[PlannedFile], seed: int) -> int:
     total_bytes = 0
-    dup_content_cache: dict[str, bytes] = {}
-    collide_prefix_cache: dict[str, bytes] = {}
     for planned in plan:
         directory = directories[planned.directory]
         path = directory / planned.name
-        content = build_content(planned, rng, dup_content_cache, collide_prefix_cache)
-        path.write_bytes(content)
-        total_bytes += len(content)
+        total_bytes += write_content(path, planned, seed)
     return total_bytes
 
 
-def build_content(
-    planned: PlannedFile,
-    rng: random.Random,
-    dup_content_cache: dict[str, bytes],
-    collide_prefix_cache: dict[str, bytes],
-) -> bytes:
-    if planned.content_key.startswith("dup-"):
-        cached = dup_content_cache.get(planned.content_key)
-        if cached is None:
-            cached = rng.randbytes(planned.size)
-            dup_content_cache[planned.content_key] = cached
-        return cached
+def write_content(path: Path, planned: PlannedFile, seed: int) -> int:
+    """Stream a planned file's bytes to disk, returning how many were written.
+
+    Content is a pure function of (seed, content key), so two files sharing a
+    key are byte-identical without either of them being held in memory: a
+    27 GB corpus would otherwise need gigabytes of cached duplicate content.
+    """
     if planned.content_key.startswith("collide-"):
+        # Files in a collision group share their first block and diverge after
+        # it, so the prefix is drawn from the group key and the rest from the
+        # per-file key.
         group_key, _, _ = planned.content_key.rpartition("-member-")
-        prefix = collide_prefix_cache.get(group_key)
-        if prefix is None:
-            prefix = rng.randbytes(BLOCK_SIZE)
-            collide_prefix_cache[group_key] = prefix
-        suffix = rng.randbytes(planned.size - BLOCK_SIZE)
-        return prefix + suffix
-    return rng.randbytes(planned.size)
+        with path.open("wb") as handle:
+            handle.write(random.Random(f"{seed}:{group_key}").randbytes(BLOCK_SIZE))
+            written = BLOCK_SIZE + write_random(
+                handle, planned.size - BLOCK_SIZE, random.Random(f"{seed}:{planned.content_key}")
+            )
+        return written
+    with path.open("wb") as handle:
+        return write_random(handle, planned.size, random.Random(f"{seed}:{planned.content_key}"))
+
+
+def write_random(handle: BinaryIO, size: int, rng: random.Random) -> int:
+    """Write `size` random bytes in chunks.
+
+    random.randbytes() builds the whole result as one big integer, which both
+    peaks at several times the requested size in memory and overflows outright
+    past 256 MiB (getrandbits takes a C int bit count), so large files have to
+    be written incrementally.
+    """
+    written = 0
+    while written < size:
+        chunk = min(CHUNK_SIZE, size - written)
+        handle.write(rng.randbytes(chunk))
+        written += chunk
+    return written
 
 
 def positive_float_at_most_one(value: str) -> float:
