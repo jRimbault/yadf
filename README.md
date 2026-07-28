@@ -134,24 +134,24 @@ filesystem cache is cold.
 
 | Program (warm filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] |
 | :------------------------------ | ------: | ----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.35.0 |     1.504 ± 0.018 |   1.475 |   1.531 |
-| [`jdupes`][1]                   |  1.31.1 |     2.842 ± 0.026 |   2.805 |   2.877 |
-| [`ddh`][2]                      |  0.13.0 |     1.187 ± 0.022 |   1.159 |   1.220 |
-| [`dupe-krill`][4]               |   1.5.0 |     4.031 ± 0.058 |   3.929 |   4.134 |
-| [`fddf`][5]                     |   1.7.0 |     0.729 ± 0.013 |   0.708 |   0.749 |
-| `yadf`                          |   1.4.0 | **0.594 ± 0.012** |   0.580 |   0.624 |
+| [`fclones`][0]                  |  0.35.0 |     0.696 ± 0.022 |   0.668 |   0.729 |
+| [`jdupes`][1]                   |  1.31.1 |     3.073 ± 0.065 |   3.021 |   3.214 |
+| [`ddh`][2]                      |  0.13.0 |     1.462 ± 0.010 |   1.450 |   1.485 |
+| [`dupe-krill`][4]               |   1.5.0 |     4.042 ± 0.108 |   3.923 |   4.272 |
+| [`fddf`][5]                     |   1.7.0 |     0.794 ± 0.011 |   0.781 |   0.808 |
+| `yadf`                          |   1.4.0 | **0.643 ± 0.006** |   0.635 |   0.652 |
 
 | Program (cold filesystem cache) | Version | Mean [s]           | Min [s] | Max [s] |
 | :------------------------------ | ------: | -----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.35.0 |      2.855 ± 0.017 |   2.832 |   2.875 |
-| [`jdupes`][1]                   |  1.31.1 |     17.692 ± 0.096 |  17.604 |  17.894 |
-| [`ddh`][2]                      |  0.13.0 |      3.160 ± 0.094 |   3.094 |   3.326 |
-| [`dupe-krill`][4]               |   1.5.0 |     17.746 ± 0.037 |  17.701 |  17.783 |
-| [`fddf`][5]                     |   1.7.0 |      2.990 ± 0.014 |   2.982 |   3.014 |
-| `yadf`                          |   1.4.0 |  **2.804 ± 0.019** |   2.784 |   2.833 |
+| [`fclones`][0]                  |  0.35.0 |      2.847 ± 0.054 |   2.795 |   2.937 |
+| [`jdupes`][1]                   |  1.31.1 |     25.080 ± 0.103 |  25.005 |  25.250 |
+| [`ddh`][2]                      |  0.13.0 |      3.738 ± 0.046 |   3.682 |   3.784 |
+| [`dupe-krill`][4]               |   1.5.0 |     24.798 ± 0.024 |  24.772 |  24.826 |
+| [`fddf`][5]                     |   1.7.0 |      3.462 ± 0.016 |   3.446 |   3.481 |
+| `yadf`                          |   1.4.0 |  **2.731 ± 0.017** |   2.709 |   2.751 |
 
-_Cold cache, the top three are within ~7%, and `yadf` and `fclones` are less than
-2% apart._
+_Warm cache, `yadf` and `fclones` are 8% apart, and `fddf` is 24% behind `yadf`. Cold cache,
+`yadf` and `fclones` are 4% apart, and `fddf` is 27% behind `yadf`._
 
 `fclones group` skips empty files, hidden files, `.gitignore` matches and symlinks by default;
 these runs pass `--min 0` and the corpus contains none of those. Benchmarking against a home
