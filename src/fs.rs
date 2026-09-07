@@ -200,8 +200,11 @@ fn process_bucket<H>(
 
     rest.into_par_iter()
         .for_each_with(sink.clone(), |sink, candidate| {
-            let hash = full_hash::<H>(&candidate).unwrap_or(old_hash);
-            sink.send(hash, candidate.path.into());
+            match full_hash::<H>(&candidate) {
+                HashUpdate::Hash(hash) => sink.send(hash, candidate.path.into()),
+                HashUpdate::Verified => sink.send(old_hash, candidate.path.into()),
+                HashUpdate::Unreadable => {}
+            }
         });
 
     if large.is_empty() {
@@ -214,9 +217,10 @@ fn process_bucket<H>(
     // rest of yadf) trusts hash equality.
     let by_suffix: TreeBag<H::Hash, Candidate> = large
         .into_par_iter()
-        .map(|candidate| {
-            let hash = suffix_hash::<H>(&candidate).unwrap_or(old_hash);
-            (hash, candidate)
+        .filter_map(|candidate| match suffix_hash::<H>(&candidate) {
+            HashUpdate::Hash(hash) => Some((hash, candidate)),
+            HashUpdate::Verified => Some((old_hash, candidate)),
+            HashUpdate::Unreadable => None,
         })
         .collect::<Vec<_>>()
         .into_iter()
@@ -232,49 +236,167 @@ fn process_bucket<H>(
             group
                 .into_par_iter()
                 .for_each_with(sink.clone(), |sink, candidate| {
-                    let hash = full_hash::<H>(&candidate).unwrap_or(suffix_hash);
-                    sink.send(hash, candidate.path.into());
+                    match full_hash::<H>(&candidate) {
+                        HashUpdate::Hash(hash) => sink.send(hash, candidate.path.into()),
+                        HashUpdate::Verified => sink.send(suffix_hash, candidate.path.into()),
+                        HashUpdate::Unreadable => {}
+                    }
                 });
         },
     );
 }
 
-/// The candidate's full-content hash, or `None` if there is nothing to be
-/// gained from reading it and the caller should keep the hash it has.
-fn full_hash<H>(candidate: &Candidate) -> Option<H::Hash>
+/// Outcome of trying to refine a candidate's hash by reading more of its
+/// content, at either the suffix or full-content stage.
+enum HashUpdate<T> {
+    /// A freshly-computed hash from this phase.
+    Hash(T),
+    /// Nothing to gain from reading further -- the caller's current hash
+    /// already reflects the whole content. Safe to reuse.
+    Verified,
+    /// The read failed. The caller's current hash was never confirmed
+    /// against this file's actual content and must not be reused; the
+    /// candidate is excluded rather than risking a false duplicate.
+    Unreadable,
+}
+
+/// The candidate's full-content hash, [`HashUpdate::Verified`] if there is
+/// nothing to be gained from reading it, or [`HashUpdate::Unreadable`] if
+/// the read failed.
+fn full_hash<H>(candidate: &Candidate) -> HashUpdate<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
     if candidate.size < hash::BLOCK {
         // Its partial hash already covered the whole content plus the
         // size: nothing more to distinguish it by.
-        return None;
+        return HashUpdate::Verified;
     }
-    hash::full::<H>(&candidate.path)
-        .map_err(|error| {
+    match hash::full::<H>(&candidate.path) {
+        Ok(hash) => HashUpdate::Hash(hash),
+        Err(error) => {
             log::error!(
-                "{}, couldn't hash {:?}, reusing previous hash",
+                "{}, couldn't hash {:?}, excluding it from the results",
                 error,
                 candidate.path
-            )
-        })
-        .ok()
+            );
+            HashUpdate::Unreadable
+        }
+    }
 }
 
-/// The candidate's tail hash, or `None` if it couldn't be read -- in which
-/// case the caller keeps the hash it has, and the file simply stays in its
-/// current group.
-fn suffix_hash<H>(candidate: &Candidate) -> Option<H::Hash>
+/// The candidate's tail hash, or [`HashUpdate::Unreadable`] if it couldn't
+/// be read.
+fn suffix_hash<H>(candidate: &Candidate) -> HashUpdate<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    hash::suffix::<H>(&candidate.path, candidate.size)
-        .map_err(|error| {
+    match hash::suffix::<H>(&candidate.path, candidate.size) {
+        Ok(hash) => HashUpdate::Hash(hash),
+        Err(error) => {
             log::error!(
-                "{}, couldn't hash suffix of {:?}, reusing previous hash",
+                "{}, couldn't hash suffix of {:?}, excluding it from the results",
                 error,
                 candidate.path
-            )
-        })
-        .ok()
+            );
+            HashUpdate::Unreadable
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn tempdir(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("yadf-fs-test-{}-{name}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn full_hash_is_verified_below_block_size() {
+        let dir = tempdir("verified");
+        let path = dir.join("small");
+        std::fs::write(&path, b"tiny").unwrap();
+        let size = Bytes::new(std::fs::metadata(&path).unwrap().len());
+        assert!(size < hash::BLOCK);
+        let candidate = Candidate { path, size };
+        assert!(matches!(
+            full_hash::<seahash::SeaHasher>(&candidate),
+            HashUpdate::Verified
+        ));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn full_hash_is_unreadable_for_a_missing_file() {
+        let candidate = Candidate {
+            path: tempdir("full-missing").join("does-not-exist"),
+            size: hash::BLOCK,
+        };
+        assert!(matches!(
+            full_hash::<seahash::SeaHasher>(&candidate),
+            HashUpdate::Unreadable
+        ));
+    }
+
+    #[test]
+    fn suffix_hash_is_unreadable_for_a_missing_file() {
+        let candidate = Candidate {
+            path: tempdir("suffix-missing").join("does-not-exist-either"),
+            size: hash::BLOCK,
+        };
+        assert!(matches!(
+            suffix_hash::<seahash::SeaHasher>(&candidate),
+            HashUpdate::Unreadable
+        ));
+    }
+
+    /// Reproduces the original bug: two files sharing a partial hash, one
+    /// of which disappears before the content-hashing phase reads it. The
+    /// disappeared file must be excluded, never merged into the surviving
+    /// file's group under the stale partial hash.
+    #[test]
+    fn unreadable_candidate_is_excluded_not_merged_under_the_old_hash() {
+        let dir = tempdir("carryover");
+        let content = vec![b'a'; hash::BLOCK.as_usize() * 2];
+
+        let survivor_path = dir.join("survivor");
+        std::fs::write(&survivor_path, &content).unwrap();
+        let size = Bytes::new(std::fs::metadata(&survivor_path).unwrap().len());
+
+        let vanished_path = dir.join("vanished");
+        std::fs::write(&vanished_path, &content).unwrap();
+        // Simulate a read failure landing between the partial-hash phase
+        // (which already grouped these under one key) and the
+        // content-hashing phase.
+        std::fs::remove_file(&vanished_path).unwrap();
+
+        let old_hash = hash::partial::<seahash::SeaHasher>(&survivor_path, size).unwrap();
+        let bucket = vec![
+            Candidate {
+                path: survivor_path.clone(),
+                size,
+            },
+            Candidate {
+                path: vanished_path,
+                size,
+            },
+        ];
+
+        let result: TreeBag<u64, crate::Path> = pipeline::collect(|sink| {
+            process_bucket::<seahash::SeaHasher>(&sink, (old_hash, bucket));
+        });
+
+        let paths: Vec<_> = result
+            .into_inner()
+            .into_values()
+            .flatten()
+            .map(|path| path.as_ref().to_path_buf())
+            .collect();
+        assert_eq!(paths, vec![survivor_path]);
+
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }
