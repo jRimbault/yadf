@@ -26,7 +26,7 @@ Executable binaries for some platforms are available in the [releases](https://g
 - search current working directory `$PWD`
 - output format is the same as the "standard" `fdupes`, newline separated groups
 - descends automatically into subdirectories
-- search includes every files (including empty files)
+- search includes every file (including empty files)
 
 ```bash
 yadf # find duplicate files in current directory
@@ -106,7 +106,7 @@ Most¹ dupe finders follow a multi-step algorithm:
 Early versions of `yadf` skipped step 1, which was faster on a warm cache but meant reading
 files that could never have matched anything. It now groups by size first and only opens a file
 if another file shares its size. Step 3 is only done for files large enough to be worth it.
-`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap], it uses a cache aware implementation avoiding too many cache misses. `yadf` uses the parallel walker provided by `ignore` (disabling its _ignore_ features) and `rayon`'s parallel iterators to do each of these steps in parallel, with a separate, more concurrent thread pool (`--io-threads`) for the I/O-bound hashing steps.
+`yadf` makes heavy use of the standard library [`BTreeMap`][btreemap]. It uses a cache-aware implementation avoiding too many cache misses. `yadf` uses the parallel walker provided by `ignore` (disabling its _ignore_ features) and `rayon`'s parallel iterators to do each of these steps in parallel, with a separate, more concurrent thread pool (`--io-threads`) for the I/O-bound hashing steps.
 
 On Linux a few extra threads `posix_fadvise` the files about to be read, keeping enough
 requests in flight to hide device latency on a cold cache. They never hash, so unlike raising
@@ -119,7 +119,7 @@ requests in flight to hide device latency on a cold cache. They never hash, so u
 
 ### Design goals
 
-I sought out to build a high performing artefact by assembling together libraries doing the actual work, nothing here is custom made, it's all "off-the-shelf" software.
+I set out to build a high-performing artefact by assembling together libraries doing the actual work, nothing here is custom made, it's all "off-the-shelf" software.
 
 ## Benchmarks
 
