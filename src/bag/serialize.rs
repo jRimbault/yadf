@@ -45,4 +45,14 @@ mod tests {
         let expected = r#"[["foo","bar"],["hello","world"]]"#;
         assert_eq!(result, expected);
     }
+
+    #[test]
+    fn treebag_json() {
+        let counter: TreeBag<i32, &str> = vec![(3, "foo"), (3, "bar"), (1, "baz")]
+            .into_iter()
+            .collect();
+        let result = serde_json::to_string(&counter).unwrap();
+        let expected = r#"{"1":["baz"],"3":["foo","bar"]}"#;
+        assert_eq!(result, expected);
+    }
 }

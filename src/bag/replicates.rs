@@ -61,3 +61,39 @@ impl Factor {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::TreeBag;
+    use super::Factor;
+
+    fn sample() -> TreeBag<i32, &'static str> {
+        vec![(1, "a"), (2, "b"), (2, "c"), (3, "d"), (3, "e"), (3, "f")]
+            .into_iter()
+            .collect()
+    }
+
+    #[test]
+    fn into_iter_for_ref_replicates() {
+        let bag = sample();
+        let duplicates = bag.duplicates();
+        let buckets: Vec<_> = (&duplicates).into_iter().collect();
+        assert_eq!(buckets, vec![&vec!["b", "c"], &vec!["d", "e", "f"]]);
+    }
+
+    #[test]
+    fn factor_under() {
+        let bag = sample();
+        let replicates = bag.replicates(Factor::Under(2));
+        let buckets: Vec<_> = replicates.iter().collect();
+        assert_eq!(buckets, vec![&vec!["a"]]);
+    }
+
+    #[test]
+    fn factor_equal() {
+        let bag = sample();
+        let replicates = bag.replicates(Factor::Equal(2));
+        let buckets: Vec<_> = replicates.iter().collect();
+        assert_eq!(buckets, vec![&vec!["b", "c"]]);
+    }
+}
