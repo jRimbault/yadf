@@ -173,3 +173,60 @@ where
         self.get(key).expect("no entry found for key")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample() -> TreeBag<i32, &'static str> {
+        vec![(1, "a"), (1, "b"), (2, "c")].into_iter().collect()
+    }
+
+    #[test]
+    fn from_btree_map() {
+        let mut map = BTreeMap::new();
+        map.insert(1, vec!["a"]);
+        let bag: TreeBag<i32, &str> = map.into();
+        assert_eq!(bag[&1], ["a"]);
+    }
+
+    #[test]
+    fn len_and_is_empty() {
+        let bag: TreeBag<i32, &str> = TreeBag::default();
+        assert!(bag.is_empty());
+        assert_eq!(bag.len(), 0);
+
+        let bag = sample();
+        assert!(!bag.is_empty());
+        assert_eq!(bag.len(), 2);
+    }
+
+    #[test]
+    fn get_hit_and_miss() {
+        let bag = sample();
+        assert_eq!(bag.get(&1), Some(&vec!["a", "b"]));
+        assert_eq!(bag.get(&3), None);
+    }
+
+    #[test]
+    fn get_mut_mutates_bucket() {
+        let mut bag = sample();
+        bag.get_mut(&1).unwrap().push("z");
+        assert_eq!(bag[&1], ["a", "b", "z"]);
+        assert!(bag.get_mut(&3).is_none());
+    }
+
+    #[test]
+    fn as_inner_mut_mutates_backing_map() {
+        let mut bag = sample();
+        bag.as_inner_mut().insert(3, vec!["d"]);
+        assert_eq!(bag[&3], ["d"]);
+    }
+
+    #[test]
+    #[should_panic(expected = "no entry found for key")]
+    fn index_panics_on_missing_key() {
+        let bag = sample();
+        let _ = &bag[&99];
+    }
+}
