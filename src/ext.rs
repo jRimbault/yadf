@@ -91,3 +91,26 @@ impl WalkBuilderAddPaths for ignore::WalkBuilder {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unique_by_filters_duplicates_and_exhausts() {
+        let mut iter = [1, 2, 1, 3, 2].into_iter().unique_by(|&x| x);
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn add_paths_adds_every_path() {
+        let mut builder = ignore::WalkBuilder::new(".");
+        builder.add_paths(["src", "Cargo.toml"]);
+        let count = builder.build().count();
+        assert!(count > 1);
+    }
+}

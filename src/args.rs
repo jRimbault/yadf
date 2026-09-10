@@ -122,6 +122,7 @@ impl From<ReplicationFactor> for yadf::Factor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
 
     #[test]
     fn replication_factor_parsing() {
@@ -136,5 +137,54 @@ mod tests {
             let rf: ReplicationFactor = value.parse().unwrap();
             assert_eq!(&rf, expected);
         }
+    }
+
+    #[test]
+    fn replication_factor_parsing_rejects_invalid_input() {
+        let err = "bogus".parse::<ReplicationFactor>().unwrap_err();
+        assert!(err.contains("replication factor must be of the form"));
+    }
+
+    #[test]
+    fn replication_factor_display_mirrors_debug() {
+        let rf = ReplicationFactor::Under(6);
+        assert_eq!(rf.to_string(), format!("{rf:?}"));
+    }
+
+    #[test]
+    fn replication_factor_converts_to_yadf_factor() {
+        let cases = [
+            (ReplicationFactor::Under(2), "Under(2)"),
+            (ReplicationFactor::Equal(3), "Equal(3)"),
+            (ReplicationFactor::Over(4), "Over(4)"),
+        ];
+        for (rf, expected) in cases {
+            let factor: yadf::Factor = rf.into();
+            assert_eq!(format!("{factor:?}"), expected);
+        }
+    }
+
+    #[test]
+    fn min_is_none_by_default() {
+        let args = Args::try_parse_from(["yadf"]).unwrap();
+        assert_eq!(args.min(), None);
+    }
+
+    #[test]
+    fn min_defaults_to_one_with_no_empty_flag() {
+        let args = Args::try_parse_from(["yadf", "--no-empty"]).unwrap();
+        assert_eq!(args.min(), Some(1));
+    }
+
+    #[test]
+    fn min_flag_takes_priority_over_no_empty() {
+        let args = Args::try_parse_from(["yadf", "--no-empty", "--min", "4KiB"]).unwrap();
+        assert_eq!(args.min(), Some(4096));
+    }
+
+    #[test]
+    fn max_reads_the_flag() {
+        let args = Args::try_parse_from(["yadf", "--max", "1KiB"]).unwrap();
+        assert_eq!(args.max(), Some(1024));
     }
 }

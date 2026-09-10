@@ -55,3 +55,40 @@ impl std::ops::Sub for Bytes {
         Self(self.0.saturating_sub(other.0))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kib_converts_to_bytes() {
+        assert_eq!(Bytes::kib(2).get(), 2048);
+    }
+
+    #[test]
+    fn from_u64() {
+        let bytes: Bytes = 42u64.into();
+        assert_eq!(bytes.get(), 42);
+    }
+
+    #[test]
+    fn as_usize_saturates() {
+        assert_eq!(Bytes::new(10).as_usize(), 10);
+    }
+
+    #[test]
+    fn min_returns_smaller() {
+        assert_eq!(Bytes::new(3).min(Bytes::new(5)), Bytes::new(3));
+    }
+
+    #[test]
+    fn sub_saturates_at_zero() {
+        assert_eq!(Bytes::new(1) - Bytes::new(5), Bytes::new(0));
+    }
+
+    #[test]
+    fn to_le_bytes_round_trips() {
+        let bytes = Bytes::new(0x0102_0304_0506_0708);
+        assert_eq!(u64::from_le_bytes(bytes.to_le_bytes()), bytes.get());
+    }
+}
