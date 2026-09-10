@@ -13,6 +13,10 @@ on:
     # At 13:23 on day-of-month 23.
     - cron: "23 13 23 * *"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -27,7 +31,7 @@ jobs:
         rust: [stable, 1.88.0]
         feature_set: ["--no-default-features", "--all-features"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -41,7 +45,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
@@ -55,7 +59,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -72,10 +76,11 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         rust: [stable]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+          components: llvm-tools
       - uses: ./.github/actions/cargo-cache
         with:
           prefix: tests-${{ matrix.rust }}
@@ -83,3 +88,14 @@ jobs:
         run: cargo build --tests
       - name: Run tests
         run: cargo test --all-features
+      - if: matrix.os == 'ubuntu-latest'
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Report coverage
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          {
+            echo "### Coverage"
+            echo '```'
+            cargo llvm-cov --all-features --summary-only
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"

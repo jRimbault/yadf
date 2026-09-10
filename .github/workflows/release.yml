@@ -32,7 +32,7 @@ jobs:
     name: Verify tag matches Cargo.toml
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Compare tag with package version
         if: github.ref_type == 'tag'
         run: |
@@ -81,7 +81,7 @@ jobs:
     env:
       RUSTFLAGS: ${{ matrix.rustflags }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -107,7 +107,7 @@ jobs:
           tar czvf ../../../${{ matrix.name }} yadf
           cd -
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
@@ -122,7 +122,7 @@ jobs:
     needs: [verify, github_build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - name: Publish
         if: github.ref_type == 'tag'
@@ -139,13 +139,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # Downloads every artifact of this run, each into a directory named
       # after it, which is what the `yadf-*/yadf-*` globs below expect.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
 
       - name: Build release notes
         run: |
@@ -181,7 +181,7 @@ jobs:
 
       - name: Publish
         if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: yadf-*/yadf-*
           body_path: RELEASE.md
