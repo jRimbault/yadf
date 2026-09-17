@@ -20,6 +20,10 @@ codegen-units = 1
 name = "yadf"
 required-features = ["build-bin"]
 
+[[bench]]
+name = "scan"
+harness = false
+
 [features]
 default = ["build-bin"]
 build-bin = [
@@ -85,3 +89,6 @@ seahash = "4.1.0"
 twox-hash = "2.1.3"
 predicates = "3.1.4"
 rand = "0.10.2"
+# CodSpeed proof-of-concept: renamed to `divan` so `benches/scan.rs` reads
+# like a plain divan benchmark; `cargo codspeed` picks up the compat shim.
+divan = { package = "codspeed-divan-compat", version = "5.0.2" }

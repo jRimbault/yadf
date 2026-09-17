@@ -1,0 +1,55 @@
+name: CodSpeed
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+concurrency:
+  group: codspeed-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  # id-token:write lets CodSpeedHQ/action authenticate via OIDC, so no
+  # CODSPEED_TOKEN secret is needed for this public repo.
+  id-token: write
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # `.cargo/config.toml` builds with `-C target-cpu=native` for local
+  # benchmarking (see scripts/bench.sh). That must never reach the binary
+  # CodSpeed's patched Valgrind runs: an instruction the compiler chose to
+  # emit for this specific runner's CPU can be one Valgrind's simulator
+  # doesn't implement, which aborts the run outright rather than just being
+  # slower. Pin the same portable baseline release.yml already uses.
+  RUSTFLAGS: "-C target-cpu=x86-64"
+
+jobs:
+  benchmarks:
+    name: Run CodSpeed benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/cargo-cache
+        with:
+          prefix: codspeed
+      - name: Install cargo-codspeed
+        # Not in taiki-e/install-action's curated tool list, so install it
+        # straight from crates.io rather than gambling on its binstall
+        # fallback resolving a prebuilt binary for it.
+        run: cargo install cargo-codspeed --locked
+      - name: Build benchmarks
+        run: cargo codspeed build --all-features
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v5
+        with:
+          mode: simulation
+          run: cargo codspeed run
