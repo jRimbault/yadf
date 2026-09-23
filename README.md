@@ -19,6 +19,23 @@ Executable binaries for some platforms are available in the [releases](https://g
 1. [Install Rust Toolchain](https://www.rust-lang.org/tools/install)
 2. Run `cargo install --locked yadf`
 
+### Fuzzing the library
+
+The `scan` fuzz target creates up to four small files, runs the library scan,
+and compares its duplicate groups with a direct comparison of file contents.
+The checked-in corpus includes empty files and cases around the 4 KiB prefix
+and 64 KiB suffix boundaries. On Linux, install a nightly toolchain with
+`rust-src` and `cargo-fuzz`, then run:
+
+```bash
+rustup toolchain install nightly --component rust-src
+cargo install cargo-fuzz --locked --version 0.13.2
+cargo +nightly fuzz run scan --target x86_64-unknown-linux-gnu -- -max_total_time=60 -max_len=25
+```
+
+Crashes are saved under `fuzz/artifacts/scan`; generated corpus entries stay
+under `fuzz/corpus/scan` and are ignored by Git.
+
 ## Usage
 
 `yadf` defaults:

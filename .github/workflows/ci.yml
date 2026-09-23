@@ -65,6 +65,29 @@ jobs:
           components: rustfmt
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
+      - name: Check fuzz target formatting
+        run: cargo fmt --manifest-path fuzz/Cargo.toml -- --check
+
+  fuzz:
+    name: Fuzz library scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked --version 0.13.2
+      - name: Fuzz scan and compare with file contents
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            seconds=300
+          else
+            seconds=60
+          fi
+          cargo +nightly fuzz run scan --target x86_64-unknown-linux-gnu -- \
+            -max_total_time="$seconds" -max_len=25 -timeout=10
 
   tests:
     name: Tests

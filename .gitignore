@@ -1,3 +1,13 @@
 /target
 /.bench-cache
 /bench-results
+/fuzz/target
+/fuzz/artifacts
+/fuzz/corpus/scan/*
+!/fuzz/corpus/scan/empty-files
+!/fuzz/corpus/scan/prefix-boundary
+!/fuzz/corpus/scan/prefix-over
+!/fuzz/corpus/scan/suffix-boundary
+!/fuzz/corpus/scan/suffix-over
+!/fuzz/corpus/scan/middle-difference
+!/fuzz/corpus/scan/suffix-difference
