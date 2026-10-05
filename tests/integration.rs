@@ -180,3 +180,31 @@ fn hard_links_flag() -> AnyResult {
         .stdout(predicate);
     Ok(())
 }
+
+/// Regression test for issue #8: on a single-CPU machine every rayon pool has
+/// one worker, and the scan used to deadlock before reading a single file.
+/// `RAYON_NUM_THREADS` sizes the global pool the walk runs on, `--io-threads`
+/// the hashing pool; the timeout turns a deadlock into a failure.
+#[test]
+fn single_thread_does_not_deadlock() -> AnyResult {
+    let root = TestDir::new(test_dir!())?;
+    let bytes: Vec<_> = random_collection(MAX_LEN * 3);
+    let file1 = root.write_file("file1", &bytes)?;
+    let file2 = root.write_file("file2", &bytes)?;
+    root.write_file("unique", &bytes[..MAX_LEN])?;
+    assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
+        .env("RAYON_NUM_THREADS", "1")
+        .args(["--io-threads", "1", "--format", "machine"])
+        .arg(root.as_ref())
+        .timeout(std::time::Duration::from_secs(30))
+        .assert()
+        .success()
+        .stdout(
+            // The machine format quotes and escapes each path (`\\` on
+            // Windows), so match the quoted form rather than the raw one.
+            predstr::contains(format!("{file1:?}"))
+                .and(predstr::contains(format!("{file2:?}")))
+                .and(predstr::contains("unique").not()),
+        );
+    Ok(())
+}

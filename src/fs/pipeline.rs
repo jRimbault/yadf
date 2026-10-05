@@ -42,15 +42,23 @@ impl<K, V> Clone for Sink<K, V> {
 ///
 /// Returns once `produce` has returned and every clone of its [`Sink`] has
 /// been dropped, which is what closes the channel and ends the collector.
-pub fn collect<K, V>(produce: impl FnOnce(Sink<K, V>) + Send) -> TreeBag<K, V>
+///
+/// The collector gets its own OS thread rather than a rayon task: it blocks
+/// on the channel until the producers are done, and a blocked rayon task
+/// pins its worker. On a one-thread pool (a single-CPU machine, or
+/// `--io-threads 1`) that worker is the only one able to run the producers,
+/// so the scan would deadlock before reading a single file.
+pub fn collect<K, V>(produce: impl FnOnce(Sink<K, V>)) -> TreeBag<K, V>
 where
     K: Ord + Send,
     V: Send,
 {
     let (sender, receiver) = crossbeam_channel::bounded(CHANNEL_SIZE);
-    rayon::join(
-        move || receiver.into_iter().collect(),
-        move || produce(Sink(sender)),
-    )
-    .0
+    std::thread::scope(|scope| {
+        let collector = scope.spawn(move || receiver.into_iter().collect());
+        produce(Sink(sender));
+        collector
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    })
 }
