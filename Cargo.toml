@@ -1,6 +1,6 @@
 [package]
 name = "yadf"
-version = "1.4.1"
+version = "1.4.2"
 authors = ["jRimbault <jacques.rimbault@gmail.com>"]
 edition = "2021"
 description = "yet another dupes finder"
