@@ -13,13 +13,14 @@ mod pipeline;
 pub mod pool;
 mod prefetch;
 
-use crate::ext::{IteratorExt, WalkBuilderAddPaths, WalkParallelForEach};
+use crate::ext::{IteratorExt, WalkBuilderAddPaths};
+use crate::path::Interner;
 use crate::units::Bytes;
+use crate::Path;
 use crate::TreeBag;
 use pipeline::Sink;
 use prefetch::{Progress, Queue, Window};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::path::{Path, PathBuf};
 
 /// Files above this size get an extra 4 KiB tail-hash pass before a full
 /// read, to cheaply split apart large files that only share a header.
@@ -29,14 +30,8 @@ const SUFFIX_HASH_THRESHOLD: Bytes = Bytes::kib(64);
 /// already-known size, so later stages never need to re-`stat` it.
 #[derive(Debug)]
 pub struct Candidate {
-    path: PathBuf,
+    path: Path,
     size: Bytes,
-}
-
-impl AsRef<Path> for Candidate {
-    fn as_ref(&self) -> &Path {
-        &self.path
-    }
 }
 
 /// Foundation of the API.
@@ -53,11 +48,11 @@ pub fn find_dupes_partial<H, P>(
 ) -> TreeBag<H::Hash, Candidate>
 where
     H: crate::hasher::Hasher,
-    P: AsRef<Path>,
+    P: AsRef<std::path::Path>,
 {
     let by_size = collect_by_size(directories, max_depth, &filter);
     // Only files sharing a size get opened, so only those are worth warming.
-    let queue = Queue::covering(&by_size, |_| hash::BLOCK);
+    let queue = Queue::covering(&by_size, |path| (path, hash::BLOCK));
     pool::install(io_threads, || {
         queue.warm(Window::PARTIAL, |progress| {
             partial_hash_by_size::<H>(by_size, progress)
@@ -76,7 +71,7 @@ where
     H: crate::hasher::Hasher,
 {
     let queue = Queue::covering(&tree, |candidate| {
-        candidate.size.min(prefetch::CONTENT_HEAD)
+        (&candidate.path, candidate.size.min(prefetch::CONTENT_HEAD))
     });
     pool::install(io_threads, || {
         queue.warm(Window::CONTENT, |progress| {
@@ -99,9 +94,9 @@ fn collect_by_size<P>(
     directories: &[P],
     max_depth: Option<usize>,
     filter: &filter::FileFilter,
-) -> TreeBag<Bytes, PathBuf>
+) -> TreeBag<Bytes, Path>
 where
-    P: AsRef<Path>,
+    P: AsRef<std::path::Path>,
 {
     let mut paths = directories
         .iter()
@@ -113,23 +108,34 @@ where
         .max_depth(max_depth)
         .threads(num_cpus::get())
         .build_parallel();
+    // Every path of the walk hangs off the interned directory nodes, rather
+    // than owning a copy of its whole text.
+    let dirs = Interner::default();
     pipeline::collect(|sink| {
-        let sink = &sink;
-        walker.for_each(|entry| {
-            match entry {
-                Err(error) => log::error!("{}", error),
-                Ok(entry) => {
-                    if let Some((size, path)) = size_entry(filter, entry) {
-                        sink.send(size, path);
+        let (sink, dirs) = (&sink, &dirs);
+        walker.run(|| {
+            let mut last_dir = None;
+            Box::new(move |entry| {
+                match entry {
+                    Err(error) => log::error!("{}", error),
+                    Ok(entry) => {
+                        if let Some((size, path)) = size_entry(filter, entry, dirs, &mut last_dir) {
+                            sink.send(size, path);
+                        }
                     }
                 }
-            }
-            ignore::WalkState::Continue
+                ignore::WalkState::Continue
+            })
         })
     })
 }
 
-fn size_entry(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(Bytes, PathBuf)> {
+fn size_entry(
+    filter: &filter::FileFilter,
+    entry: ignore::DirEntry,
+    dirs: &Interner,
+    last_dir: &mut Option<std::sync::Arc<Path>>,
+) -> Option<(Bytes, Path)> {
     let path = entry.path();
     let meta = entry
         .metadata()
@@ -139,14 +145,14 @@ fn size_entry(filter: &filter::FileFilter, entry: ignore::DirEntry) -> Option<(B
     if !filter.is_match(path, meta) {
         return None;
     }
-    Some((size, entry.into_path()))
+    Some((size, dirs.path(path, last_dir)))
 }
 
 /// Turns size-buckets into partial-hash buckets. Files that are the only
 /// one of their size are never opened; the rest are read for their first
 /// 4 KiB.
 fn partial_hash_by_size<H>(
-    by_size: TreeBag<Bytes, PathBuf>,
+    by_size: TreeBag<Bytes, Path>,
     progress: &Progress,
 ) -> TreeBag<H::Hash, Candidate>
 where
@@ -155,7 +161,7 @@ where
     pipeline::collect(|sink| {
         by_size.into_inner().into_par_iter().for_each_with(
             sink,
-            |sink, bucket: (Bytes, Vec<PathBuf>)| {
+            |sink, bucket: (Bytes, Vec<Path>)| {
                 let read = bucket.1.len();
                 hash_size_bucket::<H>(sink, bucket);
                 progress.advance(read);
@@ -164,7 +170,7 @@ where
     })
 }
 
-fn hash_size_bucket<H>(sink: &Sink<H::Hash, Candidate>, (size, bucket): (Bytes, Vec<PathBuf>))
+fn hash_size_bucket<H>(sink: &Sink<H::Hash, Candidate>, (size, bucket): (Bytes, Vec<Path>))
 where
     H: crate::hasher::Hasher,
 {
@@ -176,7 +182,7 @@ where
     bucket
         .into_par_iter()
         .for_each_with(sink.clone(), |sink, path| {
-            match hash::partial::<H>(&path, size) {
+            match hash::partial::<H>(&path.to_path_buf(), size) {
                 Ok(hash) => sink.send(hash, Candidate { path, size }),
                 Err(error) => log::error!("{}, couldn't hash {:?}", error, path),
             }
@@ -191,7 +197,7 @@ fn process_bucket<H>(
 {
     if bucket.len() == 1 {
         let candidate = bucket.into_iter().next().unwrap();
-        sink.send(old_hash, candidate.path.into());
+        sink.send(old_hash, candidate.path);
         return;
     }
     let (large, rest): (Vec<_>, Vec<_>) = bucket
@@ -201,8 +207,8 @@ fn process_bucket<H>(
     rest.into_par_iter()
         .for_each_with(sink.clone(), |sink, candidate| {
             match full_hash::<H>(&candidate) {
-                HashUpdate::Hash(hash) => sink.send(hash, candidate.path.into()),
-                HashUpdate::Verified => sink.send(old_hash, candidate.path.into()),
+                HashUpdate::Hash(hash) => sink.send(hash, candidate.path),
+                HashUpdate::Verified => sink.send(old_hash, candidate.path),
                 HashUpdate::Unreadable => {}
             }
         });
@@ -230,15 +236,15 @@ fn process_bucket<H>(
         |sink, (suffix_hash, group)| {
             if group.len() == 1 {
                 let candidate = group.into_iter().next().unwrap();
-                sink.send(suffix_hash, candidate.path.into());
+                sink.send(suffix_hash, candidate.path);
                 return;
             }
             group
                 .into_par_iter()
                 .for_each_with(sink.clone(), |sink, candidate| {
                     match full_hash::<H>(&candidate) {
-                        HashUpdate::Hash(hash) => sink.send(hash, candidate.path.into()),
-                        HashUpdate::Verified => sink.send(suffix_hash, candidate.path.into()),
+                        HashUpdate::Hash(hash) => sink.send(hash, candidate.path),
+                        HashUpdate::Verified => sink.send(suffix_hash, candidate.path),
                         HashUpdate::Unreadable => {}
                     }
                 });
@@ -272,7 +278,7 @@ where
         // size: nothing more to distinguish it by.
         return HashUpdate::Verified;
     }
-    match hash::full::<H>(&candidate.path) {
+    match hash::full::<H>(&candidate.path.to_path_buf()) {
         Ok(hash) => HashUpdate::Hash(hash),
         Err(error) => {
             log::error!(
@@ -291,7 +297,7 @@ fn suffix_hash<H>(candidate: &Candidate) -> HashUpdate<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    match hash::suffix::<H>(&candidate.path, candidate.size) {
+    match hash::suffix::<H>(&candidate.path.to_path_buf(), candidate.size) {
         Ok(hash) => HashUpdate::Hash(hash),
         Err(error) => {
             log::error!(
@@ -307,6 +313,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn tempdir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("yadf-fs-test-{}-{name}", std::process::id()));
@@ -321,7 +328,10 @@ mod tests {
         std::fs::write(&path, b"tiny").unwrap();
         let size = Bytes::new(std::fs::metadata(&path).unwrap().len());
         assert!(size < hash::BLOCK);
-        let candidate = Candidate { path, size };
+        let candidate = Candidate {
+            path: Path::from_path(&path),
+            size,
+        };
         assert!(matches!(
             full_hash::<seahash::SeaHasher>(&candidate),
             HashUpdate::Verified
@@ -332,7 +342,7 @@ mod tests {
     #[test]
     fn full_hash_is_unreadable_for_a_missing_file() {
         let candidate = Candidate {
-            path: tempdir("full-missing").join("does-not-exist"),
+            path: Path::from_path(&tempdir("full-missing").join("does-not-exist")),
             size: hash::BLOCK,
         };
         assert!(matches!(
@@ -344,7 +354,7 @@ mod tests {
     #[test]
     fn suffix_hash_is_unreadable_for_a_missing_file() {
         let candidate = Candidate {
-            path: tempdir("suffix-missing").join("does-not-exist-either"),
+            path: Path::from_path(&tempdir("suffix-missing").join("does-not-exist-either")),
             size: hash::BLOCK,
         };
         assert!(matches!(
@@ -376,11 +386,11 @@ mod tests {
         let old_hash = hash::partial::<seahash::SeaHasher>(&survivor_path, size).unwrap();
         let bucket = vec![
             Candidate {
-                path: survivor_path.clone(),
+                path: Path::from_path(&survivor_path),
                 size,
             },
             Candidate {
-                path: vanished_path,
+                path: Path::from_path(&vanished_path),
                 size,
             },
         ];
@@ -393,7 +403,7 @@ mod tests {
             .into_inner()
             .into_values()
             .flatten()
-            .map(|path| path.as_ref().to_path_buf())
+            .map(|path| path.to_path_buf())
             .collect();
         assert_eq!(paths, vec![survivor_path]);
 

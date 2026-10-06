@@ -55,23 +55,6 @@ where
     }
 }
 
-pub trait WalkParallelForEach {
-    fn for_each<F>(self, f: F)
-    where
-        F: Fn(Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState,
-        F: Send + Copy;
-}
-
-impl WalkParallelForEach for ignore::WalkParallel {
-    fn for_each<F>(self, f: F)
-    where
-        F: Fn(Result<ignore::DirEntry, ignore::Error>) -> ignore::WalkState,
-        F: Send + Copy,
-    {
-        self.run(|| Box::new(f))
-    }
-}
-
 pub trait WalkBuilderAddPaths {
     fn add_paths<P, I>(&mut self, paths: I) -> &mut Self
     where

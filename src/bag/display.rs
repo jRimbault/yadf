@@ -1,10 +1,9 @@
 use super::{Display, Fdupes, Machine};
 use std::fmt;
-use std::path::Path;
 
 impl<K, V> fmt::Display for Display<'_, K, V, Fdupes>
 where
-    V: AsRef<Path>,
+    V: fmt::Display + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
@@ -12,7 +11,7 @@ where
             let mut bucket = bucket.iter().peekable();
             let is_last_bucket = duplicates.peek().is_none();
             while let Some(dupe) = bucket.next() {
-                dupe.as_ref().display().fmt(f)?;
+                fmt::Display::fmt(dupe, f)?;
                 if bucket.peek().is_some() || !is_last_bucket {
                     f.write_str("\n")?;
                 }
@@ -27,17 +26,17 @@ where
 
 impl<K, V> fmt::Display for Display<'_, K, V, Machine>
 where
-    V: AsRef<Path>,
+    V: fmt::Display + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut duplicates = self.tree.iter().peekable();
         while let Some(bucket) = duplicates.next() {
             let (last, rest) = bucket.split_last().ok_or(fmt::Error)?;
             for dupe in rest {
-                fmt::Debug::fmt(dupe.as_ref(), f)?;
+                fmt::Debug::fmt(dupe, f)?;
                 f.write_str(" ")?;
             }
-            fmt::Debug::fmt(last.as_ref(), f)?;
+            fmt::Debug::fmt(last, f)?;
             if duplicates.peek().is_some() {
                 f.write_str("\n")?;
             }

@@ -13,8 +13,8 @@
 
 use super::advise;
 use crate::units::Bytes;
+use crate::Path;
 use crate::TreeBag;
-use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// Threads dedicated to issuing readahead hints. They only ever `open` and
@@ -62,7 +62,7 @@ impl Window {
 /// A file to warm, and how much of it.
 #[derive(Debug)]
 struct Request {
-    path: PathBuf,
+    path: Path,
     len: Bytes,
 }
 
@@ -93,19 +93,23 @@ impl Queue {
     /// Flattens the buckets of `bag` that are actually going to be read into
     /// a queue, in iteration order; `len` says how much of each file to
     /// warm. Singleton buckets are skipped: those files are never opened.
-    pub fn covering<K, V>(bag: &TreeBag<K, V>, len: impl Fn(&V) -> Bytes) -> Self
+    ///
+    /// `describe` says which path of a value to warm, and how much of it.
+    pub fn covering<K, V>(bag: &TreeBag<K, V>, describe: impl Fn(&V) -> (&Path, Bytes)) -> Self
     where
         K: Ord,
-        V: AsRef<Path>,
     {
         Self(
             bag.as_inner()
                 .values()
                 .filter(|bucket| bucket.len() > 1)
                 .flat_map(|bucket| {
-                    bucket.iter().map(|value| Request {
-                        path: value.as_ref().to_path_buf(),
-                        len: len(value),
+                    bucket.iter().map(|value| {
+                        let (path, len) = describe(value);
+                        Request {
+                            path: path.clone(),
+                            len,
+                        }
                     })
                 })
                 .collect(),
@@ -160,7 +164,7 @@ impl Queue {
             if finished.load(Ordering::Acquire) {
                 return;
             }
-            advise::prefetch(&request.path, request.len);
+            advise::prefetch(&request.path.to_path_buf(), request.len);
         }
     }
 }
