@@ -164,7 +164,9 @@ impl Queue {
             if finished.load(Ordering::Acquire) {
                 return;
             }
-            advise::prefetch(&request.path.to_path_buf(), request.len);
+            request
+                .path
+                .with_std_path(|path| advise::prefetch(path, request.len));
         }
     }
 }

@@ -23,9 +23,10 @@
 //! - `Hash` is consistent with `Eq` but does not produce the same hash value as
 //!   `PathBuf` would.
 
+use std::cell::Cell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::path::{Component, Path as StdPath, PathBuf};
@@ -44,46 +45,16 @@ pub struct Path {
 impl Path {
     /// Builds a path, with no parent shared with anything else.
     pub fn from_path(path: &StdPath) -> Self {
-        let mut components = path.components().peekable();
-        if components.peek().is_none() {
-            return Self {
-                parent: None,
-                component: Box::from(OsStr::new("")),
-            };
-        }
-        let mut parent: Option<Arc<Self>> = None;
-        while let Some(component) = components.next() {
-            let child = Self {
-                parent: parent.take(),
-                component: Box::from(component.as_os_str()),
-            };
-            if components.peek().is_none() {
-                return child;
-            }
-            parent = Some(Arc::new(child));
-        }
-        unreachable!("the path has at least one component")
+        Self::chain(None, path).unwrap_or_else(|| Self {
+            parent: None,
+            component: Box::from(OsStr::new("")),
+        })
     }
 
     /// Builds the path `parent/relative`, sharing `parent` instead of
     /// copying it. This is what a directory walker should use.
     pub fn with_parent(parent: &Arc<Self>, relative: &StdPath) -> Self {
-        let mut components = relative.components().peekable();
-        if components.peek().is_none() {
-            return Self::clone(parent);
-        }
-        let mut node = Arc::clone(parent);
-        while let Some(component) = components.next() {
-            let child = Self {
-                parent: Some(node),
-                component: Box::from(component.as_os_str()),
-            };
-            if components.peek().is_none() {
-                return child;
-            }
-            node = Arc::new(child);
-        }
-        unreachable!("the path has at least one component")
+        Self::chain(Some(Arc::clone(parent)), relative).unwrap_or_else(|| Self::clone(parent))
     }
 
     /// Appends `name` to `self`; shorthand for [`Path::with_parent`].
@@ -91,27 +62,18 @@ impl Path {
         Self::with_parent(self, StdPath::new(name))
     }
 
-    /// Builds `path`, reusing `cache` as the parent when it matches
-    /// `path.parent()`; otherwise `cache` is replaced by the new parent.
-    ///
-    /// Meant for streams of paths that arrive grouped by directory: only the
-    /// first path of each directory allocates the parent chain.
-    pub fn from_path_cached(path: &StdPath, cache: &mut Option<Arc<Self>>) -> Self {
-        let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
-            return Self::from_path(path);
+    /// Hangs the components of `path` under `parent`, one node each, and
+    /// returns the leaf. `None` when `path` has no components.
+    fn chain(parent: Option<Arc<Self>>, path: &StdPath) -> Option<Self> {
+        let mut components = path.components();
+        let first = Self {
+            parent,
+            component: Box::from(components.next()?.as_os_str()),
         };
-        if parent.as_os_str().is_empty() {
-            return Self::from_path(path);
-        }
-        match cache {
-            Some(cached) if cached.eq_path(parent) => cached.join(name),
-            _ => {
-                let parent = Arc::new(Self::from_path(parent));
-                let child = parent.join(name);
-                *cache = Some(parent);
-                child
-            }
-        }
+        Some(components.fold(first, |node, component| Self {
+            parent: Some(Arc::new(node)),
+            component: Box::from(component.as_os_str()),
+        }))
     }
 
     /// The shared parent, if any.
@@ -146,10 +108,42 @@ impl Path {
     /// Reconstructs the standard path.
     pub fn to_path_buf(&self) -> PathBuf {
         let mut path = PathBuf::new();
-        for part in self.parts() {
-            path.push(part);
-        }
+        self.write_to(&mut path);
         path
+    }
+
+    /// Overwrites `buf` with the standard path, reusing its allocation.
+    pub fn write_to(&self, buf: &mut PathBuf) {
+        buf.clear();
+        self.push_onto(buf);
+    }
+
+    /// Calls `f` with the standard path, built in a per-thread buffer, so
+    /// opening a file does not allocate a fresh `PathBuf` each time.
+    pub fn with_std_path<R>(&self, f: impl FnOnce(&StdPath) -> R) -> R {
+        thread_local! {
+            static SCRATCH: Cell<PathBuf> = Cell::new(PathBuf::new());
+        }
+        SCRATCH.with(|scratch| {
+            // Taken rather than borrowed: a nested call from `f` gets a fresh
+            // buffer instead of a borrow conflict.
+            let mut buf = scratch.take();
+            self.write_to(&mut buf);
+            let result = f(&buf);
+            scratch.set(buf);
+            result
+        })
+    }
+
+    /// Root-first push of the non-empty components. Recursion depth is the
+    /// component count, bounded in practice by `PATH_MAX`.
+    fn push_onto(&self, buf: &mut PathBuf) {
+        if let Some(parent) = &self.parent {
+            parent.push_onto(buf);
+        }
+        if !self.component.is_empty() {
+            buf.push(&*self.component);
+        }
     }
 
     /// Leaf-to-root iterator over this node and its ancestors.
@@ -223,21 +217,58 @@ impl Interner {
     /// Builds `path` under its interned parent directory. `last` is a
     /// per-thread cache of the previous parent: paths arriving grouped by
     /// directory then skip the lock and the lookup entirely.
-    pub fn path(&self, path: &StdPath, last: &mut Option<Arc<Path>>) -> Path {
+    pub fn path(&self, path: &StdPath, last: &mut LastDir) -> Path {
         let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
             return Path::from_path(path);
         };
         if parent.as_os_str().is_empty() {
             return Path::from_path(path);
         }
-        match last {
-            Some(cached) if cached.eq_path(parent) => cached.join(name),
-            _ => {
-                let dir = self.dir(parent);
-                let child = dir.join(name);
-                *last = Some(dir);
-                child
-            }
+        if let Some(cached) = last.get(parent) {
+            return cached.join(name);
+        }
+        let dir = self.dir(parent);
+        let child = dir.join(name);
+        last.set(parent, dir);
+        child
+    }
+}
+
+/// The directory a walker thread interned last, keyed by its exact text.
+///
+/// A walker hands out every entry of a directory with the same parent
+/// spelling, so a byte comparison is enough to recognize it. That is cheaper
+/// than a component-wise [`Path::eq_path`], and it runs once per file.
+#[derive(Debug, Default)]
+pub struct LastDir {
+    text: OsString,
+    node: Option<Arc<Path>>,
+}
+
+impl LastDir {
+    fn get(&self, dir: &StdPath) -> Option<&Arc<Path>> {
+        self.node
+            .as_ref()
+            .filter(|_| self.text.as_os_str() == dir.as_os_str())
+    }
+
+    fn set(&mut self, dir: &StdPath, node: Arc<Path>) {
+        // Reuses the text allocation across directories.
+        self.text.clear();
+        self.text.push(dir.as_os_str());
+        self.node = Some(node);
+    }
+}
+
+/// Unlinks the chain iteratively: the derived drop would recurse once per
+/// ancestor that this path is the last owner of.
+impl Drop for Path {
+    fn drop(&mut self) {
+        let mut parent = self.parent.take();
+        while let Some(node) = parent {
+            // `into_inner` hands the node to exactly one of the concurrent
+            // last owners; everyone else just decrements.
+            parent = Arc::into_inner(node).and_then(|mut node| node.parent.take());
         }
     }
 }
@@ -304,13 +335,13 @@ impl Ord for Path {
 
 impl fmt::Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.to_path_buf().display().fmt(f)
+        self.with_std_path(|path| path.display().fmt(f))
     }
 }
 
 impl fmt::Debug for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.to_path_buf(), f)
+        self.with_std_path(|path| fmt::Debug::fmt(path, f))
     }
 }
 
@@ -458,20 +489,44 @@ mod tests {
     }
 
     #[test]
-    fn cached_construction_shares_parent() {
-        let mut cache = None;
-        let a = Path::from_path_cached(StdPath::new("/p/q/a"), &mut cache);
-        let b = Path::from_path_cached(StdPath::new("/p/q/b"), &mut cache);
-        let c = Path::from_path_cached(StdPath::new("/p/r/c"), &mut cache);
+    fn write_to_and_with_std_path_match_to_path_buf() {
+        let mut buf = PathBuf::from("/stale/content/that/is/longer");
+        for sample in SAMPLES {
+            let compact = Path::from_path(StdPath::new(sample));
+            compact.write_to(&mut buf);
+            assert_eq!(buf, compact.to_path_buf(), "{sample:?}");
+            compact.with_std_path(|path| assert_eq!(path, buf, "{sample:?}"));
+        }
+        // A nested call gets its own buffer.
+        let (a, b) = (Path::from("/a"), Path::from("/b"));
+        a.with_std_path(|outer| {
+            b.with_std_path(|inner| assert_eq!(inner, StdPath::new("/b")));
+            assert_eq!(outer, StdPath::new("/a"));
+        });
+    }
+
+    #[test]
+    fn deep_chain_drops_without_recursion() {
+        let deep: PathBuf = (0..200_000).map(|_| "d").collect();
+        let path = Path::from_path(&deep);
+        assert_eq!(path.depth(), 200_000);
+        drop(path);
+    }
+
+    #[test]
+    fn last_dir_matches_exact_text_only() {
+        let interner = Interner::default();
+        let mut last = LastDir::default();
+        let a = interner.path(StdPath::new("/p/q/a"), &mut last);
+        let b = interner.path(StdPath::new("/p/q/b"), &mut last);
         assert!(Arc::ptr_eq(a.parent().unwrap(), b.parent().unwrap()));
-        assert!(!Arc::ptr_eq(a.parent().unwrap(), c.parent().unwrap()));
-        assert_eq!(a.to_path_buf(), PathBuf::from("/p/q/a"));
-        assert_eq!(c.to_path_buf(), PathBuf::from("/p/r/c"));
-        // degenerate inputs fall back to plain construction
-        let root = Path::from_path_cached(StdPath::new("/"), &mut cache);
-        assert_eq!(root.to_path_buf(), PathBuf::from("/"));
-        let bare = Path::from_path_cached(StdPath::new("file"), &mut cache);
-        assert_eq!(bare.to_path_buf(), PathBuf::from("file"));
+        // Same directory, different spelling: misses the cache but the
+        // interner still resolves it to an equal path.
+        let c = interner.path(StdPath::new("/p/q//c"), &mut last);
+        assert_eq!(c.to_path_buf(), PathBuf::from("/p/q/c"));
+        let d = interner.path(StdPath::new("/p/r/d"), &mut last);
+        assert!(!Arc::ptr_eq(a.parent().unwrap(), d.parent().unwrap()));
+        assert_eq!(d.to_path_buf(), PathBuf::from("/p/r/d"));
     }
 
     #[test]
@@ -556,7 +611,7 @@ mod tests {
     #[test]
     fn interner_shares_ancestors_across_directories() {
         let interner = Interner::default();
-        let mut last = None;
+        let mut last = LastDir::default();
         let a = interner.path(StdPath::new("/root/a/one"), &mut last);
         let a2 = interner.path(StdPath::new("/root/a/two"), &mut last);
         let b = interner.path(StdPath::new("/root/b/one"), &mut last);

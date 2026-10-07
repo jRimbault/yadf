@@ -14,7 +14,7 @@ pub mod pool;
 mod prefetch;
 
 use crate::ext::{IteratorExt, WalkBuilderAddPaths};
-use crate::path::Interner;
+use crate::path::{Interner, LastDir};
 use crate::units::Bytes;
 use crate::Path;
 use crate::TreeBag;
@@ -114,7 +114,7 @@ where
     pipeline::collect(|sink| {
         let (sink, dirs) = (&sink, &dirs);
         walker.run(|| {
-            let mut last_dir = None;
+            let mut last_dir = LastDir::default();
             Box::new(move |entry| {
                 match entry {
                     Err(error) => log::error!("{}", error),
@@ -134,7 +134,7 @@ fn size_entry(
     filter: &filter::FileFilter,
     entry: ignore::DirEntry,
     dirs: &Interner,
-    last_dir: &mut Option<std::sync::Arc<Path>>,
+    last_dir: &mut LastDir,
 ) -> Option<(Bytes, Path)> {
     let path = entry.path();
     let meta = entry
@@ -182,7 +182,7 @@ where
     bucket
         .into_par_iter()
         .for_each_with(sink.clone(), |sink, path| {
-            match hash::partial::<H>(&path.to_path_buf(), size) {
+            match path.with_std_path(|std_path| hash::partial::<H>(std_path, size)) {
                 Ok(hash) => sink.send(hash, Candidate { path, size }),
                 Err(error) => log::error!("{}, couldn't hash {:?}", error, path),
             }
@@ -278,7 +278,7 @@ where
         // size: nothing more to distinguish it by.
         return HashUpdate::Verified;
     }
-    match hash::full::<H>(&candidate.path.to_path_buf()) {
+    match candidate.path.with_std_path(hash::full::<H>) {
         Ok(hash) => HashUpdate::Hash(hash),
         Err(error) => {
             log::error!(
@@ -297,7 +297,10 @@ fn suffix_hash<H>(candidate: &Candidate) -> HashUpdate<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
-    match hash::suffix::<H>(&candidate.path.to_path_buf(), candidate.size) {
+    match candidate
+        .path
+        .with_std_path(|path| hash::suffix::<H>(path, candidate.size))
+    {
         Ok(hash) => HashUpdate::Hash(hash),
         Err(error) => {
             log::error!(
