@@ -146,7 +146,14 @@ impl<K: Ord, V> Extend<(K, V)> for TreeBag<K, V> {
         I: IntoIterator<Item = (K, V)>,
     {
         for (key, value) in key_value_iter {
-            self.entry(key).or_default().push(value);
+            match self.entry(key) {
+                // Most buckets end up holding a single value, and a first
+                // `push` would reserve 4 slots for it.
+                Entry::Vacant(entry) => {
+                    entry.insert(vec![value]);
+                }
+                Entry::Occupied(entry) => entry.into_mut().push(value),
+            }
         }
     }
 }
