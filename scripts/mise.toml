@@ -1,0 +1,9 @@
+# Pinned competitor versions for bench.sh, so the README numbers are reproducible.
+# Usage (from the repo root): mise -C scripts install && mise -C scripts exec -- scripts/bench.sh
+# jdupes is not listed: bench.sh builds the version pinned in its header from source.
+[tools]
+hyperfine = "latest"
+"cargo:fclones" = "0.35.0"
+"cargo:ddh" = "0.13.0"
+"cargo:dupe-krill" = "1.5.0"
+"cargo:fddf" = "1.7.0"

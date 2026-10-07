@@ -13,9 +13,11 @@
 #/   --corpus DIR    directory to scan; generated at .bench-cache/corpus with
 #/                   scripts/gen-corpus.py on first use if not given
 #/   --install       cargo install --locked the crates.io competitors at their
-#/                   latest published version before benchmarking; jdupes is
-#/                   always built from its latest source release into
-#/                   .bench-cache/tools, since no usable binary is packaged
+#/                   latest published version before benchmarking (the
+#/                   versions pinned in scripts/mise.toml are the reproducible
+#/                   alternative); jdupes is always built from the pinned
+#/                   source release below into .bench-cache/tools, since no
+#/                   usable binary is packaged
 #/   --min-runs N    minimum hyperfine runs per program (default 10 warm, 5 cold)
 #/   -h, --help      show this help
 #/
@@ -57,6 +59,12 @@ corpus_seed=42
 corpus_dup_ratio=0.15
 corpus_collide_prefix=0.05
 corpus_size_dist=realistic
+
+# jdupes (and the libjodycode it links) are built from source release tarballs
+# at these pinned versions, so the README numbers are reproducible. Bump them
+# deliberately; see https://codeberg.org/jbruchon/jdupes/releases
+jdupes_version=1.31.2
+libjodycode_version=4.1.1
 
 # Crates providing a competitor, installed with `cargo install --locked`.
 cargo_competitors=(fclones ddh dupe-krill fddf)
@@ -114,12 +122,6 @@ crates_io_latest() {
     python3 -c 'import json,sys; print(json.load(sys.stdin)["crate"]["max_stable_version"])'
 }
 
-# Latest release tag of a codeberg repository, without its leading "v".
-codeberg_latest() {
-  curl -sSf "https://codeberg.org/api/v1/repos/jbruchon/$1/releases?limit=1" |
-    python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["tag_name"].lstrip("v"))'
-}
-
 # Builds jdupes from the upstream source release into the tool cache.
 #
 # Distro packages lag several minor versions behind (Ubuntu 24.04 ships
@@ -160,8 +162,6 @@ if [[ "$do_install" -eq 1 ]]; then
   done
 fi
 
-jdupes_version=$(codeberg_latest jdupes)
-libjodycode_version=$(codeberg_latest libjodycode)
 jdupes_bin=$(build_jdupes "$jdupes_version" "$libjodycode_version")
 
 # yadf is always benchmarked from the working tree, not from whatever happens
