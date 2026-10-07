@@ -80,8 +80,8 @@ Options:
   -d, --depth <depth>          Maximum recursion depth
       --io-threads <n>         Concurrency for the I/O-bound hashing phases
   -H, --hard-links             Treat hard links to same file as duplicates
-  -R, --regex <REGEX>          Check files with a name matching a Perl-style regex, see: https://docs.rs/regex/1.4.2/regex/index.html#syntax
-  -p, --pattern <glob>         Check files with a name matching a glob pattern, see: https://docs.rs/globset/0.4.6/globset/index.html#syntax
+  -R, --regex <REGEX>          Check files with a name matching a Perl-style regex, see: https://docs.rs/regex/1.13.1/regex/index.html#syntax
+  -p, --pattern <glob>         Check files with a name matching a glob pattern, see: https://docs.rs/globset/0.4.19/globset/index.html#syntax
   -v, --verbose...             Increase logging verbosity
   -q, --quiet...               Decrease logging verbosity
       --rfactor <RFACTOR>      Replication factor [under|equal|over]:n
