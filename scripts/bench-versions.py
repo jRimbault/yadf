@@ -33,6 +33,7 @@ from benchlib import (
     REPO_ROOT,
     Fatal,
     Model,
+    add_run_count_args,
     ensure_corpus,
     entrypoint,
     hyperfine,
@@ -46,6 +47,7 @@ from benchlib import (
     require_passwordless_sudo,
     require_tools,
     run,
+    run_count_options,
     stdout,
     step,
 )
@@ -65,6 +67,8 @@ class Args(Model):
     cold: bool
     corpus: Path | None
     strace: bool
+    warm_up: int | None
+    min_runs: int | None
     revs: tuple[str, ...]
 
 
@@ -91,6 +95,7 @@ def parse_args() -> Args:
         help="also report syscall counts per binary (openat/read/statx/newfstatat/"
         "getdents64); deterministic, cache-independent",
     )
+    add_run_count_args(parser)
     parser.add_argument("revs", nargs="+", metavar="REV")
     return Args.model_validate(vars(parser.parse_args()))
 
@@ -233,12 +238,12 @@ def main() -> None:
     if args.strace:
         report_syscalls(labels, bins, corpus, results_dir)
 
+    options = run_count_options(args.cold, args.warm_up, args.min_runs)
     if args.cold:
         step("timing (cold cache)")
-        options = ["--warmup", "0", "--min-runs", "5", "--prepare", DROP_CACHES]
+        options += ["--prepare", DROP_CACHES]
     else:
         step("timing (warm cache)")
-        options = ["--warmup", "3", "--min-runs", "10"]
     export = hyperfine(
         [(label, [binary, corpus]) for label, binary in zip(labels, bins, strict=True)],
         options,

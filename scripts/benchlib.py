@@ -5,6 +5,7 @@ this directory first on sys.path, and declare its dependencies in their own
 inline metadata.
 """
 
+import argparse
 import re
 import shlex
 import shutil
@@ -190,6 +191,32 @@ def new_results_dir() -> Path:
     path = REPO_ROOT / "bench-results" / datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     path.mkdir(parents=True)
     return path
+
+
+def add_run_count_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--warm-up",
+        type=int,
+        metavar="N",
+        help="hyperfine warm-up runs per command (default 3 warm, 0 cold)",
+    )
+    parser.add_argument(
+        "--min-runs",
+        type=int,
+        metavar="N",
+        help="minimum hyperfine runs per command (default 10 warm, 5 cold)",
+    )
+
+
+def run_count_options(
+    cold: bool, warm_up: int | None, min_runs: int | None
+) -> list[str]:
+    """hyperfine's --warmup and --min-runs, defaulting by cache state."""
+    if warm_up is None:
+        warm_up = 0 if cold else 3
+    if min_runs is None:
+        min_runs = 5 if cold else 10
+    return ["--warmup", str(warm_up), "--min-runs", str(min_runs)]
 
 
 def hyperfine(

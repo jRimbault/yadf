@@ -46,6 +46,7 @@ from benchlib import (
     REPO_ROOT,
     Fatal,
     Model,
+    add_run_count_args,
     ensure_corpus,
     entrypoint,
     hyperfine,
@@ -57,6 +58,7 @@ from benchlib import (
     require_passwordless_sudo,
     require_tools,
     run,
+    run_count_options,
     stdout,
     step,
     warn,
@@ -101,6 +103,7 @@ class Args(Model):
     corpus: Path | None
     install: bool
     min_runs: int | None
+    warm_up: int | None
 
 
 class CrateInfo(Model):
@@ -136,12 +139,7 @@ def parse_args() -> Args:
         "reproducible alternative); jdupes is always built from the pinned source "
         "release into .bench-cache/tools, since no usable binary is packaged",
     )
-    parser.add_argument(
-        "--min-runs",
-        type=int,
-        metavar="N",
-        help="minimum hyperfine runs per program (default 10 warm, 5 cold)",
-    )
+    add_run_count_args(parser)
     return Args.model_validate(vars(parser.parse_args()))
 
 
@@ -281,10 +279,9 @@ def main() -> None:
     if args.cold:
         cache_label = "cold"
         prepare += f" && {DROP_CACHES}"
-        options = ["--warmup", "0", "--min-runs", str(args.min_runs or 5)]
     else:
         cache_label = "warm"
-        options = ["--warmup", "3", "--min-runs", str(args.min_runs or 10)]
+    options = run_count_options(args.cold, args.warm_up, args.min_runs)
     options += ["--prepare", prepare]
 
     step(f"timing ({cache_label} cache) over {corpus}")
