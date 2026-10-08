@@ -1,0 +1,51 @@
+name: Python checks
+
+on:
+  push:
+    branches-ignore:
+      - "try/**"
+    paths:
+      - "scripts/**/*.py"
+      - "scripts/pyproject.toml"
+      - "scripts/uv.lock"
+      - "scripts/.python-version"
+      - ".github/workflows/python.yml"
+  pull_request:
+    paths:
+      - "scripts/**/*.py"
+      - "scripts/pyproject.toml"
+      - "scripts/uv.lock"
+      - "scripts/.python-version"
+      - ".github/workflows/python.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Ruff and Pyright
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          working-directory: scripts
+          enable-cache: true
+      - name: Install Python
+        run: uv python install
+      - name: Install dependencies
+        run: uv sync --locked
+      - name: Lint
+        run: uv run --locked ruff check .
+      - name: Check formatting
+        run: uv run --locked ruff format --check .
+      - name: Typecheck
+        run: uv run --locked pyright
