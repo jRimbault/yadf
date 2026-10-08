@@ -27,19 +27,39 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        platform: [linux, windows, macos, linux-musl, linux-musl-arm]
         rust: [stable, 1.88.0]
         feature_set: ["--no-default-features", "--all-features"]
+        include: &platforms
+          - platform: linux
+            os: ubuntu-latest
+          - platform: windows
+            os: windows-latest
+          - platform: macos
+            os: macos-latest
+          # The release workflow ships musl binaries, and the C dependencies
+          # (blake3, the allocator) have to build against musl-gcc too. The
+          # arm64 one is native, like its release build.
+          - platform: linux-musl
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - platform: linux-musl-arm
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+      - name: Setup musl tools
+        if: matrix.target
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - uses: ./.github/actions/cargo-cache
         with:
-          prefix: check-${{ matrix.rust }}
+          prefix: check-${{ matrix.rust }}-${{ matrix.platform }}
       - name: Run build check
-        run: cargo check ${{ matrix.feature_set }}
+        run: cargo check ${{ matrix.feature_set }} ${{ matrix.target && format('--target {0}', matrix.target) }}
 
   clippy:
     name: Clippy
@@ -73,25 +93,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        platform: [linux, windows, macos, linux-musl, linux-musl-arm]
         rust: [stable]
+        include: *platforms
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
           components: llvm-tools
+      - name: Setup musl tools
+        if: matrix.target
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - uses: ./.github/actions/cargo-cache
         with:
-          prefix: tests-${{ matrix.rust }}
+          prefix: tests-${{ matrix.rust }}-${{ matrix.platform }}
       - name: Build tests
-        run: cargo build --tests
+        run: cargo build --tests ${{ matrix.target && format('--target {0}', matrix.target) }}
       - name: Run tests
-        run: cargo test --all-features
-      - if: matrix.os == 'ubuntu-latest'
+        run: cargo test --all-features ${{ matrix.target && format('--target {0}', matrix.target) }}
+      - if: matrix.platform == 'linux'
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Report coverage
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.platform == 'linux'
         run: |
           {
             echo "### Coverage"
