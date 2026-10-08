@@ -1,11 +1,4 @@
 #!/usr/bin/env -S uv run --script --quiet
-# /// script
-# requires-python = ">=3.14"
-# dependencies = [
-#   "pydantic>=2.13",
-#   "rich>=15.0",
-# ]
-# ///
 """Compare yadf against itself across git revisions.
 
 Build yadf at each REV (git worktree + cargo build --release), verify they all

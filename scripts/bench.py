@@ -1,11 +1,4 @@
 #!/usr/bin/env -S uv run --script --quiet
-# /// script
-# requires-python = ">=3.14"
-# dependencies = [
-#   "pydantic>=2.13",
-#   "rich>=15.0",
-# ]
-# ///
 """Benchmark yadf against the other duplicate finders.
 
 Times every program over a reproducible synthetic corpus with hyperfine
