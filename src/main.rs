@@ -3,6 +3,13 @@
 
 mod args;
 
+// glibc malloc keeps freed memory in per-thread arenas: paths allocated by the
+// walker threads and freed by the hashing pool leave most of them half empty.
+// mimalloc is built with `no_thp`, as committing its arenas on transparent huge
+// pages costs more system time than glibc malloc on short runs.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
 use clap_verbosity_flag::ErrorLevel;
