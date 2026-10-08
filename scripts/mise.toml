@@ -1,6 +1,6 @@
-# Pinned competitor versions for bench.sh, so the README numbers are reproducible.
-# Usage (from the repo root): mise -C scripts install && mise -C scripts exec -- ./bench.sh
-# jdupes is not listed: bench.sh builds the version pinned in its header from source.
+# Pinned competitor versions for bench.py, so the README numbers are reproducible.
+# Usage (from the repo root): mise -C scripts install && mise -C scripts exec -- ./bench.py
+# jdupes is not listed: bench.py builds the version pinned in its header from source.
 [tools]
 hyperfine = "2.0.0"
 "cargo:fclones" = "0.35.0"

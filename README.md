@@ -157,9 +157,9 @@ _Warm cache, `yadf` and `fclones` are 34% apart, and `fddf` is 88% behind `yadf`
 these runs pass `--min 0` and the corpus contains none of those. Benchmarking against a home
 directory needs `--min 0 --hidden --no-ignore` to compare the same work.
 
-The script used to benchmark against other tools can be read [here](./scripts/bench.sh). To
+The script used to benchmark against other tools can be read [here](./scripts/bench.py). To
 compare `yadf` against itself across commits or releases, see
-[`scripts/bench-versions.sh`](./scripts/bench-versions.sh).
+[`scripts/bench-versions.py`](./scripts/bench-versions.py).
 
 [0]: https://github.com/pkolaczk/fclones
 [1]: https://codeberg.org/jbruchon/jdupes

@@ -2,7 +2,7 @@
 """Deterministic synthetic file-tree generator for benchmarking dupe finders.
 
 Given a seed, always produces a byte-identical tree (same paths, same
-content), so runs of scripts/bench-versions.sh are comparable across
+content), so runs of scripts/bench-versions.py are comparable across
 machines and across time.
 
 Usage examples:

@@ -1,5 +1,5 @@
 # Tunes local builds for the machine doing the building, which is what the
-# benchmark scripts want (see scripts/bench-versions.sh).
+# benchmark scripts want (see scripts/bench-versions.py).
 #
 # This must never reach a binary someone else runs: code built with
 # `target-cpu=native` on one machine dies with SIGILL (or
