@@ -29,11 +29,19 @@ use std::ops::Index;
 #[derive(Debug)]
 pub struct TreeBag<K, V>(BTreeMap<K, Vec<V>>);
 
-#[derive(Debug, Clone)]
+/// Replication factor: which bucket sizes a [`Replicates`] view lets through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Factor {
     Under(usize),
     Equal(usize),
     Over(usize),
+}
+
+impl Default for Factor {
+    /// Buckets of more than one element: the duplicates.
+    fn default() -> Self {
+        Factor::Over(1)
+    }
 }
 
 /// A view which only provides access to n replicated entries.
@@ -70,6 +78,14 @@ impl<K, V> TreeBag<K, V> {
             tree: self,
             factor: Factor::Over(1),
         }
+    }
+
+    /// Drops every bucket that can't split into one `factor` accepts.
+    pub(crate) fn retain_reachable(&mut self, factor: Factor)
+    where
+        K: Ord,
+    {
+        self.0.retain(|_, bucket| factor.reachable(bucket.len()));
     }
 
     /// Provides a view only on the buckets as constrained by the replication [`Factor`].

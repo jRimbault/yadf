@@ -1,6 +1,7 @@
 mod common;
 
-use common::{find_dupes, random_collection, AnyResult, TestDir, MAX_LEN};
+use common::{find_dupes, find_replicates, random_collection, AnyResult, TestDir, MAX_LEN};
+use yadf::Factor;
 
 /// Test to be sure the sorting by hash only groups together files
 /// with the same contents.
@@ -54,9 +55,7 @@ fn files_differing_by_size() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     root.write_file("file1", b"aaaa")?;
     root.write_file("file2", b"aaa")?;
-    let counter = find_dupes(&root);
-    assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.as_inner().len(), 2);
+    assert_split_apart(&root);
     Ok(())
 }
 
@@ -66,9 +65,7 @@ fn files_differing_by_prefix() -> AnyResult {
     let root = TestDir::new(test_dir!())?;
     root.write_file("file1", b"aaa")?;
     root.write_file("file2", b"bbb")?;
-    let counter = find_dupes(&root);
-    assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.as_inner().len(), 2);
+    assert_split_apart(&root);
     Ok(())
 }
 
@@ -83,9 +80,7 @@ fn files_differing_by_suffix() -> AnyResult {
     buffer2.extend_from_slice(b"suf2");
     root.write_file("file1", &buffer1)?;
     root.write_file("file2", &buffer2)?;
-    let counter = find_dupes(&root);
-    assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.as_inner().len(), 2);
+    assert_split_apart(&root);
     Ok(())
 }
 
@@ -103,8 +98,74 @@ fn files_differing_by_middle() -> AnyResult {
     buffer2.extend_from_slice(&suffix);
     root.write_file("file1", &buffer1)?;
     root.write_file("file2", &buffer2)?;
-    let counter = find_dupes(&root);
+    assert_split_apart(&root);
+    Ok(())
+}
+
+/// Two files whose contents differ end up as two unique buckets, and a
+/// duplicates scan keeps neither.
+fn assert_split_apart(root: &TestDir) {
+    let uniques = find_replicates(root, Factor::Equal(1));
+    assert_eq!(uniques.replicates(Factor::Equal(1)).iter().count(), 2);
+    let counter = find_dupes(root);
     assert_eq!(counter.duplicates().iter().count(), 0);
-    assert_eq!(counter.as_inner().len(), 2);
+}
+
+/// Three copies of `a`, two of `b`, a unique `c`, and three large files of
+/// one size where only two share a tail: every replication factor must see
+/// the same groups whatever the pipeline pruned on the way.
+#[test]
+fn every_factor_reports_its_buckets() -> AnyResult {
+    let root = TestDir::new(test_dir!())?;
+    for name in ["a1", "a2", "a3"] {
+        root.write_file(name, b"aaaa")?;
+    }
+    for name in ["b1", "b2"] {
+        root.write_file(name, b"bbbb")?;
+    }
+    root.write_file("c", b"cc")?;
+    let large: Vec<u8> = random_collection(MAX_LEN);
+    let mut other = large.clone();
+    *other.last_mut().unwrap() ^= 1;
+    root.write_file("l1", &large)?;
+    root.write_file("l2", &large)?;
+    root.write_file("l3", &other)?;
+
+    let groups = |factor| {
+        let counter = find_replicates(&root, factor);
+        let mut groups: Vec<Vec<String>> = counter
+            .replicates(factor)
+            .iter()
+            .map(|bucket| {
+                let mut names: Vec<_> = bucket
+                    .iter()
+                    .map(|path| {
+                        let path = path.to_path_buf();
+                        path.file_name().unwrap().to_string_lossy().into_owned()
+                    })
+                    .collect();
+                names.sort();
+                names
+            })
+            .collect();
+        groups.sort();
+        groups
+    };
+
+    assert_eq!(
+        groups(Factor::Over(1)),
+        [vec!["a1", "a2", "a3"], vec!["b1", "b2"], vec!["l1", "l2"]]
+    );
+    assert_eq!(groups(Factor::Over(2)), [vec!["a1", "a2", "a3"]]);
+    assert_eq!(
+        groups(Factor::Equal(2)),
+        [vec!["b1", "b2"], vec!["l1", "l2"]]
+    );
+    assert_eq!(groups(Factor::Equal(1)), [vec!["c"], vec!["l3"]]);
+    assert_eq!(
+        groups(Factor::Under(3)),
+        [vec!["b1", "b2"], vec!["c"], vec!["l1", "l2"], vec!["l3"]]
+    );
+    assert!(groups(Factor::Under(1)).is_empty());
     Ok(())
 }

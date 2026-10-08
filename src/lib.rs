@@ -84,6 +84,11 @@ pub struct Yadf<P: AsRef<std::path::Path>> {
         setter(doc = "Concurrency for the I/O-bound hashing phases (default: number of CPUs)")
     )]
     io_threads: usize,
+    #[builder(
+        default,
+        setter(doc = "Bucket sizes to report; buckets that can't reach one are pruned early")
+    )]
+    replication_factor: Factor,
 }
 
 impl<P> Yadf<P>
@@ -91,6 +96,11 @@ where
     P: AsRef<std::path::Path>,
 {
     /// This will attempt a complete scan according to its configuration.
+    ///
+    /// The returned bag holds every bucket the configured replication
+    /// [`Factor`] accepts. Buckets it could never accept are dropped as soon
+    /// as the pipeline can tell, so view the result through
+    /// [`TreeBag::replicates`] with that same factor.
     pub fn scan<H>(self) -> FileCounter<H::Hash>
     where
         H: hasher::Hasher,
@@ -116,19 +126,16 @@ where
             self.max_depth,
             file_filter,
             self.io_threads,
+            self.replication_factor,
         );
         if log::log_enabled!(log::Level::Info) {
-            log::info!(
-                "scanned {} files",
-                bag.as_inner().values().map(Vec::len).sum::<usize>()
-            );
             log::info!(
                 "found {} possible duplicates after initial scan",
                 bag.duplicates().iter().map(Vec::len).sum::<usize>()
             );
             log::trace!("{:?}", bag);
         }
-        let bag = fs::dedupe::<H>(bag, self.io_threads);
+        let bag = fs::dedupe::<H>(bag, self.io_threads, self.replication_factor);
         if log::log_enabled!(log::Level::Info) {
             log::info!(
                 "found {} duplicates in {} groups after checksumming",

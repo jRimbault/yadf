@@ -18,8 +18,18 @@ where
 /// test shortcut
 #[allow(dead_code)]
 pub fn find_dupes<P: AsRef<std::path::Path>>(path: &P) -> yadf::FileCounter<u64> {
+    find_replicates(path, yadf::Factor::default())
+}
+
+/// test shortcut, scanning for the buckets `factor` accepts
+#[allow(dead_code)]
+pub fn find_replicates<P: AsRef<std::path::Path>>(
+    path: &P,
+    factor: yadf::Factor,
+) -> yadf::FileCounter<u64> {
     yadf::Yadf::builder()
         .paths([path].as_ref())
+        .replication_factor(factor)
         .build()
         .scan::<seahash::SeaHasher>()
 }

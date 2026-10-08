@@ -13,7 +13,7 @@ impl<K, V> Replicates<'_, K, V> {
     pub fn iter(&self) -> Iter<'_, K, V> {
         Iter {
             values: self.tree.0.values(),
-            factor: self.factor.clone(),
+            factor: self.factor,
         }
     }
 
@@ -53,11 +53,23 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 }
 
 impl Factor {
-    fn pass(&self, x: usize) -> bool {
-        match *self {
+    fn pass(self, x: usize) -> bool {
+        match self {
             Factor::Under(n) => x < n,
             Factor::Equal(n) => x == n,
             Factor::Over(n) => x > n,
+        }
+    }
+
+    /// Whether a bucket of `len` elements, split any further, can still
+    /// yield a bucket this factor accepts. Refining a bucket only ever
+    /// splits it into non-empty buckets of `1..=len` elements, so one
+    /// that fails this check can be dropped without being hashed again.
+    pub(crate) fn reachable(self, len: usize) -> bool {
+        match self {
+            Factor::Under(n) => len >= 1 && n > 1,
+            Factor::Equal(n) => (1..=len).contains(&n),
+            Factor::Over(n) => len > n,
         }
     }
 }
@@ -87,6 +99,22 @@ mod tests {
         let replicates = bag.replicates(Factor::Under(2));
         let buckets: Vec<_> = replicates.iter().collect();
         assert_eq!(buckets, vec![&vec!["a"]]);
+    }
+
+    #[test]
+    fn reachable_iff_some_split_size_passes() {
+        for factor in (0..5).flat_map(|n| [Factor::Under(n), Factor::Equal(n), Factor::Over(n)]) {
+            for len in 0..6 {
+                let any_split = (1..=len).any(|x| factor.pass(x));
+                assert_eq!(factor.reachable(len), any_split, "{factor:?} {len}");
+            }
+        }
+        assert!(!Factor::Over(3).reachable(3));
+        assert!(Factor::Over(3).reachable(4));
+        assert!(!Factor::Equal(3).reachable(2));
+        assert!(Factor::Equal(3).reachable(9));
+        assert!(!Factor::Under(1).reachable(9));
+        assert!(Factor::Under(2).reachable(9));
     }
 
     #[test]

@@ -16,6 +16,7 @@ mod prefetch;
 use crate::ext::{IteratorExt, WalkBuilderAddPaths};
 use crate::path::{Interner, LastDir};
 use crate::units::Bytes;
+use crate::Factor;
 use crate::Path;
 use crate::TreeBag;
 use pipeline::Sink;
@@ -40,17 +41,26 @@ pub struct Candidate {
 /// metadata the walk already fetches, at no extra syscall cost), then only
 /// opens files that share a size with at least one other file: a file with
 /// a unique size can never be a duplicate, so it is never read.
+///
+/// Buckets that can't reach a size `factor` accepts are dropped before
+/// being hashed, here and at every later stage.
 pub fn find_dupes_partial<H, P>(
     directories: &[P],
     max_depth: Option<usize>,
     filter: filter::FileFilter,
     io_threads: usize,
+    factor: Factor,
 ) -> TreeBag<H::Hash, Candidate>
 where
     H: crate::hasher::Hasher,
     P: AsRef<std::path::Path>,
 {
-    let by_size = collect_by_size(directories, max_depth, &filter);
+    let mut by_size = collect_by_size(directories, max_depth, &filter);
+    log::info!(
+        "scanned {} files",
+        by_size.as_inner().values().map(Vec::len).sum::<usize>()
+    );
+    by_size.retain_reachable(factor);
     // Only files sharing a size get opened, so only those are worth warming.
     let queue = Queue::covering(&by_size, |path| (path, hash::BLOCK));
     pool::install(io_threads, || {
@@ -64,12 +74,14 @@ where
 /// out) a real content match; buckets already known to be unique are
 /// passed through untouched.
 pub fn dedupe<H>(
-    tree: TreeBag<H::Hash, Candidate>,
+    mut tree: TreeBag<H::Hash, Candidate>,
     io_threads: usize,
+    factor: Factor,
 ) -> crate::FileCounter<H::Hash>
 where
     H: crate::hasher::Hasher,
 {
+    tree.retain_reachable(factor);
     let queue = Queue::covering(&tree, |candidate| {
         (&candidate.path, candidate.size.min(prefetch::CONTENT_HEAD))
     });
@@ -80,7 +92,7 @@ where
                     sink,
                     |sink, bucket: (H::Hash, Vec<Candidate>)| {
                         let read = bucket.1.len();
-                        process_bucket::<H>(sink, bucket);
+                        process_bucket::<H>(sink, bucket, factor);
                         progress.advance(read);
                     },
                 )
@@ -192,6 +204,7 @@ where
 fn process_bucket<H>(
     sink: &Sink<H::Hash, crate::Path>,
     (old_hash, bucket): (H::Hash, Vec<Candidate>),
+    factor: Factor,
 ) where
     H: crate::hasher::Hasher,
 {
@@ -234,6 +247,9 @@ fn process_bucket<H>(
     by_suffix.into_inner().into_par_iter().for_each_with(
         sink.clone(),
         |sink, (suffix_hash, group)| {
+            if !factor.reachable(group.len()) {
+                return;
+            }
             if group.len() == 1 {
                 let candidate = group.into_iter().next().unwrap();
                 sink.send(suffix_hash, candidate.path);
@@ -399,7 +415,7 @@ mod tests {
         ];
 
         let result: TreeBag<u64, crate::Path> = pipeline::collect(|sink| {
-            process_bucket::<seahash::SeaHasher>(&sink, (old_hash, bucket));
+            process_bucket::<seahash::SeaHasher>(&sink, (old_hash, bucket), Factor::default());
         });
 
         let paths: Vec<_> = result

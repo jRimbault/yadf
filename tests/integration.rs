@@ -51,8 +51,10 @@ fn trace_output() -> AnyResult {
                 ))
                 .and(predstr::contains("file1"))
                 .and(predstr::contains("file2"))
-                .and(predstr::contains("file3"))
-                .and(predstr::contains("file4")),
+                // Unique sizes are pruned before any hashing, so they
+                // never reach the traced buckets.
+                .and(predstr::contains("file3").not())
+                .and(predstr::contains("file4").not()),
         );
     Ok(())
 }

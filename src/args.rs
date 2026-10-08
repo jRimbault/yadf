@@ -21,6 +21,10 @@ impl Args {
             .or(if self.no_empty { Some(1) } else { None })
     }
 
+    pub fn factor(&self) -> yadf::Factor {
+        self.rfactor.clone().unwrap_or_default().into()
+    }
+
     pub fn init_from_env() -> Self {
         let long_version = env!("YADF_BUILD_VERSION").replace('|', "\n");
         let short_version = long_version.lines().next().unwrap().to_string();

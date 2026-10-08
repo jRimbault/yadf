@@ -30,8 +30,7 @@ fn write_output<H>(args: Args, bag: yadf::TreeBag<H::Hash, yadf::Path>) -> Resul
 where
     H: yadf::Hasher,
 {
-    let rfactor = args.rfactor.unwrap_or_default();
-    let replicates = bag.replicates(rfactor.into());
+    let replicates = bag.replicates(args.factor());
     match args.output {
         Some(path) => {
             let context = || format!("writing output to the file: {:?}", path.display());
@@ -55,6 +54,7 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
         .max_depth(args.max_depth)
         .hard_links(args.hard_links)
         .io_threads(args.io_threads.unwrap_or_else(yadf::default_io_threads))
+        .replication_factor(args.factor())
         .build()
 }
 
@@ -68,6 +68,7 @@ fn build_config(args: &Args) -> yadf::Yadf<PathBuf> {
         .glob(args.pattern.clone())
         .max_depth(args.max_depth)
         .io_threads(args.io_threads.unwrap_or_else(yadf::default_io_threads))
+        .replication_factor(args.factor())
         .build()
 }
 
