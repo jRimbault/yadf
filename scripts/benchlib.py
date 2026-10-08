@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, NoReturn
 
@@ -89,7 +89,9 @@ def entrypoint(main: Callable[[], None]) -> NoReturn:
         sys.exit(1)
     except subprocess.CalledProcessError as error:
         command = shlex.join(str(arg) for arg in error.cmd)
-        stderr.print(f"[bold red]error:[/] `{escape(command)}` exited with {error.returncode}")
+        stderr.print(
+            f"[bold red]error:[/] `{escape(command)}` exited with {error.returncode}"
+        )
         sys.exit(1)
     except KeyboardInterrupt:
         sys.exit(130)
@@ -102,7 +104,11 @@ def run(*command: str | Path, cwd: Path | None = None) -> None:
 
 def output(*command: str | Path, cwd: Path | None = None) -> str:
     return subprocess.run(
-        [str(arg) for arg in command], cwd=cwd, check=True, capture_output=True, text=True
+        [str(arg) for arg in command],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout
 
 
@@ -147,7 +153,7 @@ def load_manifest(corpus: Path) -> Manifest:
 
 
 def new_results_dir() -> Path:
-    path = REPO_ROOT / "bench-results" / datetime.now().strftime("%Y%m%dT%H%M%S")
+    path = REPO_ROOT / "bench-results" / datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     path.mkdir(parents=True)
     return path
 

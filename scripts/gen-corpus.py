@@ -72,7 +72,7 @@ class CorpusManifest:
     duplicate_file_count: int
     collision_pair_count: int
     total_bytes: int
-    directories: list[str] = field(default_factory=list)
+    directories: list[str] = field(default_factory=list[str])
 
     def to_json(self) -> str:
         return json.dumps(self.__dict__, indent=2, sort_keys=True)
@@ -95,7 +95,14 @@ def main(config: CorpusConfig) -> None:
         raise ValueError("--dup-ratio and --collide-prefix together exceed 1.0")
 
     plan, duplicate_groups, collision_pairs = plan_files(
-        rng, len(directories), num_unique_files, num_dup_files, num_collide_files, mu, sigma, size_cap
+        rng,
+        len(directories),
+        num_unique_files,
+        num_dup_files,
+        num_collide_files,
+        mu,
+        sigma,
+        size_cap,
     )
     total_bytes = write_files(directories, plan, config.seed)
 
@@ -110,7 +117,9 @@ def main(config: CorpusConfig) -> None:
         duplicate_group_count=duplicate_groups,
         # Counted off the plan, not off the budget: a leftover file that could
         # not be paired up is emitted as a unique file instead.
-        duplicate_file_count=sum(1 for planned in plan if planned.content_key.startswith("dup-")),
+        duplicate_file_count=sum(
+            1 for planned in plan if planned.content_key.startswith("dup-")
+        ),
         collision_pair_count=collision_pairs,
         total_bytes=total_bytes,
         directories=[str(d.relative_to(config.out)) for d in directories],
@@ -132,7 +141,7 @@ def plan_directories(config: CorpusConfig, rng: random.Random) -> list[Path]:
     directories = [config.out]
     frontier = [config.out]
     for level in range(config.depth):
-        next_frontier = []
+        next_frontier: list[Path] = []
         for parent in frontier:
             for i in range(config.fanout):
                 child = parent / f"d{level}_{i}"
@@ -174,7 +183,9 @@ def plan_files(
 
     for _ in range(num_unique_files):
         size = next_size(minimum=min_unique_content_size)
-        plan.append(PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}"))
+        plan.append(
+            PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}")
+        )
         file_index += 1
 
     duplicate_groups = 0
@@ -187,7 +198,9 @@ def plan_files(
             # The dup budget can leave a single file over, and one file is a
             # duplicate of nothing: emit it as unique rather than counting a
             # group no dupe finder will ever report.
-            plan.append(PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}"))
+            plan.append(
+                PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}")
+            )
             file_index += 1
             break
         content_key = f"dup-{duplicate_groups}"
@@ -203,14 +216,21 @@ def plan_files(
         remaining -= group_size
         if group_size < 2:
             size = next_size(minimum=min_unique_content_size)
-            plan.append(PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}"))
+            plan.append(
+                PlannedFile(next_dir(), f"u{file_index}", size, f"unique-{file_index}")
+            )
             file_index += 1
             break
         size = next_size(minimum=BLOCK_SIZE * 2)
         collision_key = f"collide-{collision_pairs}"
         for member in range(group_size):
             plan.append(
-                PlannedFile(next_dir(), f"c{file_index}", size, f"{collision_key}-member-{member}")
+                PlannedFile(
+                    next_dir(),
+                    f"c{file_index}",
+                    size,
+                    f"{collision_key}-member-{member}",
+                )
             )
             file_index += 1
         collision_pairs += 1
@@ -242,11 +262,15 @@ def write_content(path: Path, planned: PlannedFile, seed: int) -> int:
         with path.open("wb") as handle:
             handle.write(random.Random(f"{seed}:{group_key}").randbytes(BLOCK_SIZE))
             written = BLOCK_SIZE + write_random(
-                handle, planned.size - BLOCK_SIZE, random.Random(f"{seed}:{planned.content_key}")
+                handle,
+                planned.size - BLOCK_SIZE,
+                random.Random(f"{seed}:{planned.content_key}"),
             )
         return written
     with path.open("wb") as handle:
-        return write_random(handle, planned.size, random.Random(f"{seed}:{planned.content_key}"))
+        return write_random(
+            handle, planned.size, random.Random(f"{seed}:{planned.content_key}")
+        )
 
 
 def write_random(handle: BinaryIO, size: int, rng: random.Random) -> int:
@@ -273,10 +297,21 @@ def positive_float_at_most_one(value: str) -> float:
 
 
 def parse_args(argv: list[str]) -> tuple[CorpusConfig, bool]:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--out", type=Path, required=True, help="output directory for the generated corpus")
-    parser.add_argument("--seed", type=int, default=0, help="RNG seed, reused for reproducibility")
-    parser.add_argument("--files", type=int, default=10_000, help="total number of files to generate")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--out",
+        type=Path,
+        required=True,
+        help="output directory for the generated corpus",
+    )
+    parser.add_argument(
+        "--seed", type=int, default=0, help="RNG seed, reused for reproducibility"
+    )
+    parser.add_argument(
+        "--files", type=int, default=10_000, help="total number of files to generate"
+    )
     parser.add_argument(
         "--dup-ratio",
         type=positive_float_at_most_one,
@@ -289,7 +324,9 @@ def parse_args(argv: list[str]) -> tuple[CorpusConfig, bool]:
         default="realistic",
         help="file size distribution",
     )
-    parser.add_argument("--fanout", type=int, default=8, help="subdirectories per directory level")
+    parser.add_argument(
+        "--fanout", type=int, default=8, help="subdirectories per directory level"
+    )
     parser.add_argument("--depth", type=int, default=3, help="directory tree depth")
     parser.add_argument(
         "--collide-prefix",
@@ -297,7 +334,9 @@ def parse_args(argv: list[str]) -> tuple[CorpusConfig, bool]:
         default=0.0,
         help="fraction of files that share their first 4 KiB with another file but differ later",
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="enable debug logging")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="enable debug logging"
+    )
     args = parser.parse_args(argv)
     return CorpusConfig(
         out=args.out,
@@ -313,7 +352,9 @@ def parse_args(argv: list[str]) -> tuple[CorpusConfig, bool]:
 
 if __name__ == "__main__":
     config, verbose = parse_args(sys.argv[1:])
-    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO, format="%(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO, format="%(name)s: %(message)s"
+    )
     try:
         main(config)
     except KeyboardInterrupt:

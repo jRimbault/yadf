@@ -161,7 +161,7 @@ def crates_io_latest(crate: str) -> str | None:
         with response:
             body = response.read()
         return CrateResponse.model_validate_json(body).crate.max_stable_version
-    except (URLError, TimeoutError, ValidationError):
+    except URLError, TimeoutError, ValidationError:
         return None
 
 

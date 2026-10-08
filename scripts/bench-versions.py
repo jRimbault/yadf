@@ -109,7 +109,9 @@ def build_rev(rev: str) -> Path:
         run("cargo", "build", "--release", "--quiet", cwd=REPO_ROOT)
         return REPO_ROOT / "target" / "release" / "yadf"
     try:
-        sha = output("git", "-C", REPO_ROOT, "rev-parse", "--verify", f"{rev}^{{commit}}")
+        sha = output(
+            "git", "-C", REPO_ROOT, "rev-parse", "--verify", f"{rev}^{{commit}}"
+        )
     except subprocess.CalledProcessError as error:
         raise Fatal(f"unknown revision: {rev}") from error
     short = sha.strip()[:12]
@@ -118,7 +120,17 @@ def build_rev(rev: str) -> Path:
         return bin_path
     build_dir = WORKTREE_DIR / short
     if not build_dir.is_dir():
-        run("git", "-C", REPO_ROOT, "worktree", "add", "--detach", "--quiet", build_dir, short)
+        run(
+            "git",
+            "-C",
+            REPO_ROOT,
+            "worktree",
+            "add",
+            "--detach",
+            "--quiet",
+            build_dir,
+            short,
+        )
     step(f"building {rev} ({short})")
     run("cargo", "build", "--release", "--quiet", cwd=build_dir)
     shutil.copy2(build_dir / "target" / "release" / "yadf", bin_path)
@@ -131,11 +143,15 @@ def normalize(ldjson: str) -> list[str]:
     Paths are sorted within a group, and groups against each other: two binaries
     scanning the same corpus must normalize identically.
     """
-    groups = sorted(sorted(GROUP.validate_json(line)) for line in ldjson.splitlines() if line)
+    groups = sorted(
+        sorted(GROUP.validate_json(line)) for line in ldjson.splitlines() if line
+    )
     return [json.dumps(group) for group in groups]
 
 
-def check_outputs(labels: list[str], bins: list[Path], corpus: Path, results_dir: Path) -> None:
+def check_outputs(
+    labels: list[str], bins: list[Path], corpus: Path, results_dir: Path
+) -> None:
     step("correctness gate: comparing duplicate groups across all revisions")
     baseline: list[str] = []
     for i, (label, binary) in enumerate(zip(labels, bins, strict=True)):
@@ -159,15 +175,28 @@ def check_outputs(labels: list[str], bins: list[Path], corpus: Path, results_dir
         raise Fatal(
             f"found {len(baseline)} duplicate groups, corpus manifest expects {expected}"
         )
-    stdout.print(f"    ok: all revisions agree, {len(baseline)} duplicate groups match manifest")
+    stdout.print(
+        f"    ok: all revisions agree, {len(baseline)} duplicate groups match manifest"
+    )
 
 
-def report_syscalls(labels: list[str], bins: list[Path], corpus: Path, results_dir: Path) -> None:
+def report_syscalls(
+    labels: list[str], bins: list[Path], corpus: Path, results_dir: Path
+) -> None:
     step("syscall counts")
     for label, binary in zip(labels, bins, strict=True):
         strace_file = results_dir / f"{label.replace('/', '_')}.strace"
         subprocess.run(
-            ["strace", "-f", "-c", "-w", "-o", str(strace_file), str(binary), str(corpus)],
+            [
+                "strace",
+                "-f",
+                "-c",
+                "-w",
+                "-o",
+                str(strace_file),
+                str(binary),
+                str(corpus),
+            ],
             stdout=subprocess.DEVNULL,
             check=True,
         )
@@ -185,7 +214,16 @@ def main() -> None:
         require_tools("strace")
     corpus = ensure_corpus(
         args.corpus,
-        *("--seed", "42", "--files", "20000", "--dup-ratio", "0.1", "--collide-prefix", "0.05"),
+        *(
+            "--seed",
+            "42",
+            "--files",
+            "20000",
+            "--dup-ratio",
+            "0.1",
+            "--collide-prefix",
+            "0.05",
+        ),
     )
     if args.cold:
         require_passwordless_sudo()
