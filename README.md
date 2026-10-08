@@ -127,8 +127,9 @@ The performance of `yadf` is heavily tied to the hardware, specifically the
 NVMe SSD. I recommend `fclones` as it has more hardware heuristics, and in general more features. `yadf` on HDDs is _terrible_.
 
 The numbers below are from a reproducible synthetic corpus rather than a personal home
-directory, so they can be regenerated exactly: `scripts/gen-corpus.py --seed 42 --files 150000
---dup-ratio 0.15 --collide-prefix 0.05 --size-dist realistic`, 150,001 files, 27.6 GB, 6,453
+directory, so they can be regenerated exactly: `scripts/gen-corpus.py --out .bench-cache/corpus
+--seed 42 --files 150000 --dup-ratio 0.15 --collide-prefix 0.05 --size-dist realistic`, 150,001
+files, 27.6 GB, 6,453
 duplicate groups. Arguably, the most important measure here is the mean time when the
 filesystem cache is cold.
 
@@ -159,7 +160,8 @@ directory needs `--min 0 --hidden --no-ignore` to compare the same work.
 
 The script used to benchmark against other tools can be read [here](./scripts/bench.py). To
 compare `yadf` against itself across commits or releases, see
-[`scripts/bench-versions.py`](./scripts/bench-versions.py).
+[`scripts/bench-versions.py`](./scripts/bench-versions.py). How to run both is in
+[`scripts/README.md`](./scripts/README.md).
 
 [0]: https://github.com/pkolaczk/fclones
 [1]: https://codeberg.org/jbruchon/jdupes
