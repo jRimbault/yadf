@@ -2,9 +2,9 @@
 #/ Usage: bench.sh [--cold] [--corpus DIR] [--install] [--min-runs N]
 #/
 #/ Benchmark yadf against the other duplicate finders over a reproducible
-#/ synthetic corpus, and print a README-ready markdown table (program,
-#/ version, mean/min/max). To compare yadf against itself across commits or
-#/ releases, use scripts/bench-versions.sh instead.
+#/ synthetic corpus with hyperfine (>= 2.0), and print a README-ready markdown
+#/ table (program, version, mean/min/max, peak RSS). To compare yadf against
+#/ itself across commits or releases, use scripts/bench-versions.sh instead.
 #/
 #/ Options:
 #/   --cold          drop the page cache before each timed run (needs
@@ -108,6 +108,13 @@ for tool in hyperfine cargo git python3 curl tar make cc; do
     exit 1
   }
 done
+
+# The results are read from hyperfine's JSON export, whose schema changed in 2.0.
+hyperfine_major=$(hyperfine --version | sed -E 's/^hyperfine ([0-9]+)\..*/\1/')
+if [[ "$hyperfine_major" -lt 2 ]]; then
+  echo "error: hyperfine >= 2.0 is required, found $(hyperfine --version)" >&2
+  exit 1
+fi
 
 if [[ "$cold" -eq 1 ]] && ! sudo -n true 2>/dev/null; then
   echo "error: --cold requires passwordless sudo to drop the page cache" >&2
@@ -285,21 +292,25 @@ versions = dict(zip(sys.argv[4::2], sys.argv[5::2]))
 with open(results_path) as handle:
     results = json.load(handle)["results"]
 
-fastest = min(r["mean"] for r in results)
+fastest = min(r["summary"]["time_wall_clock"]["mean"] for r in results)
 lines = [
-    f"| Program ({cache_label} filesystem cache) | Version | Mean [s] | Min [s] | Max [s] |",
-    "| :--- | ---: | ---: | ---: | ---: |",
+    f"| Program ({cache_label} filesystem cache) | Version | Mean [s] | Min [s] | Max [s] | Peak RSS [MiB] |",
+    "| :--- | ---: | ---: | ---: | ---: | ---: |",
 ]
 for result in results:
-    name = result["command"]
+    name = result["name"]
+    wall = result["summary"]["time_wall_clock"]
     # stddev is null when hyperfine only got a single run out of a command.
-    stddev = result.get("stddev")
-    mean = f"{result['mean']:.3f}" + (f" ± {stddev:.3f}" if stddev is not None else "")
-    if result["mean"] == fastest:
+    stddev = wall.get("stddev")
+    mean = f"{wall['mean']:.3f}" + (f" ± {stddev:.3f}" if stddev is not None else "")
+    if wall["mean"] == fastest:
         mean = f"**{mean}**"
+    # memory_peak_resident is omitted when the platform cannot measure it.
+    rss = result["summary"].get("memory_peak_resident")
+    rss = f"{rss['median'] / 2**20:.1f}" if rss else "n/a"
     lines.append(
         f"| `{name}` | {versions.get(name, '?')} | {mean} "
-        f"| {min(result['times']):.3f} | {max(result['times']):.3f} |"
+        f"| {wall['min']:.3f} | {wall['max']:.3f} | {rss} |"
     )
 
 table = "\n".join(lines)

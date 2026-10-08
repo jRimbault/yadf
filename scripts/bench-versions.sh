@@ -3,8 +3,9 @@
 #/
 #/ Build yadf at each REV (git worktree + cargo build --release), verify they
 #/ all produce the same duplicate groups over --corpus, then compare their
-#/ runtime with hyperfine. Intended for A/B-ing yadf against itself across
-#/ commits, not against other dupe finders (see scripts/bench.sh for that).
+#/ runtime and peak RSS with hyperfine (>= 2.0). Intended for A/B-ing yadf
+#/ against itself across commits, not against other dupe finders (see
+#/ scripts/bench.sh for that).
 #/
 #/ Options:
 #/   --cold          drop the page cache before each timed run (needs
@@ -89,6 +90,14 @@ for tool in hyperfine cargo git python3; do
     exit 1
   }
 done
+
+# The results are read from hyperfine's JSON export, whose schema changed in 2.0.
+hyperfine_major=$(hyperfine --version | sed -E 's/^hyperfine ([0-9]+)\..*/\1/')
+if [[ "$hyperfine_major" -lt 2 ]]; then
+  echo "error: hyperfine >= 2.0 is required, found $(hyperfine --version)" >&2
+  exit 1
+fi
+
 if [[ "$do_strace" -eq 1 ]] && ! command -v strace >/dev/null; then
   echo "error: --strace requires the strace binary" >&2
   exit 1
@@ -220,6 +229,41 @@ done
 
 hyperfine "${hyperfine_args[@]}" "${commands[@]}"
 
+# hyperfine's markdown export only shows the first metric: build a table with
+# the wall time, the CPU time, and the peak RSS from the JSON export instead.
+python3 - "$results_dir/hyperfine.json" "$results_dir/README.md" <<'PY'
+import json
+import sys
+
+results_path, out_path = sys.argv[1:3]
+with open(results_path) as handle:
+    results = json.load(handle)["results"]
+
+fastest = min(r["summary"]["time_wall_clock"]["mean"] for r in results)
+lines = [
+    "| Command | Mean [ms] | Min [ms] | Max [ms] | Relative | User [s] | System [s] | Peak RSS [MiB] |",
+    "| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+]
+for result in results:
+    summary = result["summary"]
+    wall = summary["time_wall_clock"]
+    # stddev is null when hyperfine only got a single run out of a command.
+    stddev = wall.get("stddev")
+    mean = f"{wall['mean'] * 1e3:.1f}" + (f" ± {stddev * 1e3:.1f}" if stddev is not None else "")
+    # memory_peak_resident is omitted when the platform cannot measure it.
+    rss = summary.get("memory_peak_resident")
+    rss = f"{rss['median'] / 2**20:.1f}" if rss else "n/a"
+    lines.append(
+        f"| `{result['name']}` | {mean} | {wall['min'] * 1e3:.1f} | {wall['max'] * 1e3:.1f} "
+        f"| {wall['mean'] / fastest:.2f} | {summary['time_user']['mean']:.2f} "
+        f"| {summary['time_system']['mean']:.2f} | {rss} |"
+    )
+
+table = "\n".join(lines)
+with open(out_path, "w") as handle:
+    handle.write(table + "\n")
+print(table)
+PY
+
 cp "$corpus/manifest.json" "$results_dir/"
 echo "==> results written to $results_dir"
-cat "$results_dir/hyperfine.md"
