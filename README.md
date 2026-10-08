@@ -132,26 +132,26 @@ directory, so they can be regenerated exactly: `scripts/gen-corpus.py --seed 42 
 duplicate groups. Arguably, the most important measure here is the mean time when the
 filesystem cache is cold.
 
-| Program (warm filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] |
-| :------------------------------ | ------: | ----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.35.0 |     0.527 ± 0.063 |   0.505 |   0.963 |
-| [`jdupes`][1]                   |  1.31.2 |     3.310 ± 0.026 |   3.273 |   3.386 |
-| [`ddh`][2]                      |  0.13.0 |     2.212 ± 0.018 |   2.178 |   2.248 |
-| [`dupe-krill`][4]               |   1.5.0 |     3.906 ± 0.044 |   3.846 |   4.031 |
-| [`fddf`][5]                     |   1.7.0 |     0.738 ± 0.010 |   0.716 |   0.771 |
-| `yadf`                          |   1.4.3 | **0.392 ± 0.006** |   0.382 |   0.410 |
+| Program (warm filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] | Peak RSS [MiB] |
+| :------------------------------ | ------: | ----------------: | ------: | ------: | -------------: |
+| [`fclones`][0]                  |  0.35.0 |     0.516 ± 0.078 |   0.496 |   1.052 |           56.4 |
+| [`jdupes`][1]                   |  1.31.2 |     3.273 ± 0.016 |   3.252 |   3.322 |           40.2 |
+| [`ddh`][2]                      |  0.13.0 |     1.445 ± 0.015 |   1.409 |   1.486 |          247.8 |
+| [`dupe-krill`][4]               |   1.5.0 |     3.882 ± 0.039 |   3.837 |   4.022 |          173.1 |
+| [`fddf`][5]                     |   1.7.0 |     0.727 ± 0.009 |   0.703 |   0.751 |           58.7 |
+| `yadf`                          |   1.4.4 | **0.349 ± 0.005** |   0.340 |   0.359 |           56.9 |
 
-| Program (cold filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] |
-| :------------------------------ | ------: | ----------------: | ------: | ------: |
-| [`fclones`][0]                  |  0.35.0 |     1.587 ± 0.165 |   1.527 |   2.232 |
-| [`jdupes`][1]                   |  1.31.2 |    13.939 ± 0.078 |  13.891 |  14.294 |
-| [`ddh`][2]                      |  0.13.0 |     3.548 ± 0.031 |   3.479 |   3.593 |
-| [`dupe-krill`][4]               |   1.5.0 |    14.764 ± 0.047 |  14.682 |  14.922 |
-| [`fddf`][5]                     |   1.7.0 |     2.613 ± 0.022 |   2.579 |   2.652 |
-| `yadf`                          |   1.4.3 | **1.462 ± 0.021** |   1.422 |   1.518 |
+| Program (cold filesystem cache) | Version | Mean [s]          | Min [s] | Max [s] | Peak RSS [MiB] |
+| :------------------------------ | ------: | ----------------: | ------: | ------: | -------------: |
+| [`fclones`][0]                  |  0.35.0 |     1.559 ± 0.120 |   1.513 |   1.976 |           54.4 |
+| [`jdupes`][1]                   |  1.31.2 |    14.200 ± 0.090 |  14.117 |  14.552 |           39.7 |
+| [`ddh`][2]                      |  0.13.0 |     2.785 ± 0.025 |   2.743 |   2.860 |          246.7 |
+| [`dupe-krill`][4]               |   1.5.0 |    14.886 ± 0.060 |  14.808 |  15.066 |          172.9 |
+| [`fddf`][5]                     |   1.7.0 |     2.583 ± 0.017 |   2.545 |   2.620 |           53.3 |
+| `yadf`                          |   1.4.4 | **1.460 ± 0.031** |   1.375 |   1.510 |           58.8 |
 
-_Warm cache, `yadf` and `fclones` are 34% apart, and `fddf` is 88% behind `yadf`. Cold cache,
-`yadf` and `fclones` are 9% apart, and `fddf` is 79% behind `yadf`._
+_Warm cache, `yadf` and `fclones` are 48% apart, and `fddf` is 108% behind `yadf`. Cold cache,
+`yadf` and `fclones` are 7% apart, and `fddf` is 77% behind `yadf`._
 
 `fclones group` skips empty files, hidden files, `.gitignore` matches and symlinks by default;
 these runs pass `--min 0` and the corpus contains none of those. Benchmarking against a home
