@@ -20,9 +20,10 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPTS_DIR.parent
 CACHE_DIR = REPO_ROOT / ".bench-cache"
-GEN_CORPUS = REPO_ROOT / "scripts" / "gen-corpus.py"
+GEN_CORPUS = SCRIPTS_DIR / "gen-corpus.py"
 
 DROP_CACHES = "sync && echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null"
 
@@ -112,15 +113,48 @@ def output(*command: str | Path, cwd: Path | None = None) -> str:
     ).stdout
 
 
+def which(tool: str) -> Path | None:
+    """Locates a tool in PATH, seeing through mise shims.
+
+    A mise shim picks the version to run from the mise config of its working
+    directory, but the timed programs run in the results directory, outside
+    the scope of scripts/mise.toml, where the shims fail. Resolve them up front
+    to the binary pinned there.
+    """
+    found = shutil.which(tool)
+    if found is None:
+        return None
+    path = Path(found)
+    if path.parent.name != "shims" or shutil.which("mise") is None:
+        return path
+    resolved = subprocess.run(
+        ["mise", "which", tool],
+        cwd=SCRIPTS_DIR,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if resolved.returncode != 0:
+        return None
+    return Path(resolved.stdout.strip())
+
+
 def require_tools(*tools: str) -> None:
-    missing = [tool for tool in tools if shutil.which(tool) is None]
+    missing = [tool for tool in tools if which(tool) is None]
     if missing:
         raise Fatal(f"required but not found in PATH: {' '.join(missing)}")
 
 
+def hyperfine_binary() -> Path:
+    binary = which("hyperfine")
+    if binary is None:
+        raise Fatal("required but not found in PATH: hyperfine")
+    return binary
+
+
 def require_hyperfine_2() -> None:
     """The results are read from hyperfine's JSON export, whose schema changed in 2.0."""
-    version = output("hyperfine", "--version").strip()
+    version = output(hyperfine_binary(), "--version").strip()
     match = re.match(r"hyperfine (\d+)\.", version)
     if match is None or int(match[1]) < 2:
         raise Fatal(f"hyperfine >= 2.0 is required, found {version}")
@@ -167,7 +201,7 @@ def hyperfine(
     """Times (name, argv) commands, and returns the parsed JSON export."""
     json_path = results_dir / "hyperfine.json"
     args: list[str] = [
-        "hyperfine",
+        str(hyperfine_binary()),
         *options,
         "--export-json",
         str(json_path),

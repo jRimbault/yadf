@@ -60,6 +60,7 @@ from benchlib import (
     stdout,
     step,
     warn,
+    which,
 )
 
 TOOLS_DIR = CACHE_DIR / "tools"
@@ -220,11 +221,11 @@ def find_binaries(jdupes: Path, yadf: Path) -> dict[str, Path]:
             case "yadf":
                 binaries[program.name] = yadf
             case name:
-                found = shutil.which(name)
+                found = which(name)
                 if found is None:
                     missing.append(name)
                 else:
-                    binaries[name] = Path(found)
+                    binaries[name] = found
     if missing:
         raise Fatal(
             f"not found in PATH: {' '.join(missing)}\n"
