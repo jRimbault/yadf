@@ -1,14 +1,8 @@
 #![deny(unsafe_code)]
 #![warn(rust_2018_idioms)]
 
+mod allocator;
 mod args;
-
-// glibc malloc keeps freed memory in per-thread arenas: paths allocated by the
-// walker threads and freed by the hashing pool leave most of them half empty.
-// mimalloc is built with `no_thp`, as committing its arenas on transparent huge
-// pages costs more system time than glibc malloc on short runs.
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use anyhow::Context;
 use clap::{Parser, ValueEnum};
@@ -20,6 +14,7 @@ use std::str::FromStr;
 use yadf::{Fdupes, Machine};
 
 fn main() -> anyhow::Result<()> {
+    allocator::setup();
     human_panic::setup_panic!();
     let timer = std::time::Instant::now();
     let args = Args::init_from_env();
