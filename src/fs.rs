@@ -294,7 +294,10 @@ where
         // size: nothing more to distinguish it by.
         return HashUpdate::Verified;
     }
-    match candidate.path.with_std_path(hash::full::<H>) {
+    match candidate
+        .path
+        .with_std_path(|path| hash::full::<H>(path, candidate.size))
+    {
         Ok(hash) => HashUpdate::Hash(hash),
         Err(error) => {
             log::error!(
@@ -374,7 +377,7 @@ mod tests {
     fn suffix_hash_is_unreadable_for_a_missing_file() {
         let candidate = Candidate {
             path: Path::from_path(&tempdir("suffix-missing").join("does-not-exist-either")),
-            size: hash::BLOCK,
+            size: SUFFIX_HASH_THRESHOLD,
         };
         assert!(matches!(
             suffix_hash::<seahash::SeaHasher>(&candidate),
@@ -389,7 +392,7 @@ mod tests {
     #[test]
     fn unreadable_candidate_is_excluded_not_merged_under_the_old_hash() {
         let dir = tempdir("carryover");
-        let content = vec![b'a'; hash::BLOCK.as_usize() * 2];
+        let content = vec![b'a'; 8192];
 
         let survivor_path = dir.join("survivor");
         std::fs::write(&survivor_path, &content).unwrap();

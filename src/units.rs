@@ -22,13 +22,6 @@ impl Bytes {
         self.0
     }
 
-    /// Saturating conversion, for use as a buffer length. Only ever called
-    /// on values already clamped to a block size, so the saturation is a
-    /// formality on 32-bit targets rather than a real case.
-    pub fn as_usize(self) -> usize {
-        usize::try_from(self.0).unwrap_or(usize::MAX)
-    }
-
     pub fn min(self, other: Self) -> Self {
         Self(self.0.min(other.0))
     }
@@ -69,11 +62,6 @@ mod tests {
     fn from_u64() {
         let bytes: Bytes = 42u64.into();
         assert_eq!(bytes.get(), 42);
-    }
-
-    #[test]
-    fn as_usize_saturates() {
-        assert_eq!(Bytes::new(10).as_usize(), 10);
     }
 
     #[test]
