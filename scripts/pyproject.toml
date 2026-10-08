@@ -1,0 +1,9 @@
+[project]
+name = "yadf-scripts"
+version = "0.1.0"
+description = "Benchmarking, corpus generation, and reference tools for yadf"
+requires-python = ">=3.14"
+dependencies = [
+    "pydantic>=2.13.0",
+    "rich>=15.0.0",
+]
