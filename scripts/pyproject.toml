@@ -8,6 +8,12 @@ dependencies = [
     "rich>=15.0.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "ruff>=0.16.10",
+]
+
 [tool.pyright]
 include = ["*.py"]
 pythonVersion = "3.14"
