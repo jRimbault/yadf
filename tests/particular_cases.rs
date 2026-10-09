@@ -1,6 +1,8 @@
 mod common;
 
 use common::{find_dupes, find_replicates, random_collection, AnyResult, TestDir, MAX_LEN};
+use highway::HighwayHasher;
+use seahash::SeaHasher;
 use yadf::Factor;
 
 /// Test to be sure the sorting by hash only groups together files
@@ -12,7 +14,7 @@ use yadf::Factor;
 #[ignore]
 fn sanity_check() {
     let home = dirs::home_dir().unwrap();
-    let counter = find_dupes(&home);
+    let counter = find_dupes::<SeaHasher, _>(&home);
     for bucket in counter.duplicates().iter() {
         let (first, bucket) = bucket.split_first().unwrap();
         let reference = std::fs::read(first.to_path_buf()).unwrap();
@@ -30,9 +32,7 @@ fn identical_small_files() -> AnyResult {
     println!("{:?}", root.as_ref());
     root.write_file("file1", b"aaa")?;
     root.write_file("file2", b"aaa")?;
-    let counter = find_dupes(&root);
-    assert_eq!(counter.duplicates().iter().count(), 1);
-    assert_eq!(counter.as_inner().len(), 1);
+    assert_single_group(&root);
     Ok(())
 }
 
@@ -43,9 +43,7 @@ fn identical_larger_files() -> AnyResult {
     let buffer: Vec<_> = random_collection(MAX_LEN * 3);
     root.write_file("file1", &buffer)?;
     root.write_file("file2", &buffer)?;
-    let counter = find_dupes(&root);
-    assert_eq!(counter.duplicates().iter().count(), 1);
-    assert_eq!(counter.as_inner().len(), 1);
+    assert_single_group(&root);
     Ok(())
 }
 
@@ -102,13 +100,18 @@ fn files_differing_by_middle() -> AnyResult {
     Ok(())
 }
 
+/// Two identical files end up as the one and only bucket, which a
+/// duplicates scan reports.
+fn assert_single_group(root: &TestDir) {
+    assert_groups(root, Factor::Over(0), &[vec!["file1", "file2"]]);
+    assert_groups(root, Factor::default(), &[vec!["file1", "file2"]]);
+}
+
 /// Two files whose contents differ end up as two unique buckets, and a
 /// duplicates scan keeps neither.
 fn assert_split_apart(root: &TestDir) {
-    let uniques = find_replicates(root, Factor::Equal(1));
-    assert_eq!(uniques.replicates(Factor::Equal(1)).iter().count(), 2);
-    let counter = find_dupes(root);
-    assert_eq!(counter.duplicates().iter().count(), 0);
+    assert_groups(root, Factor::Equal(1), &[vec!["file1"], vec!["file2"]]);
+    assert_groups(root, Factor::default(), &[]);
 }
 
 /// Three copies of `a`, two of `b`, a unique `c`, and three large files of
@@ -131,28 +134,42 @@ fn every_factor_reports_its_buckets() -> AnyResult {
     root.write_file("l2", &large)?;
     root.write_file("l3", &other)?;
 
-    let groups = |factor| groups(&root, factor);
-    assert_eq!(
-        groups(Factor::Over(1)),
-        [vec!["a1", "a2", "a3"], vec!["b1", "b2"], vec!["l1", "l2"]]
+    let assert_groups = |factor, expected: &[Vec<&str>]| assert_groups(&root, factor, expected);
+    assert_groups(
+        Factor::Over(1),
+        &[vec!["a1", "a2", "a3"], vec!["b1", "b2"], vec!["l1", "l2"]],
     );
-    assert_eq!(groups(Factor::Over(2)), [vec!["a1", "a2", "a3"]]);
-    assert_eq!(
-        groups(Factor::Equal(2)),
-        [vec!["b1", "b2"], vec!["l1", "l2"]]
+    assert_groups(Factor::Over(2), &[vec!["a1", "a2", "a3"]]);
+    assert_groups(Factor::Equal(2), &[vec!["b1", "b2"], vec!["l1", "l2"]]);
+    assert_groups(Factor::Equal(1), &[vec!["c"], vec!["l3"]]);
+    assert_groups(
+        Factor::Under(3),
+        &[vec!["b1", "b2"], vec!["c"], vec!["l1", "l2"], vec!["l3"]],
     );
-    assert_eq!(groups(Factor::Equal(1)), [vec!["c"], vec!["l3"]]);
-    assert_eq!(
-        groups(Factor::Under(3)),
-        [vec!["b1", "b2"], vec!["c"], vec!["l1", "l2"], vec!["l3"]]
-    );
-    assert!(groups(Factor::Under(1)).is_empty());
+    assert_groups(Factor::Under(1), &[]);
     Ok(())
 }
 
-/// The groups `factor` reports under `root`, as sorted lists of file names.
-fn groups(root: &TestDir, factor: Factor) -> Vec<Vec<String>> {
-    let counter = find_replicates(root, factor);
+/// Every hasher reports exactly the `expected` groups for `factor` under
+/// `root`: none of them may be the only one the fixture is ever run with.
+fn assert_groups(root: &TestDir, factor: Factor, expected: &[Vec<&str>]) {
+    for (hasher, groups) in [
+        ("SeaHash", groups::<SeaHasher>(root, factor)),
+        ("HighwayHash", groups::<HighwayHasher>(root, factor)),
+        ("BLAKE3", groups::<blake3::Hasher>(root, factor)),
+    ] {
+        assert_eq!(groups, expected, "hasher: {hasher}, factor: {factor:?}");
+    }
+}
+
+/// The groups `factor` reports under `root` when scanning with `H`, as
+/// sorted lists of file names.
+fn groups<H>(root: &TestDir, factor: Factor) -> Vec<Vec<String>>
+where
+    H: yadf::Hasher,
+    H::Hash: std::fmt::Debug,
+{
+    let counter = find_replicates::<H, _>(root, factor);
     let mut groups: Vec<Vec<String>> = counter
         .replicates(factor)
         .iter()
@@ -193,14 +210,12 @@ fn full_hash_never_matches_a_partial_hash() -> AnyResult {
     root.write_file("large1", &large)?;
     root.write_file("large2", &large)?;
 
-    assert_eq!(
-        groups(&root, Factor::Under(5)),
-        [vec!["large1", "large2"], vec!["other"], vec!["small"]]
+    assert_groups(
+        &root,
+        Factor::Under(5),
+        &[vec!["large1", "large2"], vec!["other"], vec!["small"]],
     );
-    assert_eq!(
-        groups(&root, Factor::Equal(1)),
-        [vec!["other"], vec!["small"]]
-    );
+    assert_groups(&root, Factor::Equal(1), &[vec!["other"], vec!["small"]]);
     Ok(())
 }
 
@@ -221,9 +236,10 @@ fn suffix_hash_never_matches_a_partial_hash() -> AnyResult {
     root.write_file("tail", &tail)?;
     root.write_file("twin", &twin)?;
 
-    assert_eq!(
-        groups(&root, Factor::Equal(1)),
-        [vec!["other"], vec!["small"], vec!["tail"], vec!["twin"]]
+    assert_groups(
+        &root,
+        Factor::Equal(1),
+        &[vec!["other"], vec!["small"], vec!["tail"], vec!["twin"]],
     );
     Ok(())
 }
@@ -247,9 +263,10 @@ fn suffix_hash_never_matches_a_partial_hash_of_the_same_size() -> AnyResult {
     root.write_file("tail", &tail)?;
     root.write_file("twin", &twin)?;
 
-    assert_eq!(
-        groups(&root, Factor::Equal(1)),
-        [vec!["head"], vec!["tail"], vec!["twin"]]
+    assert_groups(
+        &root,
+        Factor::Equal(1),
+        &[vec!["head"], vec!["tail"], vec!["twin"]],
     );
     Ok(())
 }
@@ -282,9 +299,9 @@ fn suffix_singletons_from_different_prefix_buckets_stay_separate() -> AnyResult 
         Factor::Under(2),
         Factor::Over(0),
     ] {
-        assert_eq!(groups(&root, factor), expected, "factor: {factor:?}");
+        assert_groups(&root, factor, &expected);
     }
 
-    assert!(groups(&root, Factor::Over(1)).is_empty());
+    assert_groups(&root, Factor::Over(1), &[]);
     Ok(())
 }
