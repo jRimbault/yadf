@@ -170,6 +170,61 @@ fn non_utf8_paths() -> AnyResult {
     Ok(())
 }
 
+/// Two names that are not Unicode and differ only by that byte stay two
+/// distinct paths, each recoverable to its exact bytes.
+#[cfg(all(unix, not(target_os = "macos")))]
+#[test]
+fn non_utf8_paths_are_lossless() -> AnyResult {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    use std::path::PathBuf;
+    let root = TestDir::new(test_dir!())?;
+    let names = [b"\xff".as_slice(), b"\xfe".as_slice()];
+    let paths = names.map(|name| {
+        let name = PathBuf::from(OsString::from_vec(name.to_vec()));
+        root.write_file(name, b"same")
+    });
+    let [first, second] = paths;
+    let mut expected = [first?, second?].map(|path| path.as_os_str().as_bytes().to_vec());
+    expected.sort();
+    let yadf = |format: &str| -> AnyResult<Vec<u8>> {
+        let output = assert_cmd::Command::cargo_bin(assert_cmd::pkg_name!())?
+            .args(["-f", format])
+            .arg(root.as_ref())
+            .output()?;
+        assert!(output.status.success(), "{format}: {output:?}");
+        Ok(output.stdout)
+    };
+
+    // The order of the files within a group is not stable, compare them sorted.
+    let sorted = |mut paths: Vec<Vec<u8>>| {
+        paths.sort();
+        paths
+    };
+
+    let json: Vec<Vec<serde_json::Value>> = serde_json::from_slice(&yadf("json")?)?;
+    let [group] = <[_; 1]>::try_from(json).expect("one group");
+    let decode = |path: serde_json::Value| -> Vec<u8> {
+        use base64::Engine;
+        let bytes = path["bytes"]
+            .as_str()
+            .expect("a non-Unicode path is an object");
+        base64::engine::general_purpose::STANDARD
+            .decode(bytes)
+            .unwrap()
+    };
+    assert_eq!(sorted(group.into_iter().map(decode).collect()), expected);
+
+    let csv = yadf("csv")?;
+    let record = csv
+        .strip_prefix(b"count,files\n2,")
+        .and_then(|rest| rest.strip_suffix(b"\n"))
+        .expect("a header and one group of two");
+    let fields = record.split(|&byte| byte == b',').map(<[u8]>::to_vec);
+    assert_eq!(sorted(fields.collect()), expected);
+    Ok(())
+}
+
 #[test]
 fn hard_links_flag() -> AnyResult {
     let predicate = predstr::contains("--hard-links");

@@ -46,6 +46,7 @@ rustix = { version = "1.1.4", default-features = false, features = ["fs", "proce
 
 [dependencies]
 # library dependencies
+base64 = "0.23.1"
 crossbeam-channel = "0.5.16"
 dunce = "1.0.5"
 globset = "0.4.19"

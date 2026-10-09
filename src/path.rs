@@ -23,6 +23,7 @@
 //! - `Hash` is consistent with `Eq` but does not produce the same hash value as
 //!   `PathBuf` would.
 
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -356,13 +357,51 @@ where
     }
 }
 
+/// A path that is valid Unicode serializes as a plain string. Any other
+/// can't be a string without losing bytes, so it serializes as a one-entry
+/// map holding its exact encoding in base64: `{"bytes": ...}` with the raw
+/// bytes on Unix, `{"utf16le": ...}` with the UTF-16 code units on Windows.
 impl serde::Serialize for Path {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        serializer.collect_str(self)
+        use base64::Engine;
+        use serde::ser::SerializeMap;
+        self.with_std_path(|path| match path.to_str() {
+            Some(text) => serializer.serialize_str(text),
+            None => {
+                let (key, bytes) = raw_encoding(path.as_os_str());
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry(
+                    key,
+                    &base64::engine::general_purpose::STANDARD.encode(bytes),
+                )?;
+                map.end()
+            }
+        })
     }
+}
+
+/// The exact encoding of `text`, named after what its bytes are.
+#[cfg(unix)]
+fn raw_encoding(text: &OsStr) -> (&'static str, Cow<'_, [u8]>) {
+    use std::os::unix::ffi::OsStrExt;
+    ("bytes", Cow::Borrowed(text.as_bytes()))
+}
+
+/// The exact encoding of `text`, named after what its bytes are.
+#[cfg(windows)]
+fn raw_encoding(text: &OsStr) -> (&'static str, Cow<'_, [u8]>) {
+    use std::os::windows::ffi::OsStrExt;
+    let bytes = text.encode_wide().flat_map(u16::to_le_bytes).collect();
+    ("utf16le", Cow::Owned(bytes))
+}
+
+/// The exact encoding of `text`, named after what its bytes are.
+#[cfg(not(any(unix, windows)))]
+fn raw_encoding(text: &OsStr) -> (&'static str, Cow<'_, [u8]>) {
+    ("bytes", Cow::Borrowed(text.as_encoded_bytes()))
 }
 
 #[cfg(test)]
@@ -464,6 +503,24 @@ mod tests {
         assert_eq!(compact.to_path_buf().as_os_str().as_bytes(), &bytes[..]);
         assert_eq!(compact.file_name().as_bytes(), b"\xff.bin");
         assert!(!compact.to_string().is_empty());
+    }
+
+    #[test]
+    fn serializes_unicode_as_a_string() {
+        let path = Path::from_path(StdPath::new("/a/b c/é.txt"));
+        let json = serde_json::to_string(&path).unwrap();
+        assert_eq!(json, r#""/a/b c/é.txt""#);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn serializes_non_unicode_losslessly() {
+        use std::os::unix::ffi::OsStringExt;
+        let path = |bytes: &[u8]| Path::from(OsString::from_vec(bytes.to_vec()));
+        let json = |bytes: &[u8]| serde_json::to_string(&path(bytes)).unwrap();
+        // base64 of "/tmp/\xff" and "/tmp/\xfe"
+        assert_eq!(json(b"/tmp/\xff"), r#"{"bytes":"L3RtcC//"}"#);
+        assert_eq!(json(b"/tmp/\xfe"), r#"{"bytes":"L3RtcC/+"}"#);
     }
 
     #[test]

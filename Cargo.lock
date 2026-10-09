@@ -155,6 +155,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1839,6 +1845,7 @@ dependencies = [
  "ahash 0.8.12",
  "anyhow",
  "assert_cmd",
+ "base64",
  "blake3",
  "byte-unit",
  "clap",

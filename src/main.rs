@@ -247,13 +247,38 @@ where
         .flexible(true)
         .has_headers(false)
         .from_writer(writer);
-    writer.serialize(("count", "files"))?;
+    writer.write_record(["count", "files"])?;
+    // CSV is bytes, so the paths go in as they are rather than through serde,
+    // which would need a non-Unicode path to be a map.
+    let mut record = csv::ByteRecord::new();
     for files in replicates {
-        writer.serialize((files.len(), files))?;
+        record.clear();
+        record.push_field(files.len().to_string().as_bytes());
+        for file in files {
+            file.with_std_path(|path| record.push_field(&path_bytes(path)));
+        }
+        writer.write_byte_record(&record)?;
     }
     // Same as a `BufWriter`: dropping the csv writer would swallow the error.
     writer.flush()?;
     Ok(())
+}
+
+/// The exact bytes of `path`, where the platform has them.
+#[cfg(unix)]
+fn path_bytes(path: &std::path::Path) -> std::borrow::Cow<'_, [u8]> {
+    use std::os::unix::ffi::OsStrExt;
+    path.as_os_str().as_bytes().into()
+}
+
+/// Windows paths are UTF-16, so a non-Unicode one can't be written as bytes
+/// without being converted.
+#[cfg(not(unix))]
+fn path_bytes(path: &std::path::Path) -> std::borrow::Cow<'_, [u8]> {
+    match path.to_string_lossy() {
+        std::borrow::Cow::Borrowed(text) => text.as_bytes().into(),
+        std::borrow::Cow::Owned(text) => text.into_bytes().into(),
+    }
 }
 
 /// mimic serde_json interface
