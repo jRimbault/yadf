@@ -507,9 +507,13 @@ mod tests {
 
     #[test]
     fn serializes_unicode_as_a_string() {
-        let path = Path::from_path(StdPath::new("/a/b c/é.txt"));
-        let json = serde_json::to_string(&path).unwrap();
-        assert_eq!(json, r#""/a/b c/é.txt""#);
+        // Components are rebuilt, so on Windows the separators come out as
+        // `\`, which JSON then escapes.
+        let original: PathBuf = StdPath::new("/a/b c/é.txt").components().collect();
+        let json = serde_json::to_string(&Path::from(&original)).unwrap();
+        let expected = serde_json::to_string(original.to_str().unwrap()).unwrap();
+        assert_eq!(json, expected);
+        assert!(json.starts_with('"'));
     }
 
     #[cfg(unix)]
