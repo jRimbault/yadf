@@ -24,22 +24,19 @@ where
     }
 }
 
+/// Every value ends with a NUL, and every bucket with one more: an empty
+/// record, which no path can be.
 impl<K, V> fmt::Display for Display<'_, K, V, Machine>
 where
     V: fmt::Display + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut duplicates = self.tree.iter().peekable();
-        while let Some(bucket) = duplicates.next() {
-            let (last, rest) = bucket.split_last().ok_or(fmt::Error)?;
-            for dupe in rest {
-                fmt::Debug::fmt(dupe, f)?;
-                f.write_str(" ")?;
+        for bucket in self.tree.iter() {
+            for dupe in bucket {
+                fmt::Display::fmt(dupe, f)?;
+                f.write_str("\0")?;
             }
-            fmt::Debug::fmt(last, f)?;
-            if duplicates.peek().is_some() {
-                f.write_str("\n")?;
-            }
+            f.write_str("\0")?;
         }
         Ok(())
     }
@@ -66,10 +63,7 @@ mod tests {
     #[test]
     fn machine() {
         let result = BAG.duplicates().display::<Machine>().to_string();
-        let expected = "\
-            \"foo\" \"bar\"\n\
-            \"hello\" \"world\"\
-        ";
+        let expected = "foo\0bar\0\0hello\0world\0\0";
         assert_eq!(result, expected);
     }
 

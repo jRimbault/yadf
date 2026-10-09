@@ -222,6 +222,13 @@ fn non_utf8_paths_are_lossless() -> AnyResult {
         .expect("a header and one group of two");
     let fields = record.split(|&byte| byte == b',').map(<[u8]>::to_vec);
     assert_eq!(sorted(fields.collect()), expected);
+
+    let machine = yadf("machine")?;
+    let group = machine
+        .strip_suffix(b"\0\0")
+        .expect("one group, ended by an empty record");
+    let paths = group.split(|&byte| byte == 0).map(<[u8]>::to_vec);
+    assert_eq!(sorted(paths.collect()), expected);
     Ok(())
 }
 
@@ -257,10 +264,9 @@ fn single_thread_does_not_deadlock() -> AnyResult {
         .assert()
         .success()
         .stdout(
-            // The machine format quotes and escapes each path (`\\` on
-            // Windows), so match the quoted form rather than the raw one.
-            predstr::contains(format!("{file1:?}"))
-                .and(predstr::contains(format!("{file2:?}")))
+            // The machine format ends each path with a NUL.
+            predstr::contains(format!("{}\0", file1.display()))
+                .and(predstr::contains(format!("{}\0", file2.display())))
                 .and(predstr::contains("unique").not()),
         );
     Ok(())

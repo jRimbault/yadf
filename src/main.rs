@@ -11,7 +11,7 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
-use yadf::{Fdupes, Machine};
+use yadf::Fdupes;
 
 fn main() -> anyhow::Result<()> {
     allocator::setup();
@@ -128,7 +128,7 @@ impl Format {
             Format::Csv => csv_to_writer::<_, H>(&mut writer, &replicates)?,
             Format::LdJson => ldjson_to_writer::<_, H>(&mut writer, &replicates)?,
             Format::Fdupes => writeln!(writer, "{}", replicates.display::<Fdupes>())?,
-            Format::Machine => writeln!(writer, "{}", replicates.display::<Machine>())?,
+            Format::Machine => machine_to_writer::<_, H>(&mut writer, &replicates)?,
         };
         // Dropping a `BufWriter` flushes it but swallows the error.
         writer.flush()?;
@@ -261,6 +261,26 @@ where
     }
     // Same as a `BufWriter`: dropping the csv writer would swallow the error.
     writer.flush()?;
+    Ok(())
+}
+
+/// The layout of [`yadf::Machine`], with the exact bytes of each path rather than
+/// their `Display`: every path ends with a NUL, every group with one more.
+fn machine_to_writer<W, H>(
+    mut writer: W,
+    replicates: &yadf::FileReplicates<'_, H::Hash>,
+) -> io::Result<()>
+where
+    H: yadf::Hasher,
+    W: Write,
+{
+    for files in replicates {
+        for file in files {
+            file.with_std_path(|path| writer.write_all(&path_bytes(path)))?;
+            writer.write_all(b"\0")?;
+        }
+        writer.write_all(b"\0")?;
+    }
     Ok(())
 }
 
