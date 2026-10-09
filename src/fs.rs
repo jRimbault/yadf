@@ -186,11 +186,13 @@ fn hash_size_bucket<H>(sink: &Sink<H::Hash, Candidate>, (size, bucket): (Bytes, 
 where
     H: crate::hasher::Hasher,
 {
-    if bucket.len() == 1 {
-        let path = bucket.into_iter().next().unwrap();
-        sink.send(hash::size_only::<H>(size), Candidate { path, size });
-        return;
-    }
+    let bucket = match <[_; 1]>::try_from(bucket) {
+        Ok([path]) => {
+            sink.send(hash::size_only::<H>(size), Candidate { path, size });
+            return;
+        }
+        Err(bucket) => bucket,
+    };
     bucket
         .into_par_iter()
         .for_each_with(sink.clone(), |sink, path| {
@@ -208,11 +210,13 @@ fn process_bucket<H>(
 ) where
     H: crate::hasher::Hasher,
 {
-    if bucket.len() == 1 {
-        let candidate = bucket.into_iter().next().unwrap();
-        sink.send(old_hash, candidate.path);
-        return;
-    }
+    let bucket = match <[_; 1]>::try_from(bucket) {
+        Ok([candidate]) => {
+            sink.send(old_hash, candidate.path);
+            return;
+        }
+        Err(bucket) => bucket,
+    };
     let (large, rest): (Vec<_>, Vec<_>) = bucket
         .into_iter()
         .partition(|candidate| candidate.size >= SUFFIX_HASH_THRESHOLD);
@@ -250,11 +254,13 @@ fn process_bucket<H>(
             if !factor.reachable(group.len()) {
                 return;
             }
-            if group.len() == 1 {
-                let candidate = group.into_iter().next().unwrap();
-                sink.send(suffix_hash, candidate.path);
-                return;
-            }
+            let group = match <[_; 1]>::try_from(group) {
+                Ok([candidate]) => {
+                    sink.send(suffix_hash, candidate.path);
+                    return;
+                }
+                Err(group) => group,
+            };
             group
                 .into_par_iter()
                 .for_each_with(sink.clone(), |sink, candidate| {
