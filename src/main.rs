@@ -125,11 +125,13 @@ impl Format {
                 serde_json::to_writer_pretty(&mut writer, &replicates)?;
                 writer.write_all(b"\n")?;
             }
-            Format::Csv => csv_to_writer::<_, H>(writer, &replicates)?,
-            Format::LdJson => ldjson_to_writer::<_, H>(writer, &replicates)?,
+            Format::Csv => csv_to_writer::<_, H>(&mut writer, &replicates)?,
+            Format::LdJson => ldjson_to_writer::<_, H>(&mut writer, &replicates)?,
             Format::Fdupes => writeln!(writer, "{}", replicates.display::<Fdupes>())?,
             Format::Machine => writeln!(writer, "{}", replicates.display::<Machine>())?,
         };
+        // Dropping a `BufWriter` flushes it but swallows the error.
+        writer.flush()?;
         Ok(())
     }
 }
@@ -249,6 +251,8 @@ where
     for files in replicates {
         writer.serialize((files.len(), files))?;
     }
+    // Same as a `BufWriter`: dropping the csv writer would swallow the error.
+    writer.flush()?;
     Ok(())
 }
 
