@@ -1,24 +1,19 @@
 use super::{Display, Fdupes, Machine};
 use std::fmt;
 
+/// Like `fdupes`: every value ends with a newline, and every bucket with
+/// one more, the last one included.
 impl<K, V> fmt::Display for Display<'_, K, V, Fdupes>
 where
     V: fmt::Display + fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut duplicates = self.tree.iter().peekable();
-        while let Some(bucket) = duplicates.next() {
-            let mut bucket = bucket.iter().peekable();
-            let is_last_bucket = duplicates.peek().is_none();
-            while let Some(dupe) = bucket.next() {
+        for bucket in self.tree.iter() {
+            for dupe in bucket {
                 fmt::Display::fmt(dupe, f)?;
-                if bucket.peek().is_some() || !is_last_bucket {
-                    f.write_str("\n")?;
-                }
-            }
-            if !is_last_bucket {
                 f.write_str("\n")?;
             }
+            f.write_str("\n")?;
         }
         Ok(())
     }
@@ -70,13 +65,7 @@ mod tests {
     #[test]
     fn fdupes() {
         let result = BAG.duplicates().display::<Fdupes>().to_string();
-        let expected = "\
-            foo\n\
-            bar\n\
-            \n\
-            hello\n\
-            world\
-        ";
+        let expected = "foo\nbar\n\nhello\nworld\n\n";
         assert_eq!(result, expected);
     }
 }

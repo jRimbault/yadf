@@ -19,7 +19,7 @@
 //!     .paths(paths)
 //!     .build()
 //!     .scan::<highway::HighwayHasher>();
-//! println!("{}", counter.duplicates().display::<yadf::Fdupes>());
+//! print!("{}", counter.duplicates().display::<yadf::Fdupes>());
 //! # }
 //! ```
 #![deny(unsafe_code)]

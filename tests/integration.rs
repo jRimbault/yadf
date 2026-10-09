@@ -229,6 +229,13 @@ fn non_utf8_paths_are_lossless() -> AnyResult {
         .expect("one group, ended by an empty record");
     let paths = group.split(|&byte| byte == 0).map(<[u8]>::to_vec);
     assert_eq!(sorted(paths.collect()), expected);
+
+    let fdupes = yadf("fdupes")?;
+    let group = fdupes
+        .strip_suffix(b"\n\n")
+        .expect("one group, ended by a blank line");
+    let paths = group.split(|&byte| byte == b'\n').map(<[u8]>::to_vec);
+    assert_eq!(sorted(paths.collect()), expected);
     Ok(())
 }
 
