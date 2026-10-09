@@ -27,12 +27,17 @@ impl Args {
 
     pub fn init_from_env() -> Self {
         let long_version = env!("YADF_BUILD_VERSION").replace('|', "\n");
-        let short_version = long_version.lines().next().unwrap().to_string();
+        let short_version = long_version
+            .lines()
+            .next()
+            .expect("build.rs always sets a non-empty YADF_BUILD_VERSION")
+            .to_string();
         let app = Self::command()
             .version(short_version)
             .long_version(long_version)
             .after_help("For sizes, K/M/G/T[B|iB] suffixes can be used (case-insensitive).");
-        let mut args = Self::from_arg_matches(&app.get_matches()).unwrap();
+        let mut args = Self::from_arg_matches(&app.get_matches())
+            .expect("matches come from Self::command(), so they always fit Self");
         init_logger(&args.verbosity);
         args.build_paths();
         args

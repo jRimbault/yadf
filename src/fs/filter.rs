@@ -144,7 +144,10 @@ mod inode {
     impl InodeSet {
         fn is_unique(&self, dev: u64, ino: u64) -> bool {
             let shard = ino as usize % SHARD_COUNT;
-            self.shards[shard].lock().unwrap().insert((dev, ino))
+            self.shards[shard]
+                .lock()
+                .expect("inode shard lock poisoned by a panicking thread")
+                .insert((dev, ino))
         }
     }
 
